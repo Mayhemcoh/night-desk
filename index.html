@@ -400,6 +400,21 @@ input.seed{min-height:44px;border-radius:10px;border:1px solid var(--line);backg
 /* v1.9.2 outcome reason */
 .note.outcome-reason{font-size:13px}.note.outcome-reason .why{opacity:.85;margin-top:3px;font-size:12px}
 
+/* v1.9.3 linked-pair switch row */
+.pair-row{flex-basis:100%;display:flex;gap:8px;align-items:center;min-width:0}
+.pair-ab{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none}
+.pair-ab .ab{min-width:36px;min-height:44px;border:0;background:transparent;color:#c9d3e0;font-weight:800;font-size:14px;cursor:pointer}
+.pair-ab .ab.on{background:rgba(125,211,252,.25);color:#fff}
+.pair-switch{flex:1;min-width:0;min-height:44px;padding:0 12px;border-radius:10px;border:1px dashed rgba(125,211,252,.8);background:rgba(125,211,252,.10);color:#e8f6ff;font-size:14px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background .12s}
+.pair-switch:hover,.pair-switch:focus-visible{background:rgba(125,211,252,.22)}
+.pair-switch small{color:#cfe8f7}
+.pair-row.gone .pair-switch{border-style:solid;border-color:var(--line);background:transparent;color:#c9d3e0;cursor:not-allowed}
+.pill.shared{border-color:rgba(125,211,252,.7)}
+@media (orientation:landscape) and (max-height:520px){.pair-switch,.pair-ab .ab{min-height:40px}.pair-switch{font-size:13px}}
+html.reduce-fx .pair-switch{transition:none}
+@media (prefers-reduced-motion:reduce){.pair-switch{transition:none}}
+@media (max-width:480px){.pair-switch small{display:none}.pair-switch{padding:0 10px}}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -650,6 +665,18 @@ html .lk-prev[data-look="neon"]{--lk-panel:#1a0b33;--lk-border:1px solid #ff2bd6
 html .lk-prev[data-look="crt"]{--lk-panel:#0f0a01;--lk-border:2px solid #ffb000;--lk-shadow:0 0 12px rgba(255,176,0,.3);--lk-radius:0;--lk-title:#ffe08a;--lk-opt:#0b0700;--lk-btn:#ffb000;--lk-btn-txt:#0b0700;--lk-font:"ND VT323","Courier New",monospace;--lk-bg:#0b0700}
 html .lk-prev[data-look="clean"]{--lk-panel:#1b2238;--lk-border:0 solid transparent;--lk-shadow:0 10px 24px rgba(0,0,0,.5);--lk-radius:18px;--lk-title:#eef2ff;--lk-opt:#222b47;--lk-btn:linear-gradient(180deg,#ff6fa0,#e8467e);--lk-btn-txt:#fff;--lk-font:"ND Inter",system-ui,sans-serif;--lk-bg:#0b1020}
 html .lk-prev,html .lk-prev *{font-family:var(--lk-font)!important;text-shadow:none!important;letter-spacing:normal!important;text-transform:none!important;filter:none!important}html .lk-prev .lt,html .lk-prev .lo{color:var(--lk-title)!important}html .lk-prev .lb{color:var(--lk-btn-txt)!important;background:var(--lk-btn)!important}html .lk-prev .lp{background:var(--lk-panel)!important}html .lk-prev .lo{background:var(--lk-opt)!important}
+
+/* v1.9.3 switch row per look */
+html[data-look="comic"] .pair-switch{background:#ffd400!important;color:#111!important;border:3px solid #111!important;border-radius:6px!important;font-weight:800}
+html[data-look="comic"] .pair-switch small{color:#111!important}
+html[data-look="comic"] .pair-ab{border:3px solid #111!important;background:#fff}
+html[data-look="comic"] .pair-ab .ab{color:#111!important}html[data-look="comic"] .pair-ab .ab.on{background:#111!important;color:#ffd400!important}
+html[data-look="neon"] .pair-switch{border:1px solid #ff2bd6!important;box-shadow:0 0 10px #ff2bd655;background:rgba(255,43,214,.08)!important}
+html.reduce-fx[data-look="neon"] .pair-switch{box-shadow:none}
+html[data-look="crt"] .pair-switch{border:1px dashed #ffb000!important;color:#ffcf66!important;background:transparent!important;font-family:ui-monospace,monospace}
+html[data-look="crt"] .pair-switch small{color:#ffcf66!important}
+html[data-look="crt"] .pair-ab{border-color:#ffb000!important}html[data-look="crt"] .pair-ab .ab{color:#ffb000!important}html[data-look="crt"] .pair-ab .ab.on{background:#ffb000!important;color:#111!important}
+html[data-look="clean"] .pair-switch{border:1px solid rgba(255,255,255,.14)!important;background:rgba(255,255,255,.04)!important;border-radius:8px!important}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -2430,17 +2457,31 @@ function openCall(c) {
 }
 
 /* ---------- briefing ---------- */
+/* v1.9.3: linked-pair switch helpers (UI only: never touch odds, dice, expiry or stage) */
+function pairPartner(S, c) { if (!c || !c.pairUid) return null; const o = S.calls.find(x => x.uid === c.pairUid); return o && o.stage === 'pending' ? o : null; }
+function pairLetter(c) { return c.uid < c.pairUid ? 'A' : 'B'; }
+function sanitizeAssigned(camp, c) { c.assigned = c.assigned.map(id => (id && (id === c.autoHero || canDispatchHero(camp, id))) ? id : null); }
+function carryOver(camp, from, to) { if (!from || !to || to.assigned.some(id => id && id !== to.autoHero)) return null; const res = { moved: 0, skipped: 0 };
+  const blocked = id => !canDispatchHero(camp, id) || (to.tpl.banned && to.tpl.banned[id]) || afList(to.tpl).some(x => x.heroId === id) || to.assigned.includes(id);
+  for (const id of from.assigned) { if (!id) continue; if (blocked(id)) { res.skipped++; continue; } const i = to.assigned.findIndex((x, k) => !x && !(k === 0 && to.autoHero)); if (i < 0) { res.skipped++; continue; } to.assigned[i] = id; res.moved++; }
+  return res; }
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
-  c.assigned = c.assigned.map(id => (id && (id === c.autoHero || canDispatchHero(camp, id))) ? id : null);
+  sanitizeAssigned(camp, c);
   openModal('briefing', m => {
+    m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render();
+      if (co && (co.moved || co.skipped)) toast(`⇄ Brought ${co.moved} hero${co.moved === 1 ? '' : 'es'} over${co.skipped ? ` (${co.skipped} didn't fit)` : ''}.`, 2500); return true; };
     const render = () => {
+      if (c.stage !== 'pending') { closeModal(); toast('That call is gone.'); return; }
+      const po = c.pairUid ? S.calls.find(x => x.uid === c.pairUid) : null, pp = pairPartner(S, c), pl = c.pairUid ? pairLetter(c) : null;
+      const pairRow = !c.pairUid ? '' : pp ? `<div class="pair-row"><span class="pair-ab" role="group" aria-label="Linked options"><button class="ab ${pl === 'A' ? 'on' : ''}" data-ab="A" ${pl === 'A' ? 'aria-current="true"' : ''}>A</button><button class="ab ${pl === 'B' ? 'on' : ''}" data-ab="B" ${pl === 'B' ? 'aria-current="true"' : ''}>B</button></span><button class="pair-switch" data-a="pairswitch" title="${esc(pp.tpl.title)}" aria-label="Switch to option ${pl === 'A' ? 'B' : 'A'}: ${esc(pp.tpl.title)}">⇄ Switch to: <b>${esc(pp.tpl.title)}</b> <small>· 👥 ${pp.slots} · ${esc(pp.difficulty)}</small></button></div>`
+        : `<div class="pair-row gone"><span class="pair-ab"><button class="ab on" disabled>${pl}</button></span><button class="pair-switch" disabled aria-disabled="true">⇄ Other option: <b>${esc(po ? po.tpl.title : '?')}</b> <small>— no longer available${po && po.result ? ' (' + esc(po.result) + ')' : ''}</small></button></div>`;
       const info = successChance(camp, S, c, c.assigned, { atDispatch: true }); const tpl = c.tpl; const rem = Math.max(0, c.expiresAt - S.t);
       const est = info.forced ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info }).perHero : {};
       let notes = '';
       if (tpl.type === 'competing') notes += `<div class="opts" style="margin-bottom:6px">${tpl.options.map((o, i) => `<button class="opt ${c.option === i ? 'on' : ''}" data-opt="${i}"><span>${c.option === i ? '◉' : '○'}</span><span><b>${esc(o.label)}</b><br><small>${esc(o.desc.replace('the named hero', camp.heroes[c.namedHero].codename))}</small></span></button>`).join('')}</div>`;
       if (tpl.goals && tpl.goals.length) notes = `<div class="goals"><b>GOALS</b>${tpl.goals.map((g, i) => `<div class="goal">${i + 1}. ${esc(g)}</div>`).join('')}</div>` + notes;
-      if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); notes += `<div class="note pair">⇄ Linked with <b>${esc(o ? o.tpl.title : '?')}</b>: send a team to one and the other is declined.${tpl.competingReward ? ` Reward: <b>${esc(tpl.competingReward)}</b>` : ''}${c.namedHero ? ` (named hero: ${esc(camp.heroes[c.namedHero].codename)})` : ''}</div>`; }
+      if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); notes += `<div class="note pair">⇄ Option ${pairLetter(c)} of 2 · linked with <b>${esc(o ? o.tpl.title : '?')}</b>. Dispatching either one declines the other. Both expire together in ${Math.ceil(rem)}s.${tpl.competingReward ? ` Reward: <b>${esc(tpl.competingReward)}</b>` : ''}${c.namedHero ? ` (named hero: ${esc(camp.heroes[c.namedHero].codename)})` : ''}</div>`; }
       if (c.requestHero) { const rh = camp.heroes[c.requestHero]; notes += `<div class="note req">🙋 <b>${esc(rh.codename)}</b> asks to take this call.${c.requestReason ? ' ' + esc(c.requestReason) : ''} Grant it for +1 morale; refusing twice sulks them for a shift.</div>`; }
       if (c.autoHero && !tpl.story) notes += `<div class="note">🔒 <b>${esc(camp.heroes[c.autoHero].codename)}</b> already grabbed this call and will not budge.${c.autoLine ? ' ' + esc(c.autoLine) : ''}</div>`;
       if (tpl.story) notes += `<div class="note story">📖 <b>${esc(camp.heroes[c.autoHero].codename)}</b> picked this one up. How should it play out? (Both succeed.)<div class="opts">${tpl.story.choices.map((o, i) => `<button class="opt ${(c.storyChoice || 0) === i ? 'on' : ''}" data-story="${i}"><span>${(c.storyChoice || 0) === i ? '◉' : '○'}</span><span>${esc(o.label)}${o.morale ? ' <small>(+1 morale)</small>' : ''}</span></button>`).join('')}</div></div>`;
@@ -2466,7 +2507,7 @@ function openBriefing(c) {
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
-      const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill">⏱ ${Math.ceil(rem)}s</span><span class="pill">👥 ${c.slots}</span>`,
+      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${Math.ceil(rem)}s${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.slots}</span>`,
         `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}<div class="slots">${slots}</div>${chanceBox}<div class="links">${links}</div></div>
          <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}
          <div style="margin-top:8px;font-size:12px;color:var(--dim)">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div></div>`,
@@ -2477,12 +2518,15 @@ function openBriefing(c) {
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) c.assigned[i] = null; sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
       P.B.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
+      P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
+      P.H.querySelectorAll('.pair-ab [data-ab]:not([disabled])').forEach(b => b.onclick = () => { if (b.dataset.ab !== pairLetter(c)) m.switchPair(); });
+      if (c.pairUid && pp) tutorial('pairswitch', '⇄ Tap Switch to compare the two options. The clock is paused while you look.');
       P.F.querySelector('[data-a=close]').onclick = () => { Sfx.click(); closeModal(); };
       P.F.querySelector('[data-a=go]').onclick = () => doDispatch();
       m.keyHero = i => { const id = camp.roster[i]; if (id) assign(id, null); }; m.enter = () => doDispatch();
     };
     const assign = (id, slotIdx) => { if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.slots) return; if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
-    const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean)) return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
+    const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean) || c.stage !== 'pending') return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
     render(); m.render = render;
   });
 }
@@ -3188,6 +3232,7 @@ function initInput() {
     const m = UI.modals[0];
     if (k === 'Escape') { if (m) closeModal(); return; }
     if (k === ' ') { e.preventDefault(); if (m && m.kind === 'pause') closeModal(); else if (!m) { UI.userPaused = !UI.userPaused; } return; }
+    if ((k === 's' || k === 'S' || k === 'ArrowLeft' || k === 'ArrowRight') && m && m.kind === 'briefing' && m.switchPair) { e.preventDefault(); m.switchPair(); return; } // v1.9.3
     if (/^[1-9]$/.test(k) && m && m.keyHero) { m.keyHero(+k - 1); return; }
     if (k === 'Enter' && m && m.enter) { m.enter(); }
   });
