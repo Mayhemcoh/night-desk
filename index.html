@@ -414,6 +414,20 @@ input.seed{min-height:44px;border-radius:10px;border:1px solid var(--line);backg
 html.reduce-fx .pair-switch{transition:none}
 @media (prefers-reduced-motion:reduce){.pair-switch{transition:none}}
 @media (max-width:480px){.pair-switch small{display:none}.pair-switch{padding:0 10px}}
+/* v1.9.4 hero info card from the briefing */
+.chipwrap{position:relative;display:flex}.chipwrap>.chip{flex:1;min-width:0}
+.hinfo{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:#0b1126;color:var(--txt,#e8ecff);font:italic 700 13px Georgia,serif;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;z-index:2;touch-action:manipulation}
+.hinfo::before{content:'';position:absolute;inset:-8px}
+.hinfo:focus-visible{outline:2px solid #3ef0ff;outline-offset:1px}
+.slot .hinfo.inslot{top:2px;left:4px;right:auto}
+.hero-overlay{position:absolute;inset:0;z-index:30;background:#000c;display:flex;align-items:center;justify-content:center;padding:calc(var(--sat) + 10px) calc(var(--sar) + 10px) calc(var(--sab) + 10px) calc(var(--sal) + 10px);overscroll-behavior:contain;animation:hcIn .14s ease-out}
+.hero-overlay .sheet{max-width:680px}
+.hc-x{margin-left:auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:transparent;color:inherit;font-size:16px;cursor:pointer;flex:none}
+.hc-call{border-left:3px solid #3ef0ff}.hc-call>div{margin-top:3px;font-size:12px}
+@keyframes hcIn{from{opacity:0}to{opacity:1}}
+html.reduce-fx .hero-overlay,html.reduce-fx .hero-overlay .sheet{animation:none!important}
+@media (prefers-reduced-motion:reduce){.hero-overlay{animation:none}}
+@media (max-height:500px) and (orientation:landscape){.hero-overlay{padding:4px calc(var(--sar) + 6px) 4px calc(var(--sal) + 6px)}.hinfo{width:22px;height:22px;font-size:12px}}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -677,6 +691,16 @@ html[data-look="crt"] .pair-switch{border:1px dashed #ffb000!important;color:#ff
 html[data-look="crt"] .pair-switch small{color:#ffcf66!important}
 html[data-look="crt"] .pair-ab{border-color:#ffb000!important}html[data-look="crt"] .pair-ab .ab{color:#ffb000!important}html[data-look="crt"] .pair-ab .ab.on{background:#ffb000!important;color:#111!important}
 html[data-look="clean"] .pair-switch{border:1px solid rgba(255,255,255,.14)!important;background:rgba(255,255,255,.04)!important;border-radius:8px!important}
+/* v1.9.4 hero info button + card */
+html[data-look="comic"] .hinfo{background:#fff!important;color:#111!important;border:2px solid #111!important;font-style:normal}
+html[data-look="comic"] .hero-overlay{background:rgba(0,0,0,.7)}
+html[data-look="neon"] .hinfo{border-color:#ff2bd6!important;color:#ff7be6!important;box-shadow:0 0 6px #ff2bd677}
+html.reduce-fx[data-look="neon"] .hinfo{box-shadow:none}
+html[data-look="neon"] .hc-call{border-left-color:#ff2bd6}
+html[data-look="crt"] .hinfo{border:1px dashed #ffb000!important;color:#ffcf66!important;background:#000!important;font:700 12px ui-monospace,monospace}
+html[data-look="crt"] .hc-call{border-left-color:#ffb000}
+html[data-look="clean"] .hinfo{border:1px solid rgba(255,255,255,.2)!important;background:rgba(20,22,28,.9)!important;font-style:normal;font-family:system-ui,sans-serif}
+html[data-look="clean"] .hc-call{border-left-color:rgba(255,255,255,.35)}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -2242,7 +2266,7 @@ function loadCamp() { // loads + migrates (v1 -> v2). Never throws: a bad save r
   const raw = Store.get(SAVE_KEY); if (!raw) return null;
   try { const c = JSON.parse(raw); const wasV5 = c && c.v === 5; const wasV4 = c && c.v === 4; const wasV3 = c && c.v === 3; const m = migrateCamp(c); if (!wasV5) { if (wasV4) Store.set('nightdesk.save.v4.bak', raw); if (wasV3) Store.set('nightdesk.save.v3.bak', raw); Store.set(SAVE_KEY + '.bak', raw); Store.set(SAVE_KEY, JSON.stringify(m)); UI.migrated = true; } return m; }
   catch (e) { console.warn('Night Desk: unreadable save, ignoring it.', e && e.message); UI.saveError = true; Store.set(SAVE_KEY + '.corrupt', raw); return null; } }
-function isPaused() { return UI.userPaused || UI.modals.length > 0 || !!UI.hack || UI.screen !== 'game'; }
+function isPaused() { return UI.userPaused || UI.modals.length > 0 || !!UI.heroCard || !!UI.hack || UI.screen !== 'game'; }
 function stateLabel(h) { return { available: 'Ready', traveling: 'Traveling', working: 'Working', returning: 'Returning', resting: 'Resting', awaitingReview: 'Review!', downed: 'Downed', sabotaged: 'Sabotaged!' }[h.state] || h.state; }
 const STATE_COL = { available: '#4cd97b', traveling: '#4fb3ff', working: '#4fb3ff', returning: '#3ef0ff', resting: '#4cd97b', awaitingReview: '#ffd23f', downed: '#888', sabotaged: '#ff3ea5' };
 function markup(t) { return esc(t).replace(/\[\[([^|\]]+)\|(\w+)\]\]/g, (_, w, s) => `<span class="kw" style="color:${STAT_COLORS[s]};background:${STAT_COLORS[s]}22">${w}</span>`); }
@@ -2289,7 +2313,7 @@ function openModal(kind, build) {
   const sheet = h('div', 'sheet'); sheet.dataset.kind = kind; wrap.innerHTML = ''; wrap.appendChild(sheet);
   const m = { kind, sheet, onClose: null }; UI.modals = [m]; build(m); return m;
 }
-function closeModal() { const m = UI.modals.pop(); if (m && m.onClose) m.onClose(); $('modal').classList.add('hidden'); $('modal').innerHTML = ''; UI.modals = []; }
+function closeModal() { if (UI.heroCard && typeof closeHeroCard === 'function') closeHeroCard(); const m = UI.modals.pop(); if (m && m.onClose) m.onClose(); $('modal').classList.add('hidden'); $('modal').innerHTML = ''; UI.modals = []; }
 function sheetParts(m, head, body, foot) { m.sheet.innerHTML = `<div class="sh-h">${head}</div><div class="sh-b">${body}</div><div class="sh-f">${foot}</div>`; return { H: m.sheet.querySelector('.sh-h'), B: m.sheet.querySelector('.sh-b'), F: m.sheet.querySelector('.sh-f') }; }
 
 /* ---------- radar ---------- */
@@ -2500,9 +2524,9 @@ function openBriefing(c) {
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
       const slots = c.assigned.map((id, i) => { if (!id) return `<div class="slot ${sel === i ? 'sel' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>Slot ${i + 1}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
-        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div><div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
+        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div><div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]);
-        return `<button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${i + 1}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button>`; }).join('');
+        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${i + 1}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
@@ -2518,6 +2542,7 @@ function openBriefing(c) {
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) c.assigned[i] = null; sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
       P.B.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
+      P.B.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
       P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
       P.H.querySelectorAll('.pair-ab [data-ab]:not([disabled])').forEach(b => b.onclick = () => { if (b.dataset.ab !== pairLetter(c)) m.switchPair(); });
       if (c.pairUid && pp) tutorial('pairswitch', '⇄ Tap Switch to compare the two options. The clock is paused while you look.');
@@ -2685,24 +2710,50 @@ function powerListHTML(h) {
   for (const p of h.powers) if (p !== cur && !(def.train || []).includes(p)) out.push(`<div class="pw"><b>${esc(POWERS[p].name)}</b><small>${esc(POWERS[p].desc)}</small></div>`);
   return out.join('');
 }
-function openHeroInfo(id) {
-  const camp = UI.camp, hh = camp.heroes[id]; openModal('hero', m => { const render = () => {
+function openHeroInfo(id) { openModal('hero', m => heroInfoBuild(m, id, null)); }
+/* v1.9.4: hero card as an overlay ABOVE an open briefing. Not a modal (UI.modals untouched), so the briefing, its picks and
+   its linked-switch state survive; the clock stays paused because the briefing is still open (+ isPaused checks UI.heroCard). */
+function openHeroCard(id, call, onClose) {
+  closeHeroCard(); const ov = h('div', 'hero-overlay'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); const sheet = h('div', 'sheet hero-card'); sheet.dataset.kind = 'herocard'; ov.appendChild(sheet);
+  $('modal').parentNode.appendChild(ov); const prevFocus = document.activeElement;
+  const m = { kind: 'herocard', sheet, ov, id, call, close: () => { if (UI.heroCard !== m) return; UI.heroCard = null; ov.remove(); if (onClose) onClose(); if (prevFocus && prevFocus.isConnected) try { prevFocus.focus(); } catch (e) { } } };
+  ov.addEventListener('pointerdown', e => { if (e.target === ov) { e.preventDefault(); m.close(); } });
+  UI.heroCard = m; heroInfoBuild(m, id, { call }); const x = sheet.querySelector('[data-a=close]'); if (x) x.focus(); return m; }
+function closeHeroCard() { if (UI.heroCard) UI.heroCard.close(); }
+function heroCallHTML(camp, hh, call) { // mission-relevant highlights (only what the briefing already reveals)
+  if (!call || !call.tpl || !UI.S) return ''; const tpl = call.tpl, S = UI.S, rows = []; const id = hh.id;
+  const asked = [...new Set([...(tpl.text || '').matchAll(/\[\[[^|\]]+\|(\w+)\]\]/g)].map(x => STATS.indexOf(x[1])).filter(i => i >= 0))];
+  const st = effStats(camp, hh, 0, null);
+  if (asked.length) rows.push(`This call asks for ${asked.map(i => `<b>${STAT_NAMES[STATS[i]]}</b>`).join(' and ')}: ${esc(hh.codename)} has ${asked.map(i => `${STATS[i]} ${st[i]}`).join(' · ')}.`);
+  if (tpl.banned && tpl.banned[id]) rows.push(`⛔ Can't be sent on this call${typeof tpl.banned[id] === 'string' ? ': ' + esc(tpl.banned[id]) : '.'}`);
+  if (!canDispatchHero(camp, id)) rows.push(`⏳ Not available right now (${esc(stateLabel(hh))}).`);
+  const team = (call.assigned || []).filter(x => x && x !== id);
+  for (const [a, b] of SYNERGY_PAIRS) if ((a === id || b === id) && team.includes(a === id ? b : a)) rows.push(`🔗 Synergy with ${esc(camp.heroes[a === id ? b : a].codename)} on this team.`);
+  if (S.idx + 1 >= CONFIG.conflictsFromShift) for (const [a, b] of CONFLICT_PAIRS) if ((a === id || b === id) && team.includes(a === id ? b : a) && !camp.conflictNeutral[pairKey(a, b)]) rows.push(`⚡ Conflict with ${esc(camp.heroes[a === id ? b : a].codename)} on this team.`);
+  if (call.requestHero === id) rows.push('🙋 Asked for this call: sending them gives +1 morale.');
+  if (call.autoHero === id) rows.push('🔒 Locked onto this call.');
+  if (call.sabotaged === id) rows.push('🗡 Pulled off by sabotage.');
+  const hopts = ((tpl.disruption || {}).heroOptions || []).filter(o => o.heroId === id); if (hopts.length) rows.push(`⭐ Has a special idea for this call's radio check${hopts.some(o => o.trapHint) ? ' <small>' + esc(hopts.find(o => o.trapHint).trapHint) + '</small>' : ''}.`);
+  return `<div class="note hc-call"><b>On “${esc(tpl.title)}”</b>${rows.map(r => `<div>${r}</div>`).join('') || '<div>No special notes for this call.</div>'}</div>`; }
+function heroInfoBuild(m, id, opts) {
+  opts = opts || {}; const overlay = m.kind === 'herocard'; const closeIt = () => overlay ? m.close() : closeModal();
+  const camp = UI.camp, hh = camp.heroes[id]; { const render = () => {
     const st = effStats(camp, hh, 0, null); const syn = hh.synergyPartner && camp.pool && camp.pool.includes(hh.synergyPartner) ? camp.heroes[hh.synergyPartner] : null;
     const thr = hh.noXP ? '' : `<div class="thr">${Array.from({ length: CONFIG.xpMaxPoints }, (_, i) => `<span class="${hh.xpPointsEarned > i ? 'on' : ''}">LV${i + 2}:${xpTableNext(i, hh)}</span>`).join('')}</div>`;
     const canToggle = UI.S && hasPower(hh, 'manualToggle') && !hh.formToggled && ['available', 'resting', 'awaitingReview'].includes(hh.state);
     const log = (hh.xpLog || []).map(l => `<div style="font:11px ui-monospace,monospace;color:var(--dim)">S${l.shift} · +${l.amt} · ${esc(l.call)}${l.reason && l.reason !== 'base' ? ' (' + esc(l.reason) + ')' : ''}</div>`).join('') || '<small style="color:var(--dim)">No XP yet.</small>';
     const P = sheetParts(m, `<span style="font-size:30px">${hh.emoji}</span><h2>${esc(hh.codename)} <small style="color:var(--dim);font-weight:400">${esc(hh.name)}</small></h2><span class="pill">LV ${hh.noXP ? '—' : isMaxed(hh) ? 'MAX' : heroLevel(hh)}</span><span class="pill">Rank ${hh.rank}</span>`,
       `<div class="bgrid"><div><p class="txt">${esc(hh.bio)}</p><div class="note">State: <b style="color:${STATE_COL[hh.state]}">${stateLabel(hh)}</b>${hh.morale ? ` · morale ${hh.morale > 0 ? '+1 😊' : '−1 😠'}` : ''}${hasPower(hh, 'swap') ? ` · ${hh.form === 'night' ? '🌙 Night form' : '☀ Day form'}` : ''}</div>
-       ${injStateCardHTML(camp, hh)}
+       ${overlay ? heroCallHTML(camp, hh, opts.call) : ''}${injStateCardHTML(camp, hh)}
        <div class="note"><div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:8px"><i style="width:${100 * xpFrac(hh)}%"></i></div><div style="font:12px ui-monospace,monospace;margin-top:3px">${xpText(hh)} · ★${hh.unspentPoints} unspent</div>${thr}</div>
        ${hh.synergyPartner ? `<div class="note ${syn ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(hh.synergyPartner).codename)}${syn ? '' : ' <small>(not in this campaign)</small>'}</div>` : ''}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}</div>
        <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow herostats">${st.map((v, i) => statChip(i, v, hh.stats[i], effReasons(camp, hh, i), UI.recentPick && UI.recentPick.id === id && UI.recentPick.stat === i && Date.now() - UI.recentPick.t < 2500)).join('')}</div>${st.some((v, i) => v !== hh.stats[i]) ? '<div class="note" style="font-size:11px">Big number = trained stat. (n now) = what it counts as right now.</div>' : ''}</div><h4 style="margin:8px 0 2px">Recent XP</h4>${log}</div></div>`,
-      `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
-    { const v = injuryView(camp, hh); drawRadar(P.B.querySelector('.rad'), { team: st, base: v.penalty ? v.base : null }); } P.F.querySelector('[data-a=close]').onclick = () => closeModal();
+      overlay ? `<button class="btn pri" data-a="close" aria-label="Close hero info">✕ BACK TO BRIEFING</button>` : `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
+    { const v = injuryView(camp, hh); drawRadar(P.B.querySelector('.rad'), { team: st, base: v.penalty ? v.base : null }); } P.F.querySelector('[data-a=close]').onclick = () => closeIt(); if (overlay) { const hx = h('button', 'hc-x', '✕'); hx.setAttribute('aria-label', 'Close'); hx.dataset.a = 'x'; hx.onclick = () => closeIt(); P.H.appendChild(hx); }
     P.F.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { if (useToolUI(id, b.dataset.tool)) { toast(b.dataset.tool === 'jump' ? `⚡ ${esc(hh.codename)} is back in action` : `🩹 ${esc(hh.codename)} patched up`); render(); } });
     const sp = P.F.querySelector('[data-a=spend]'); if (sp) sp.onclick = () => openAllocate(id, () => openHeroInfo(id));
     const fm = P.F.querySelector('[data-a=form]'); if (fm) fm.onclick = () => { hh.form = hh.form === 'day' ? 'night' : 'day'; hh.formToggled = true; powerEv(UI.camp, UI.S, { hero: id, power: hh.powers.find(p => POWERS[p].manualToggle), kind: 'toggle', text: 'toggled to ' + (hh.form === 'night' ? 'Night' : 'Day') + ' form' }); Sfx.chime(); radio(id, hh.form === 'night' ? 'Night mode. Knuckles out.' : 'Day mode. Glasses on.'); render(); };
-  }; render(); });
+  }; render(); m.render = render; }
 }
 // Allocation screen: shared by the hero info modal (mid-shift, time paused) and TEAM DEVELOPMENT. Pending points show as a dashed preview.
 function openAllocate(id, back) {
@@ -3222,6 +3273,7 @@ function initInput() {
   document.addEventListener('keydown', e => {
     if (e.target && e.target.tagName === 'INPUT') return;
     const k = e.key;
+    if (UI.heroCard) { if (k === 'Escape') { e.preventDefault(); closeHeroCard(); } return; } // v1.9.4: the hero card owns the keyboard while open
     if (UI.hack) { const g = UI.hack.game; const map = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
       if (map[k]) { e.preventDefault(); hackStep(map[k]); } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
     if (k === 'd' || k === 'D') { UI.debug = !UI.debug; const m = UI.modals[0]; if (m && m.render) m.render(); return; }
