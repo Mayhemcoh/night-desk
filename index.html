@@ -428,6 +428,11 @@ html.reduce-fx .pair-switch{transition:none}
 html.reduce-fx .hero-overlay,html.reduce-fx .hero-overlay .sheet{animation:none!important}
 @media (prefers-reduced-motion:reduce){.hero-overlay{animation:none}}
 @media (max-height:500px) and (orientation:landscape){.hero-overlay{padding:4px calc(var(--sar) + 6px) 4px calc(var(--sal) + 6px)}.hinfo{width:22px;height:22px;font-size:12px}}
+/* v1.9.5 band explanation */
+.bands{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:center;font:600 11px ui-monospace,monospace;margin:4px 0 6px}
+.bands i{opacity:.6;font-style:normal}.band{padding:2px 6px;border-radius:6px;border:1px solid #2c3a66;background:#141c36}
+.band.b0{color:#4cd97b;border-color:#4cd97b}.band.up{color:#7ee2a8}.band.dn{color:#ff8a96}.band.tot{color:#fff;border-color:#fff}
+.bandnote{text-align:center;font-size:12px;color:#ffd23f;margin-bottom:4px}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -762,8 +767,9 @@ const CONFIG = {
   soloMult: 0.6,            // Solo Act travel+work multiplier
   shortTravelMult: 0.7,     // travel powers
   restBase: 10, restPerDiff: 2, // rest = base + perDiff * (0 easy,1 normal,2 hard)
-  coverageMode: 'perStat',  // 'perStat' or 'area' (true polygon intersection area)
-  coverageExponent: 1.5,
+  coverageMode: 'area',     // 'perStat' or 'area' (true polygon intersection area)
+  coverageExponent: 1,     // v1.9.5 Dispatch parity: chance = covered area (was perStat^1.5)
+  streakAbove: 0.76, streakUses: 3, chanceFloor: 0.15, helpersOffFromIdx: 7, // v1.9.5 hidden helpers; off from Shift 8 (idx 7)
   hardCap: 0.85, normalCap: 1.0, easyCap: 1.0,
   synergyBase: 0.05, synergyPerPairing: 0.02, synergyMax: 0.15,
   moraleChance: 0.05, conflictPenalty: 0.08, conflictNeutralWins: 3,
@@ -1585,9 +1591,36 @@ function pointInPoly(p, poly) { let ins = false; for (let i = 0, j = poly.length
 function areaCoverage(team, req) { // true intersection area via triangle-sector decomposition (each sector is a triangle; intersect triangle pairs)
   let inter = 0, total = 0;
   for (let i = 0; i < 5; i++) { const j = (i + 1) % 5; const R = radarPts(req, 1), Tm = radarPts(team, 1);
-    const tr = [[0, 0], R[i], R[j]], tt = [[0, 0], Tm[i], Tm[j]]; total += polyArea(tr); const cl = clipPoly(tr, polyArea(tt) > 1e-9 ? orient(tt) : tt); inter += cl.length > 2 ? polyArea(cl) : 0; }
+    const tr = [[0, 0], R[i], R[j]], tt = [[0, 0], Tm[i], Tm[j]]; total += polyArea(tr); if (polyArea(tt) <= 1e-9) continue; /* v1.9.5: a zero-area team sector covers nothing (was clipped as 'everything': empty team = 100%) */ const cl = clipPoly(tr, orient(tt)); inter += cl.length > 2 ? polyArea(cl) : 0; }
   return total ? inter / total : 1;
 }
+/* v1.9.5: the true req ∩ team overlap as 5 convex sector polygons (unit radius), shared by the review dot and its drawing */
+function overlapPolys(team, req) { const R = radarPts(req, 1), Tm = radarPts(team, 1), out = [];
+  for (let i = 0; i < 5; i++) { const j = (i + 1) % 5; const tr = [[0, 0], R[i], R[j]], tt = [[0, 0], Tm[i], Tm[j]]; if (polyArea(tr) <= 1e-12 || polyArea(tt) <= 1e-9) continue; const cl = clipPoly(tr, orient(tt)); if (cl.length > 2 && polyArea(cl) > 1e-12) out.push(cl); }
+  return out; }
+function inOverlap(p, polys) { return polys.some(q => pointInPoly(p, q)); }
+/* v1.9.5: the review dot is steered to the decided result (as in Dispatch): success rests inside the true overlap, failure outside it.
+   Cosmetic only: its own seeded stream (never S.rollRng / the roll stream), so it cannot change any outcome. */
+function samplePolyArea(polys, r) { const tris = []; let tot = 0; for (const q of polys) for (let i = 1; i + 1 < q.length; i++) { const t = [q[0], q[i], q[i + 1]], a = polyArea(t); if (a > 1e-12) { tris.push([t, a]); tot += a; } }
+  if (!tot) return null; let u = r() * tot, k = 0; while (k < tris.length - 1 && u > tris[k][1]) { u -= tris[k][1]; k++; } const [A, B, C] = tris[k][0]; let x = r(), y = r(); if (x + y > 1) { x = 1 - x; y = 1 - y; }
+  return [A[0] + x * (B[0] - A[0]) + y * (C[0] - A[0]), A[1] + x * (B[1] - A[1]) + y * (C[1] - A[1])]; }
+function reqSectors(req) { const R = radarPts(req, 1), out = []; for (let i = 0; i < 5; i++) out.push([[0, 0], R[i], R[(i + 1) % 5]]); return out; }
+function dotPath(S, call, req, team, success, duration) {
+  const r = mulberry32(hash32(S && S.seed || 0, S && S.rollNonce || 0, call.uid || 0, 'dot')); const ov = overlapPolys(team, req), sec = reqSectors(req);
+  const inside = p => inOverlap(p, ov);
+  let land = null;
+  if (success) { for (let i = 0; i < 50 && !land; i++) { const p = samplePolyArea(ov, r); if (p && inside(p)) land = p; } if (!land) { const q = ov[0]; land = q ? [q.reduce((a, v) => a + v[0], 0) / q.length, q.reduce((a, v) => a + v[1], 0) / q.length] : [0, 0]; } }
+  else { for (let i = 0; i < 600 && !land; i++) { const p = samplePolyArea(sec, r); if (p && !inside(p)) land = p; }
+    if (!land) { let k = 0, w = -1; req.forEach((v, i) => { const d = v - team[i] + v * 1e-3; if (d > w) { w = d; k = i; } }); const an = -Math.PI / 2 + k * 2 * Math.PI / 5, rr = Math.max(req[k], team[k]) / 10 + 0.08; land = [Math.cos(an) * rr, Math.sin(an) * rr]; } }
+  const hops = []; let t = 0, iv = 0.07, n = 0; const D = duration || 1.6; while (t < D) { hops.push({ t, p: samplePolyArea(sec, r) || [0, 0] }); t += iv; iv *= 1.13; n++; }
+  for (let i = 1; i <= 3 && hops.length - i >= 0; i++) { const h = hops[hops.length - i], w = 1 - i * 0.22; h.p = [h.p[0] + (land[0] - h.p[0]) * w, h.p[1] + (land[1] - h.p[1]) * w]; } // converge, no teleport
+  hops.push({ t: D, p: land }); return { land, hops, overlap: ov, inOverlap: inside(land) };
+}
+/* v1.9.5: one rounding rule for every chance/roll shown (floor to 0.1, or 0.01 when two values would read the same) */
+function pctFloor(v, d) { const m = Math.pow(10, d === undefined ? 1 : d); return (Math.floor(v * 100 * m + 1e-9) / m).toFixed(d === undefined ? 1 : d); }
+function pctPair(a, b) { let d = 1; while (d < 4 && pctFloor(a, d) === pctFloor(b, d) && a !== b) d++; return [pctFloor(a, d), pctFloor(b, d)]; }
+/* v1.9.5: Dispatch-parity hidden helpers (never shown in the %): streak auto-success above 76% (3 uses, re-armed by a >76% fail) and a 15% floor. Off in the finale (Shift 8). */
+function helpersOn(S) { return !!S && !S.finale && S.idx < CONFIG.helpersOffFromIdx; }
 function orient(p) { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return s < 0 ? p.slice().reverse() : p; }
 
 function computeCall(camp, S, call, assigned, opt, xo) {
@@ -1615,14 +1648,14 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   const coverage = CONFIG.coverageMode === 'area' ? areaCoverage(capped, req) : perStat;
   const auto = tpl.type === 'training' || tpl.type === 'story'; let chance = auto ? 1 : Math.pow(coverage, CONFIG.coverageExponent);
   const cap = difficulty === 'hard' ? CONFIG.hardCap : difficulty === 'normal' ? CONFIG.normalCap : CONFIG.easyCap;
-  const base = chance; chance = Math.min(chance, cap); const afterCap = chance;
+  const base = chance; chance = Math.min(chance, cap); const afterCap = chance; // v1.9.5: synergy raises the cap (below)
   let synergy = 0; const synPairs = [], conPairs = [];
   for (const [a, b] of SYNERGY_PAIRS) if (ids.includes(a) && ids.includes(b)) { const n = camp.heroes[a].pairCount[b] || 0; synergy += CONFIG.synergyBase + CONFIG.synergyPerPairing * n; synPairs.push([a, b, n]); }
   synergy = Math.min(CONFIG.synergyMax, synergy);
   let conflict = 0;
   if (S.idx + 1 >= CONFIG.conflictsFromShift) for (const [a, b] of CONFLICT_PAIRS) if (ids.includes(a) && ids.includes(b) && !camp.conflictNeutral[pairKey(a, b)]) { conflict += CONFIG.conflictPenalty; conPairs.push([a, b]); }
   let morale = 0; for (const h of heroes) if (h) morale += h.morale * CONFIG.moraleChance; morale = clamp(morale, -CONFIG.moraleChance, CONFIG.moraleChance);
-  const afterSyn = Math.min(1, chance + synergy); chance = clamp(afterSyn + morale - conflict, 0, 1);
+  const afterSyn = Math.min(1, cap + synergy, base + synergy); /* v1.9.5 Dispatch parity: synergy lifts the difficulty cap itself */ chance = clamp(afterSyn + morale - conflict, 0, 1);
   // forced outcomes
   let forced = null;
   { const af = afList(tpl).find(x => ids.includes(x.heroId)); if (af) forced = af.reason; }
@@ -1874,11 +1907,18 @@ function rollReview(camp, S, call) {
   if (call.tpl.training && call.team[0] && call.lvAtSend === undefined) call.lvAtSend = heroLevel(camp.heroes[call.team[0]]); // LV when sent (before this call's XP)
   const rng = rollFor(S, call, 'roll'); let roll = rng(), firstRoll = roll; let success, retried = false, forced = call.forcedFail || info.forced || null;
   if (call.disruption && call.disruption.resolved && disruptionDef(call.disruption.id).always) { success = !forced && call.disruption.outcome === 'success'; return { info, roll, firstRoll, success, retried, forced, check: call.disruption.log.slice(), decided: true }; }
+  let assist = null; const shown = info.effective !== undefined ? info.effective : info.chance;
   if (forced) success = false; else {
-    success = roll < info.chance;
-    if (!success) { const rh = call.team.map(id => camp.heroes[id]).find(h => hasPower(h, 'retry') && !h.retryUsed); if (rh) { rh.retryUsed = true; retried = rh.id; roll = rng(); success = roll < info.chance; } }
+    const on = helpersOn(S) && shown < 1; let p = info.chance;
+    if (on && shown > CONFIG.streakAbove && (camp.streakBoosts || 0) < CONFIG.streakUses) { success = true; assist = 'streak'; camp.streakBoosts = (camp.streakBoosts || 0) + 1; }
+    else {
+      if (on && p > 0 && p < CONFIG.chanceFloor) { p = CONFIG.chanceFloor; assist = 'floor'; }
+      success = roll < p;
+      if (!success) { const rh = call.team.map(id => camp.heroes[id]).find(h => hasPower(h, 'retry') && !h.retryUsed); if (rh) { rh.retryUsed = true; retried = rh.id; roll = rng(); success = roll < p; } }
+      if (!success && shown > CONFIG.streakAbove) camp.streakBoosts = 0; // a >76% failure re-arms the streak
+    }
   }
-  return { info, roll, firstRoll, success, retried, forced };
+  return { info, roll, firstRoll, success, retried, forced, assist, rolledAgainst: forced ? 0 : (assist === 'streak' ? 1 : (assist === 'floor' ? CONFIG.chanceFloor : info.chance)) };
 }
 function applyReview(camp, S, call, R) {
   call.reviewed = true; call.stage = call.returnDone ? 'closed' : 'review'; call.result = R.success ? 'success' : 'fail';
@@ -2160,9 +2200,12 @@ function outcomeReason(camp, S, call, R) {
     else { const af = afList(tpl).find(x => (call.team || []).includes(x.heroId)); if (af) lines.push(`${nm(af.heroId)} on the team means this call cannot succeed.`); }
   } else if (tpl.story || tpl.training || tpl.type === 'story' || tpl.type === 'training') { kind = 'always'; head = 'Always succeeds (' + (tpl.training || tpl.type === 'training' ? 'training' : 'story') + ' call).';
   } else if (info.guaranteedSuccess || info.effective >= 1) { kind = 'guaranteed'; head = 'Guaranteed: ' + ((info.breakdown || []).filter(b => b.delta > 0 && !b.retry).map(b => b.label + ' ' + Math.round(b.delta * 100) + '%').join(' + ') || 'the team fully covers the call') + '.';
-  } else { kind = 'rolled'; const f1 = v => (Math.floor(v * 1000) / 10).toFixed(1), r1 = f1(R.firstRoll !== undefined ? R.firstRoll : R.roll), need = f1(info.chance);
+  } else if (R.assist === 'streak') { kind = 'assisted'; head = `Desk instinct: ${info.display}% call auto-cleared (no roll).`;
+    lines.push(`Calls over ${Math.round(CONFIG.streakAbove * 100)}% clear on their own up to ${CONFIG.streakUses} times; a miss over ${Math.round(CONFIG.streakAbove * 100)}% re-arms it. Off in the finale.`);
+  } else { kind = 'rolled'; const need0 = R.rolledAgainst !== undefined ? R.rolledAgainst : info.chance; const [r1, need] = pctPair(R.firstRoll !== undefined ? R.firstRoll : R.roll, need0);
     head = `Rolled ${r1} — needed under ${need} (${info.display}% shown).`;
-    if (R.retried) { const rh = camp.heroes[R.retried]; const pw = rh && rh.powers.find(p => POWERS[p].retry); lines.push(`First roll failed; ${nm(R.retried)}'s ${pw ? POWERS[pw].name : 're-roll'} re-rolled ${(Math.floor(R.roll * 1000) / 10).toFixed(1)} → ${R.success ? 'SUCCESS' : 'still failed'}.`); } }
+    if (R.assist === 'floor') lines.push(`Long-shot floor: chances under ${Math.round(CONFIG.chanceFloor * 100)}% roll as ${Math.round(CONFIG.chanceFloor * 100)}% (off in the finale).`);
+    if (R.retried) { const rh = camp.heroes[R.retried]; const pw = rh && rh.powers.find(p => POWERS[p].retry); lines.push(`First roll failed; ${nm(R.retried)}'s ${pw ? POWERS[pw].name : 're-roll'} re-rolled ${pctPair(R.roll, need0)[0]} → ${R.success ? 'SUCCESS' : 'still failed'}.`); } }
   if (sab) lines.push(sab);
   return { kind, head, lines, text: [head].concat(lines).join(' ') };
 }
@@ -2298,8 +2341,8 @@ function pctLabel(info) { return info.forced ? '0%' : info.display + '%'; }
 function chanceHTML(info, open, review) { // v1.7 shared display of successChance(): headline + optional breakdown
   const cls = info.forced ? 'bad' : info.display >= 70 ? 'good' : info.display >= 40 ? 'mid' : 'low';
   const head = info.forced ? `0% — ${esc(info.forced)}` : `${info.display}%${info.guaranteedSuccess ? ' (guaranteed)' : ''}${info.disruptionRisk && info.chance >= 0.995 ? ' · disruption risk' : ''}`;
-  const rows = info.breakdown.map(b => `<div class="br ${b.forced ? 'bad' : ''}"><span>${esc(b.label)}</span><b>${b.forced ? '✕' : (b.delta >= 0 && b !== info.breakdown[0] ? '+' : '') + (b.delta * 100).toFixed(1) + '%'}</b></div>`).join('');
-  return `<div class="chance ${cls}" role="button" tabindex="0" aria-label="Success chance ${info.forced ? 0 : info.display} percent"><div class="ch-head"><span>${review ? 'Chance' : 'Success chance'}</span><b class="ch-pct">${head}</b>${review ? '' : `<small>${open ? '▲' : '▼ why?'}</small>`}</div>${open ? `<div class="ch-break">${rows}<div class="br tot"><span>Total</span><b>${info.forced ? '0%' : ((info.effective !== undefined ? info.effective : info.chance) * 100).toFixed(1) + '%'}</b></div></div>` : ''}</div>`; }
+  const rows = info.breakdown.map(b => `<div class="br ${b.forced ? 'bad' : ''}"><span>${esc(b.label)}</span><b>${b.forced ? '✕' : (b.delta >= 0 && b !== info.breakdown[0] ? '+' : '') + (b.delta < 0 ? '-' + pctFloor(-b.delta) : pctFloor(b.delta)) + '%'}</b></div>`).join('');
+  return `<div class="chance ${cls}" role="button" tabindex="0" aria-label="Success chance ${info.forced ? 0 : info.display} percent"><div class="ch-head"><span>${review ? 'Chance' : 'Success chance'}</span><b class="ch-pct">${head}</b>${review ? '' : `<small>${open ? '▲' : '▼ why?'}</small>`}</div>${open ? `<div class="ch-break">${rows}<div class="br tot"><span>Total</span><b>${info.forced ? '0%' : pctFloor(info.effective !== undefined ? info.effective : info.chance) + '%'}</b></div></div>` : ''}</div>`; }
 function toast(text, ms) { const t = h('div', 'toast', text); $('toasts').appendChild(t); setTimeout(() => t.remove(), ms || 3500); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
 function tutorial(key, text) { if (UI.S && UI.S.idx === 0 && !UI.tutorial[key]) { UI.tutorial[key] = 1; toast('💡 ' + text, 6000); } }
 function shake() { const a = $('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
@@ -2326,7 +2369,7 @@ function drawRadar(cv, opts) {
   radarPts([10, 10, 10, 10, 10], R).forEach((p, i) => { g.strokeStyle = '#22305a'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + p[0], cy + p[1]); g.stroke(); if (mini) return; g.fillStyle = STAT_COLORS[STATS[i]]; g.font = 'bold 11px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(STATS[i] + (opts.team ? ' ' + opts.team[i] : ''), cx + p[0] * 1.17, cy + p[1] * 1.12); });
   if (opts.team) poly(opts.team, 'rgba(255,159,28,.55)', '#ff9f1c', 2);
   if (opts.base) { g.setLineDash([5, 4]); poly(opts.base, 'rgba(255,77,94,.10)', '#ff6b7a', 2); g.setLineDash([]); }
-  if (opts.req) { poly(opts.req, null, '#ffffff', 2.5); if (opts.overlap) poly(opts.overlap, 'rgba(76,217,123,.35)', null); }
+  if (opts.req) { poly(opts.req, null, '#ffffff', 2.5); if (opts.overlap) { const ov = opts.team ? overlapPolys(opts.team, opts.req) : [radarPts(opts.overlap, 1)]; g.fillStyle = 'rgba(76,217,123,.45)'; for (const q of ov) { g.beginPath(); q.forEach((p, i) => i ? g.lineTo(cx + p[0] * R, cy + p[1] * R) : g.moveTo(cx + p[0] * R, cy + p[1] * R)); g.closePath(); g.fill(); } } } // v1.9.5: true overlap
   if (opts.preview) { g.setLineDash([6, 4]); poly(opts.preview, 'rgba(62,240,255,.12)', '#3ef0ff', 2.5); g.setLineDash([]); }
   if (opts.hl) radarPts([10.6, 10.6, 10.6, 10.6, 10.6], R).forEach((p, i) => { if (!opts.hl[i]) return; g.save(); g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.shadowColor = '#ffd23f'; g.shadowBlur = 10; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + p[0], cy + p[1]); g.stroke(); g.beginPath(); g.arc(cx + p[0], cy + p[1], 5, 0, 7); g.fillStyle = '#ffd23f'; g.fill(); g.restore(); });
   if (opts.dot) { const [x, y] = opts.dot; g.fillStyle = opts.dotCol || '#fff'; g.shadowColor = '#fff'; g.shadowBlur = 12; g.beginPath(); g.arc(cx + x * R, cy + y * R, 6, 0, 7); g.fill(); g.shadowBlur = 0; }
@@ -2590,15 +2633,20 @@ function openDisruption(c) {
 }
 
 /* ---------- review ---------- */
-function samplePoint(poly, notPoly, tries) { let mx = 1; for (let i = 0; i < (tries || 400); i++) { const p = [(Math.random() * 2 - 1) * mx, (Math.random() * 2 - 1) * mx]; if (pointInPoly(p, poly) && (!notPoly || !pointInPoly(p, notPoly))) return p; } return null; }
+function samplePoint(poly, notPoly, tries) { // legacy (unused since v1.9.5)
+ let mx = 1; for (let i = 0; i < (tries || 400); i++) { const p = [(Math.random() * 2 - 1) * mx, (Math.random() * 2 - 1) * mx]; if (pointInPoly(p, poly) && (!notPoly || !pointInPoly(p, notPoly))) return p; } return null; }
+function bandHTML(R) { // v1.9.5: how the % is built from the drawn overlap, and which hidden helper (if any) applied
+  const i = R.info; if (!i || !i.breakdown || R.decided || i.forced) return '';
+  const rows = i.breakdown.filter(b => !b.forced).map((b, k) => `<span class="band ${k === 0 ? 'b0' : b.delta >= 0 ? 'up' : 'dn'}">${k === 0 ? 'Overlap ' + pctFloor(i.coverage) + '%' : esc(b.label.replace(/ \(.*\)$/, '')) + ' ' + (b.delta >= 0 ? '+' : '−') + pctFloor(Math.abs(b.delta)) + '%'}</span>`).join('<i>→</i>');
+  const tot = i.effective !== undefined ? i.effective : i.chance;
+  const hint = R.assist === 'streak' ? '<div class="bandnote">⚡ Desk instinct cleared it (hidden helper, not part of the %).</div>' : R.assist === 'floor' ? `<div class="bandnote">🎯 Long-shot floor: rolled as ${Math.round(CONFIG.chanceFloor * 100)}%.</div>` : '';
+  return `<div class="bands" aria-label="How the chance is built">${rows}<i>=</i><span class="band tot">${pctFloor(tot)}%</span></div>${hint}`; }
 function openReview(c) {
   const camp = UI.camp, S = UI.S; const R = rollReview(camp, S, c); let applied = null, done = false;
   const req = R.info.req, team = R.info.team, overlap = req.map((v, i) => Math.min(v, team[i]));
-  const reqP = radarPts(req, 1), ovP = radarPts(overlap, 1);
-  let land = R.success ? (samplePoint(ovP) || [0, 0]) : (samplePoint(reqP, ovP) || (() => { let k = 0, worst = 0; req.forEach((v, i) => { if (v - overlap[i] > worst) { worst = v - overlap[i]; k = i; } }); const an = -Math.PI / 2 + k * 2 * Math.PI / 5; const rr = Math.min(1.05, req[k] / 10 + 0.06); return [Math.cos(an) * rr, Math.sin(an) * rr]; })());
-  const hops = []; let tt = 0, iv = 0.07; while (tt < CONFIG.dotDuration) { hops.push({ t: tt, p: samplePoint(reqP) || [0, 0] }); tt += iv; iv *= 1.13; } hops.push({ t: CONFIG.dotDuration, p: land });
+  const DP = dotPath(S, c, req, team, R.success, CONFIG.dotDuration); const land = DP.land, hops = DP.hops; c._dot = { land, success: R.success, inOverlap: DP.inOverlap }; // v1.9.5: steered dot, seeded, consistent with the result
   openModal('review', m => {
-    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap</span></div>${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
+    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap = success area</span></div>${bandHTML(R)}${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
     const cv = P.B.querySelector('.revcv'); let t0 = performance.now(), lastHop = -1;
     const finish = () => {
       if (done) return; done = true; applied = applyReview(camp, S, c, R); const ok = R.success;
