@@ -433,6 +433,14 @@ html.reduce-fx .hero-overlay,html.reduce-fx .hero-overlay .sheet{animation:none!
 .bands i{opacity:.6;font-style:normal}.band{padding:2px 6px;border-radius:6px;border:1px solid #2c3a66;background:#141c36}
 .band.b0{color:#4cd97b;border-color:#4cd97b}.band.up{color:#7ee2a8}.band.dn{color:#ff8a96}.band.tot{color:#fff;border-color:#fff}
 .bandnote{text-align:center;font-size:12px;color:#ffd23f;margin-bottom:4px}
+/* v1.10 powers */
+.ch-retry{font-size:12.5px;color:#9fd3ff;margin:4px 0 0;padding:3px 6px;border-left:3px solid #4aa3ff;background:rgba(74,163,255,.08);border-radius:4px}
+.ch-retry.used{color:var(--dim);border-left-color:#666;background:none}
+.pw.unrevealed b{letter-spacing:2px;color:var(--dim)}
+.mk2btn{display:block;margin-top:6px;font-size:12px;padding:6px 8px;width:100%}
+.illusion-note.warn{border-color:#ffb020}
+.rolllabel{font-size:13px}
+.bandnote.reroll{color:#9fd3ff}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -788,8 +796,10 @@ const CONFIG = {
   xpRiskWeight: 0.25,       // DESIGN: riskMult = 1 + w*(1-chance); riskier sends earn more XP
   xpShiftScale: -0.06,      // DESIGN: per-shift pool multiplier (1 + scale*shiftIdx); tuned slightly negative so later, denser shifts don't max everyone early
   levelCap: 10,             // LV = 1 + XP points earned; 10 = all 9 points
-  trainLevel: 4,            // DESIGN: LV at which a hero may train (pick 1 of 2, exclusive)
-  signatureLevel: 8,        // DESIGN: LV at which the starting power upgrades to its Signature form
+  trainLevel: 3,            // v1.10: LV at which a hero may train (pick 1 of 2, exclusive), AND the base power must be revealed (Dispatch parity)
+  signatureLevel: 8,        // v1.10: LV at which a hero who has trained MAY upgrade the base power to Mk II (explicit choice, never automatic)
+  slotBonusMinSlots: 3,     // v1.10: slot-bonus powers only work on calls with 3+ slots (Dispatch: En Pointe / Diamond in the Rough)
+  extendExpirySeconds: 8, extendExpiryAt: 5, // v1.10 Head Time Mk II: once per shift, +8 s on a call about to expire
   trainingSlotsPerSession: 2, // heroes that may train per training session
   poolMinStatTotal: 14,     // v1.3: each stat summed over a drawn 8 must reach this
   maxWildcards: 4,          // wildcard (random-stat) points from promotions over a whole campaign
@@ -847,13 +857,13 @@ const HQ = { u: 0.5, v: 0.5 };
 
 /* ================= HEROES ================= */
 const HERO_DEFS = [
-  { id: 'brightwire', name: 'Dana Volk', codename: 'Brightwire', color: '#ffd23f', emoji: '⚡', stats: [4, 1, 4, 2, 1], bio: 'Former power-grid thief. Once blacked out six city blocks to steal one toaster.', power: 'overclock', train: ['shortcircuit', 'sparksight'], synergy: 'mirrorlark',
+  { id: 'brightwire', name: 'Dana Volk', codename: 'Brightwire', color: '#ffd23f', emoji: '⚡', stats: [4, 1, 4, 2, 1], bio: 'Former power-grid thief. Once blacked out six city blocks to steal one toaster.', power: 'overclock', train: ['comet', 'supernova'], synergy: 'mirrorlark',
     quips: ['Relax, I have done crimes way scarier than this.', 'If it has a plug, I can talk to it.', 'Zapping is a conversation. A short one.'] },
-  { id: 'mirrorlark', name: 'Lia Moreau', codename: 'Mirrorlark', color: '#b9a7ff', emoji: '🪞', stats: [3, 1, 2, 4, 2], bio: 'Illusionist and ex-con artist. Has sold the Harbor Bridge four times.', power: 'doubletake', train: ['encore', 'silvertongue'], synergy: 'brightwire',
+  { id: 'mirrorlark', name: 'Lia Moreau', codename: 'Mirrorlark', color: '#b9a7ff', emoji: '🪞', stats: [3, 1, 2, 4, 2], bio: 'Illusionist and ex-con artist. Has sold the Harbor Bridge four times.', power: 'doubletake', train: ['perfectcopy', 'silvertongue'], synergy: 'brightwire',
     quips: ['Which one of me are you talking to?', 'Smile, darling. The illusion is doing the heavy lifting.', 'I have a twin for that. She is also me.'] },
-  { id: 'slab', name: 'Gus Ostrowski', codename: 'Slab', color: '#a8a29e', emoji: '🪨', stats: [4, 5, 1, 1, 1], bio: 'Living concrete. Formerly a getaway wall. Literally.', power: 'settlingin', train: ['foundation', 'digin'], synergy: 'hush',
+  { id: 'slab', name: 'Gus Ostrowski', codename: 'Slab', color: '#a8a29e', emoji: '🪨', stats: [4, 5, 1, 1, 1], bio: 'Living concrete. Formerly a getaway wall. Literally.', power: 'settlingin', train: ['spreadthin', 'foundhimself'], synergy: 'hush',
     quips: ['Slab is here. Slab is load-bearing.', 'I can hold this door. I can BE this door.', 'Gravel in my boots again.'] },
-  { id: 'hush', name: 'Noor Kade', codename: 'Hush', color: '#5eead4', emoji: '🥷', stats: [3, 1, 3, 2, 3] /* v1.3: was [3,1,3,2,2] (sum 11); every hero now sums to 12. Old saves keep their stored stats. */, bio: 'Stealth burglar. Has been in your apartment. Left it tidier.', power: 'soloact', train: ['shadowstep', 'casejoint'], synergy: 'slab', xpOffset: -300 /* starts 1 point low: first point at 700 */,
+  { id: 'hush', name: 'Noor Kade', codename: 'Hush', color: '#5eead4', emoji: '🥷', stats: [3, 1, 3, 2, 3] /* v1.3: was [3,1,3,2,2] (sum 11); every hero now sums to 12. Old saves keep their stored stats. */, bio: 'Stealth burglar. Has been in your apartment. Left it tidier.', power: 'soloact', train: ['wolfpack', 'eartoground'], synergy: 'slab', xpOffset: -300 /* starts 1 point low: first point at 700 */,
     quips: ['...', 'I was already here before you called.', 'Shh. Everybody is loud except me.'] },
   { id: 'velvethex', name: 'Odessa Lune', codename: 'Velvet Hex', joinQuip: ' (please stop calling it a "coven")', color: '#e879f9', emoji: '🔮', stats: [3, 2, 2, 3, 2], bio: 'Ex-cult leader, now "wellness coach". The candles are non-negotiable.', power: 'borrowedtime', train: ['covenpay', 'lastrites'], synergy: 'echo',
     quips: ['The spirits say: duck.', 'I sense a disturbance. Also a smell.', 'Borrow a little time, pay it back with interest.'] },
@@ -927,110 +937,117 @@ const SIGNATURES = { overclock: 'overclock2', doubletake: 'doubletake2', settlin
   breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', gambit: 'gambit2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2' };
 const POWERS = {
   overclock: { name: 'Overclock', desc: '+1 Might and Agility for every success this shift. Resets on a failure.', onCompute(c) { const s = c.hero.streak || 0; c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
-  shortcircuit: { name: 'Short Circuit', desc: 'Travels along power lines: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  sparksight: { name: 'Spark Sight', desc: 'Reads the grid: reveals the call requirements in the briefing when assigned.', preview: true },
-  doubletake: { name: 'Double Take', desc: 'Illusion: copies the hero in the slot to her LEFT at half stats into an empty slot.', illusion: true },
-  encore: { name: 'Encore', desc: 'Once per shift, a failed call she is on is re-rolled.', retry: true },
-  silvertongue: { name: 'Silver Tongue', desc: 'Slot bonus: +2 Presence in slot 1, +1 Wits in slot 2.', onCompute(c) { if (c.slot === 0) c.st[3] += 2; if (c.slot === 1) c.st[4] += 1; } },
-  settlingin: { name: 'Settling In', desc: 'Slot bonus: slot 1 +2 Might, slot 2 +2 Endurance, slot 3 +2 Presence, slot 4 +2 Agility; -1 to the other stats.', onCompute(c) { const k = SLAB_SLOTS[c.slot % 4]; for (let i = 0; i < 5; i++) c.st[i] += (i === k ? 2 : -1); } },
-  foundation: { name: 'Foundation', desc: 'Team XP +25% on calls Slab joins.', xpBoost: 0.25 },
-  digin: { name: 'Dig In', desc: 'Concrete does not bruise: immune to injuries.', immune: true },
+  comet: { name: 'Comet', desc: 'While Overclock has 1+ stacks, travel time x0.6. Burning out hurts: a failure with 2+ stacks injures her.', travelMult: 0.6, travelNeedsStreak: 1, burnout: 2 },
+  supernova: { name: 'Supernova', desc: 'At 2+ Overclock stacks, Might and Agility jump to 10. A failure at 2+ stacks drops both to 1 for her next call.', supernova: true, onCompute(c) { const h = c.hero; if (h.burnt) { c.st[0] = 1; c.st[2] = 1; } else if ((h.streak || 0) >= 2) { c.st[0] = Math.max(c.st[0], 10); c.st[2] = Math.max(c.st[2], 10); } }, onResult(c) { const h = c.hero; if (h.burnt) h.burnt = false; else if (!c.success && (c.prev || 0) >= 2) h.burnt = true; } },
+  doubletake: { name: 'Double Take', desc: 'Illusion: adds 50% of the stats of the hero in the slot directly to her LEFT to the team (fractions kept, team cap 10 still applies). Slot 1 or an empty left slot: no effect. Never a second roll.', illusion: true, illusionRatio: 0.5 },
+  perfectcopy: { name: 'Perfect Copy', desc: 'Double Take copies 100% of the left-slot hero instead of 50% (same left-slot rule). Never a second roll.', illusion: true, illusionRatio: 1 },
+  silvertongue: { name: 'Silver Tongue', desc: 'Slot bonus (calls with 3+ slots): +2 Presence in slot 1, +1 Wits in slot 2.', slotBonus: true, onCompute(c) { if (c.slot === 0) c.st[3] += 2; if (c.slot === 1) c.st[4] += 1; } },
+  settlingin: { name: 'Settling In', desc: 'Slot bonus (calls with 3+ slots): slot 1 +2 Might, slot 2 +2 Endurance, slot 3 +2 Presence, slot 4 +2 Agility; -1 to the other stats.', slotBonus: true, onCompute(c) { const k = SLAB_SLOTS[c.slot % 4]; for (let i = 0; i < 5; i++) c.st[i] += (i === k ? 2 : -1); } },
+  spreadthin: { name: 'Spread Thin', desc: 'Fills the gaps: each EMPTY slot on his call adds 25% of his stats to the team (fractions kept, team cap 10).', spread: 0.25 },
+  foundhimself: { name: 'Found Himself', desc: 'Knows his role now: +2 to the stat the call needs most (any call size).', onCompute(c) { const r = c.req; if (!r) return; let k = 0; for (let i = 1; i < 5; i++) if (r[i] > r[k]) k = i; c.st[k] += 2; } },
   soloact: { name: 'Solo Act', desc: 'Travel and work time x0.6 when sent alone.', solo: true },
-  shadowstep: { name: 'Shadow Step', desc: 'Moves through shadows: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  casejoint: { name: 'Case the Joint', desc: 'Scouts ahead: reveals call requirements in the briefing when assigned.', preview: true },
+  wolfpack: { name: 'Wolf Pack', desc: 'Runs with the pack: team XP +50% on calls she joins.', xpBoost: 0.5 },
+  eartoground: { name: 'Ear to the Ground', desc: 'While she is on shift, every briefing reveals the call requirements (even if she is not sent).', preview: true, previewAll: true },
   borrowedtime: { name: 'Borrowed Time', desc: 'Heals one injury on a teammate sent with her, and gains +1 Presence for the shift.', heal: true },
   covenpay: { name: 'Coven Pay', desc: 'Team XP +20% on calls she joins.', xpBoost: 0.20 },
-  lastrites: { name: 'Last Rites', desc: 'Once per shift, re-rolls a failed call she is on.', retry: true },
+  lastrites: { name: 'Last Rites', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   shiftchange: { name: 'Shift Change', desc: 'Day form (brains) and Night form (brawn) swap after every call: Might<->Wits, Endurance<->Presence.', swap: true },
   eavesdrop: { name: 'Eavesdrop', desc: 'Hears everything: reveals call requirements in the briefing when assigned.', preview: true },
-  nightowl: { name: 'Night Owl', desc: 'Slot bonus: +2 Wits in slot 2, +1 Agility in slot 3.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; if (c.slot === 2) c.st[2] += 1; } },
+  nightowl: { name: 'Night Owl', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 2, +1 Agility in slot 3.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; if (c.slot === 2) c.st[2] += 1; } },
   thickskull: { name: 'Thick Skull', desc: 'Ignores injury debuffs and can never be Downed.', ignoreInjury: true, noDown: true },
   musclememory: { name: 'Muscle Memory', desc: 'Momentum: +1 Might per success this shift, resets on a failure.', onCompute(c) { c.st[0] += (c.hero.streak2 || 0); }, onResult(c) { c.hero.streak2 = c.success ? (c.hero.streak2 || 0) + 1 : 0; } },
   runningtab: { name: 'Running Tab', desc: 'Knows every shortcut: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  positions: { name: 'Positions', desc: 'Slot bonus: +1 Might in slot 1, +1 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 1; if (c.slot === 1) c.st[2] += 1; } },
-  encoredanse: { name: 'Encore Dansé', desc: 'Once per shift, re-rolls a failed call she is on.', retry: true },
+  positions: { name: 'Positions', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +1 Might in slot 1, +1 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 1; if (c.slot === 1) c.st[2] += 1; } },
+  encoredanse: { name: 'Encore Dansé', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   lightfeet: { name: 'Light Feet', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   // ---- Signature upgrades (LV 8) ----
-  overclock2: { name: 'Overclock ✦', signature: true, desc: 'SIGNATURE: +1 Might and Agility per success (max +4). A failure only removes 2 stacks.', onCompute(c) { const s = Math.min(4, c.hero.streak || 0); c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? Math.min(4, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 2); } },
-  doubletake2: { name: 'Double Take ✦', signature: true, desc: 'SIGNATURE: the illusion copies the hero to her left at 75% stats.', illusion: true, illusionRatio: 0.75 },
-  settlingin2: { name: 'Settling In ✦', signature: true, desc: 'SIGNATURE: slot bonus +3 (slot 1 Might, 2 Endurance, 3 Presence, 4 Agility) with no penalty.', onCompute(c) { c.st[SLAB_SLOTS[c.slot % 4]] += 3; } },
-  soloact2: { name: 'Solo Act ✦', signature: true, desc: 'SIGNATURE: solo travel and work x0.45, and a solo success gives +25% XP.', solo: true, soloMult: 0.45, soloXpBoost: 0.25 },
-  borrowedtime2: { name: 'Borrowed Time ✦', signature: true, desc: 'SIGNATURE: heals up to 2 injured teammates on the call (+1 Presence for the shift).', heal: true, healCount: 2 },
-  shiftchange2: { name: 'Shift Change ✦', signature: true, desc: 'SIGNATURE: forms still swap after each call, and you may toggle the form manually once per shift (hero info).', swap: true, manualToggle: true },
-  thickskull2: { name: 'Thick Skull ✦', signature: true, desc: 'SIGNATURE: ignores injury debuffs, can never be Downed, and gets +2 Might and +2 Endurance while injured.', ignoreInjury: true, noDown: true, onCompute(c) { if (c.hero.injuries > 0) { c.st[0] += 2; c.st[1] += 2; } } },
-  positions2: { name: 'Positions ✦', signature: true, desc: 'SIGNATURE: +3 Might in slot 1, +3 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 3; if (c.slot === 1) c.st[2] += 3; } },
+  overclock2: { name: 'Overclock ✦', signature: true, desc: 'MK II: +1 Might and Agility per success (max +4). A failure only removes 2 stacks.', onCompute(c) { const s = Math.min(4, c.hero.streak || 0); c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? Math.min(4, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 2); } },
+  doubletake2: { name: 'Hall of Mirrors ✦', signature: true, desc: 'MK II: Double Take keeps its left copy (50%, or 100% with Perfect Copy) AND also adds 50% of the hero directly to her RIGHT. Never a second roll.', illusion: true, illusionRatio: 0.5, illusionRight: 0.5 },
+  settlingin2: { name: 'Settling In ✦', signature: true, slotBonus: true, desc: 'MK II: slot bonus (calls with 3+ slots) +3 (slot 1 Might, 2 Endurance, 3 Presence, 4 Agility) with no penalty.', onCompute(c) { c.st[SLAB_SLOTS[c.slot % 4]] += 3; } },
+  soloact2: { name: 'Solo Act ✦', signature: true, desc: 'MK II: solo travel and work x0.45, and a solo success gives +25% XP.', solo: true, soloMult: 0.45, soloXpBoost: 0.25 },
+  borrowedtime2: { name: 'Borrowed Time ✦', signature: true, desc: 'MK II: heals up to 2 injured teammates on the call (+1 Presence for the shift).', heal: true, healCount: 2 },
+  shiftchange2: { name: 'Shift Change ✦', signature: true, desc: 'MK II: forms still swap after each call, and you may toggle the form manually once per shift (hero info).', swap: true, manualToggle: true },
+  thickskull2: { name: 'Thick Skull ✦', signature: true, desc: 'MK II: ignores injury debuffs, can never be Downed, and gets +2 Might and +2 Endurance while injured.', ignoreInjury: true, noDown: true, onCompute(c) { if (c.hero.injuries > 0) { c.st[0] += 2; c.st[1] += 2; } } },
+  positions2: { name: 'Positions ✦', signature: true, slotBonus: true, desc: 'MK II (calls with 3+ slots): +3 Might in slot 1, +3 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 3; if (c.slot === 1) c.st[2] += 3; } },
 
   // ---- v1.3 new-hero powers. New hooks: aura (adds to OTHER heroes on the call, max per stat), smallTeam {max, add}, restMult, injuryShield ----
-  breakwater: { name: 'Breakwater', desc: 'Teammates on her call get +1 Endurance.', aura: [0, 1, 0, 0, 0] },
+  breakwater: { name: 'Breakwater', desc: 'Aura: teammates on her call get +1 Endurance (doesn\'t stack with the same aura).', aura: [0, 1, 0, 0, 0] },
   riptide: { name: 'Riptide', desc: 'Rides the currents: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   undertow: { name: 'Undertow', desc: 'Water cushions every blow: immune to injuries.', immune: true },
-  breakwater2: { name: 'Breakwater ✦', signature: true, desc: 'SIGNATURE: teammates on her call get +2 Endurance.', aura: [0, 2, 0, 0, 0] },
+  breakwater2: { name: 'Breakwater ✦', signature: true, desc: 'MK II aura: teammates on her call get +2 Endurance (doesn\'t stack with the same aura).', aura: [0, 2, 0, 0, 0] },
   headstart: { name: 'Head Start', desc: 'Always first out the door: travel time x0.6.', travelMult: 0.6 },
-  secondwind: { name: 'Second Wind', desc: 'Once per shift, a failed call he is on is re-rolled.', retry: true },
+  secondwind: { name: 'Second Wind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   courierroute: { name: 'Courier Route', desc: 'Has run every route: reveals call requirements in the briefing when assigned.', preview: true },
-  headstart2: { name: 'Head Start ✦', signature: true, desc: 'SIGNATURE: travel time x0.45 and rests half as long between calls.', travelMult: 0.45, restMult: 0.5 },
-  audittrail: { name: 'Audit Trail', desc: 'Follows the money: reveals call requirements in the briefing when assigned.', preview: true },
-  compound: { name: 'Compound Interest', desc: 'Team XP +20% on calls she joins.', xpBoost: 0.20 },
-  fineprint: { name: 'Fine Print', desc: 'Slot bonus: +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } },
-  audittrail2: { name: 'Audit Trail ✦', signature: true, desc: 'SIGNATURE: reveals call requirements, and team XP +15% on her calls.', preview: true, xpBoost: 0.15 },
-  headliner: { name: 'Headliner', desc: 'Slot bonus: +2 Presence in slot 1.', onCompute(c) { if (c.slot === 0) c.st[3] += 2; } },
+  headstart2: { name: 'Head Start ✦', signature: true, desc: 'MK II: travel time x0.45 and rests half as long between calls.', travelMult: 0.45, restMult: 0.5 },
+  audittrail: { name: 'Audit Trail', desc: 'Follows the money: +1 Wits to the team on calls that need Wits 5+.', onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 1; } },
+  compound: { name: 'Compound Interest', desc: 'Team XP +20% on calls she joins, and her paperwork reveals the call requirements in the briefing when assigned.', xpBoost: 0.20, preview: true },
+  fineprint: { name: 'Fine Print', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } },
+  audittrail2: { name: 'Audit Trail ✦', signature: true, desc: 'MK II: +2 Wits to the team on calls that need Wits 5+, and team XP +15% on her calls.', xpBoost: 0.15, onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 2; } },
+  headliner: { name: 'Headliner', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Presence in slot 1.', onCompute(c) { if (c.slot === 0) c.st[3] += 2; } },
   ovation: { name: 'Standing Ovation', desc: 'Team XP +20% on calls he joins.', xpBoost: 0.20 },
-  crowdwork: { name: 'Crowd Work', desc: 'Warms up the room: teammates get +1 Presence.', aura: [0, 0, 0, 1, 0] },
-  headliner2: { name: 'Headliner ✦', signature: true, desc: 'SIGNATURE: +3 Presence in slot 1, and teammates get +1 Presence.', onCompute(c) { if (c.slot === 0) c.st[3] += 3; }, aura: [0, 0, 0, 1, 0] },
+  crowdwork: { name: 'Crowd Work', desc: 'Aura: warms up the room, teammates get +1 Presence (doesn\'t stack with the same aura).', aura: [0, 0, 0, 1, 0] },
+  headliner2: { name: 'Headliner ✦', signature: true, slotBonus: true, desc: 'MK II: +3 Presence in slot 1 (calls with 3+ slots), and aura: teammates get +1 Presence (doesn\'t stack with the same aura).', onCompute(c) { if (c.slot === 0) c.st[3] += 3; }, aura: [0, 0, 0, 1, 0] },
   hammertime: { name: 'Hammer Time', desc: '+1 Might for every success this shift (max +3). Resets on a failure.', onCompute(c) { c.st[0] += Math.min(3, c.hero.streak || 0); }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
   anvil: { name: 'Anvil', desc: 'Ignores injury debuffs.', ignoreInjury: true },
   forgeahead: { name: 'Forge Ahead', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  hammertime2: { name: 'Hammer Time ✦', signature: true, desc: 'SIGNATURE: +1 Might per success (max +5); a failure only removes 1 stack.', onCompute(c) { c.st[0] += Math.min(5, c.hero.streak || 0); }, onResult(c) { c.hero.streak = c.success ? Math.min(5, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 1); } },
+  hammertime2: { name: 'Hammer Time ✦', signature: true, desc: 'MK II: +1 Might per success (max +5); a failure only removes 1 stack.', onCompute(c) { c.st[0] += Math.min(5, c.hero.streak || 0); }, onResult(c) { c.hero.streak = c.success ? Math.min(5, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 1); } },
   coil: { name: 'Coil', desc: '+2 Might on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [2, 0, 0, 0, 0] } },
-  constrict: { name: 'Constrict', desc: 'Once per shift, re-rolls a failed call he is on.', retry: true },
+  constrict: { name: 'Constrict', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   shedskin: { name: 'Shed Skin', desc: 'Can never be Downed.', noDown: true },
-  coil2: { name: 'Coil ✦', signature: true, desc: 'SIGNATURE: +3 Might and +1 Agility on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [3, 0, 1, 0, 0] } },
+  coil2: { name: 'Coil ✦', signature: true, desc: 'MK II: +3 Might and +1 Agility on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [3, 0, 1, 0, 0] } },
   jumpstart: { name: 'Jump Start', desc: 'Hot-wires a ride: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  chopshop: { name: 'Chop Shop', desc: 'Slot bonus: +2 Wits in slot 2.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; } },
+  chopshop: { name: 'Chop Shop', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 2.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; } },
   pitstop: { name: 'Pit Stop', desc: 'Rests 40% less between calls.', restMult: 0.6 },
-  jumpstart2: { name: 'Jump Start ✦', signature: true, desc: 'SIGNATURE: travel time x0.5 and reveals call requirements when assigned.', travelMult: 0.5, preview: true },
+  jumpstart2: { name: 'Jump Start ✦', signature: true, desc: 'MK II: travel time x0.5, and he rests 20% less between calls.', travelMult: 0.5, restMult: 0.8 },
   deeproots: { name: 'Deep Roots', desc: 'Ignores injury debuffs.', ignoreInjury: true },
   photosynth: { name: 'Photosynthesis', desc: 'Heals one injury on a teammate sent with him.', heal: true },
-  overgrowth: { name: 'Overgrowth', desc: 'Slot bonus: +2 Endurance in slot 1, +1 Wits in slot 2.', onCompute(c) { if (c.slot === 0) c.st[1] += 2; if (c.slot === 1) c.st[4] += 1; } },
-  deeproots2: { name: 'Deep Roots ✦', signature: true, desc: 'SIGNATURE: ignores injuries, can never be Downed, and teammates get +1 Endurance.', ignoreInjury: true, noDown: true, aura: [0, 1, 0, 0, 0] },
-  floodlight: { name: 'Floodlight', desc: 'Lights up the scene: reveals call requirements in the briefing when assigned.', preview: true },
-  prism: { name: 'Prism', desc: 'Splits the light into ideas: teammates get +1 Wits.', aura: [0, 0, 0, 0, 1] },
-  flashbang: { name: 'Flashbang', desc: 'Slot bonus: +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
-  floodlight2: { name: 'Floodlight ✦', signature: true, desc: 'SIGNATURE: reveals call requirements, and teammates get +1 Wits and +1 Agility.', preview: true, aura: [0, 0, 1, 0, 1] },
+  overgrowth: { name: 'Overgrowth', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Endurance in slot 1, +1 Wits in slot 2.', onCompute(c) { if (c.slot === 0) c.st[1] += 2; if (c.slot === 1) c.st[4] += 1; } },
+  deeproots2: { name: 'Deep Roots ✦', signature: true, desc: 'MK II: ignores injuries, can never be Downed, and aura: teammates get +1 Endurance (doesn\'t stack with the same aura).', ignoreInjury: true, noDown: true, aura: [0, 1, 0, 0, 0] },
+  floodlight: { name: 'Floodlight', desc: 'Aura: lights up the scene, teammates get +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 0] },
+  prism: { name: 'Prism', desc: 'Aura: splits the light into ideas, teammates get +1 Wits (doesn\'t stack with the same aura), and reveals the call requirements in the briefing when assigned.', aura: [0, 0, 0, 0, 1], preview: true },
+  flashbang: { name: 'Flashbang', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
+  floodlight2: { name: 'Floodlight ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 1] },
   toolbelt: { name: 'Toolbelt', desc: 'A gadget for every gap: +1 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 1; c.st[o[1]] += 1; } },
-  juryrig: { name: 'Jury-Rig', desc: 'Once per shift, re-rolls a failed call he is on.', retry: true },
+  juryrig: { name: 'Jury-Rig', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   gadgetpack: { name: 'Gadget Pack', desc: 'Rocket skates: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  toolbelt2: { name: 'Toolbelt ✦', signature: true, desc: 'SIGNATURE: +2 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 2; c.st[o[1]] += 2; } },
+  toolbelt2: { name: 'Toolbelt ✦', signature: true, desc: 'MK II: +2 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 2; c.st[o[1]] += 2; } },
   soothe: { name: 'Soothe', desc: 'Works best alone: solo travel and work x0.6, and +2 Presence and +1 Wits when sent solo.', solo: true, smallTeam: { max: 1, add: [0, 0, 0, 2, 1] } },
   empathy: { name: 'Empathy', desc: 'Heals one injury on a teammate sent with her.', heal: true },
   kindwords: { name: 'Kind Words', desc: 'Team XP +15% on calls she joins.', xpBoost: 0.15 },
-  soothe2: { name: 'Soothe ✦', signature: true, desc: 'SIGNATURE: solo travel and work x0.5, and +3 Presence and +2 Wits when sent solo.', solo: true, soloMult: 0.5, smallTeam: { max: 1, add: [0, 0, 0, 3, 2] } },
-  gambit: { name: 'Gambit', desc: 'Calls the plays: teammates get +1 Wits.', aura: [0, 0, 0, 0, 1] },
-  fork: { name: 'Fork', desc: 'Slot bonus: +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
+  soothe2: { name: 'Soothe ✦', signature: true, desc: 'MK II: solo travel and work x0.5, and +3 Presence and +2 Wits when sent solo.', solo: true, soloMult: 0.5, smallTeam: { max: 1, add: [0, 0, 0, 3, 2] } },
+  gambit: { name: 'Gambit', desc: 'Aura: calls the plays, teammates get +1 Wits (doesn\'t stack with the same aura).', aura: [0, 0, 0, 0, 1] },
+  fork: { name: 'Fork', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
   castle: { name: 'Castle', desc: 'Always has an escape: can never be Downed.', noDown: true },
-  gambit2: { name: 'Gambit ✦', signature: true, desc: 'SIGNATURE: teammates get +1 Wits and +1 Might.', aura: [1, 0, 0, 0, 1] },
+  gambit2: { name: 'Gambit ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Might (doesn\'t stack with the same aura).', aura: [1, 0, 0, 0, 1] },
   updraft: { name: 'Updraft', desc: 'Glides over traffic: travel time x0.6.', travelMult: 0.6 },
-  swoop: { name: 'Swoop', desc: 'Slot bonus: +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
+  swoop: { name: 'Swoop', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
   landing: { name: 'Perfect Landing', desc: 'Always lands on her feet: immune to injuries.', immune: true },
-  updraft2: { name: 'Updraft ✦', signature: true, desc: 'SIGNATURE: travel time x0.45, and once per shift re-rolls a failed call.', travelMult: 0.45, retry: true },
+  updraft2: { name: 'Updraft ✦', signature: true, desc: 'MK II: travel time x0.45, and she is immune to injuries on calls she completes (succeeds).', travelMult: 0.45, immuneOnSuccess: true },
   naptime: { name: 'Nap Time', desc: 'Can never be Downed, and teammates on her calls are injured half as often.', noDown: true, injuryShield: 0.5 },
-  curfew: { name: 'Curfew', desc: 'Everyone stands up straighter: teammates get +1 Endurance.', aura: [0, 1, 0, 0, 0] },
+  curfew: { name: 'Curfew', desc: 'Aura: everyone stands up straighter, teammates get +1 Endurance (doesn\'t stack with the same aura).', aura: [0, 1, 0, 0, 0] },
   timeout: { name: 'Time Out', desc: 'Heals up to 2 injured teammates sent with her.', heal: true, healCount: 2 },
-  naptime2: { name: 'Nap Time ✦', signature: true, desc: 'SIGNATURE: can never be Downed, and teammates on her calls are never injured.', noDown: true, injuryShield: 1 },
+  naptime2: { name: 'Nap Time ✦', signature: true, desc: 'MK II: can never be Downed, and teammates on her calls are never injured.', noDown: true, injuryShield: 1 },
   headtime: { name: 'Head Time', desc: 'Skips the boring bits: rests half as long between calls.', restMult: 0.5 },
-  rewind: { name: 'Rewind', desc: 'Once per shift, re-rolls a failed call he is on.', retry: true },
+  rewind: { name: 'Rewind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   earlybird: { name: 'Early Bird', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  headtime2: { name: 'Head Time ✦', signature: true, desc: 'SIGNATURE: rests 70% less, and once per shift re-rolls a failed call.', restMult: 0.3, retry: true },
-  tripwire: { name: 'Tripwire', desc: 'Slot bonus: +2 Agility in slot 2, +1 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 2; if (c.slot === 2) c.st[4] += 1; } },
-  netgun: { name: 'Net Gun', desc: 'Slot bonus: +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
+  headtime2: { name: 'Head Time ✦', signature: true, desc: 'MK II: rests 70% less, and once per shift adds +8 s to a call that is about to expire (while he is on shift).', restMult: 0.3, extendExpiry: true },
+  tripwire: { name: 'Tripwire', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Agility in slot 2, +1 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 2; if (c.slot === 2) c.st[4] += 1; } },
+  netgun: { name: 'Net Gun', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
   lure: { name: 'Lure', desc: 'Baits the target out: reveals call requirements in the briefing when assigned.', preview: true },
-  tripwire2: { name: 'Tripwire ✦', signature: true, desc: 'SIGNATURE: +3 Agility in slot 2, +2 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 3; if (c.slot === 2) c.st[4] += 2; } },
-  bellow: { name: 'Bellow', desc: 'Teammates get +1 Presence, and he gets +1 Might.', aura: [0, 0, 0, 1, 0], onCompute(c) { c.st[0] += 1; } },
+  tripwire2: { name: 'Tripwire ✦', signature: true, slotBonus: true, desc: 'MK II (calls with 3+ slots): +3 Agility in slot 2, +2 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 3; if (c.slot === 2) c.st[4] += 2; } },
+  bellow: { name: 'Bellow', desc: 'Aura: teammates get +1 Presence (doesn\'t stack with the same aura), and he gets +1 Might.', aura: [0, 0, 0, 1, 0], onCompute(c) { c.st[0] += 1; } },
   shanty: { name: 'Sea Shanty', desc: 'Team XP +15% on calls he joins.', xpBoost: 0.15 },
   anchor: { name: 'Anchor', desc: 'Ignores injury debuffs.', ignoreInjury: true },
-  bellow2: { name: 'Bellow ✦', signature: true, desc: 'SIGNATURE: teammates get +1 Presence and +1 Might, and he gets +1 Might.', aura: [1, 0, 0, 1, 0], onCompute(c) { c.st[0] += 1; } },
+  bellow2: { name: 'Bellow ✦', signature: true, desc: 'MK II aura: teammates get +1 Presence and +1 Might (doesn\'t stack with the same aura), and he gets +1 Might.', aura: [1, 0, 0, 1, 0], onCompute(c) { c.st[0] += 1; } },
   audited: { name: 'Audited', desc: 'Fixed stats. Gains no XP. Never injured.', immune: true, noDown: true },
 };
+/* v1.10: every power declares where it acts: stat (pentagon -> coverage -> %), cap (acts on the roll itself: re-roll), time (travel/work/expiry),
+   rest, xp, injury, info. Explicit `kind` wins; otherwise it is derived from the hooks so a new power can never be left without one. */
+const POWER_KINDS = ['stat', 'cap', 'time', 'rest', 'xp', 'injury', 'info'];
+function powerKindOf(P) { if (P.kind) return P.kind; if (P.onCompute || P.smallTeam || P.aura || P.illusion || P.spread || P.swap || P.supernova) return 'stat'; if (P.retry) return 'cap';
+  if (P.travelMult || P.solo || P.extendExpiry) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.preview) return 'info'; return 'info'; }
+for (const k in POWERS) POWERS[k].kind = powerKindOf(POWERS[k]);
+const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground' }; // v1.10 save migration
 
 /* ================= CALL TEMPLATES ================= */
 // req order: CMB END AGI PRS WIT. Text keywords: [[word|STAT]]
@@ -1398,7 +1415,7 @@ function makeHero(def) {
     stats: def.stats.slice(), baseTotal: def.stats.reduce((a, b) => a + b, 0), xp: 0, xpPointsEarned: 0, unspentPoints: 0, wildPoints: 0, rank: 1,
     state: 'available', injuries: 0, morale: 0, nextMorale: 0, stateTimer: 0, stateDur: 0, powers: [def.power], synergyPartner: def.synergy,
     pairCount: {}, flags: { requestedRefused: 0, granted: 0 }, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, noXP: !!def.noXP, callUid: null, temp: !!def.noXP,
-    level: 1, trainedChoice: null, signature: false, xpLog: [], pendingLevelUps: 0, xpOffset: def.xpOffset || 0, formToggled: false, routeTrained: false };
+    level: 1, trainedChoice: null, signature: false, revealed: {}, burnt: false, extendUsed: false, xpLog: [], pendingLevelUps: 0, xpOffset: def.xpOffset || 0, formToggled: false, routeTrained: false };
 }
 function heroDef(id) { return id === 'comptroller' ? COMPTROLLER : HERO_DEFS.find(h => h.id === id); }
 
@@ -1440,7 +1457,18 @@ function newCampaign(seed, opts) {
 function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i)); return ids; }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV18(c); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV110(migrateV18(c)); }
+function migrateV110(c) { // v1.10 powers rework: retired ids map to their replacements; Mk II (old Signatures) keep their ids; no crash on unknown ids
+  for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.powers)) h.powers = d.power ? [d.power] : [];
+    h.powers = h.powers.map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]); h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
+    if (d.power && !h.powers.includes(d.power) && !h.powers.includes(SIGNATURES[d.power])) h.powers.unshift(d.power);
+    if (h.trainedChoice) h.trainedChoice = RETIRED_POWERS[h.trainedChoice] || h.trainedChoice; if (h.trainedChoice && !POWERS[h.trainedChoice]) h.trainedChoice = null;
+    if (!h.trainedChoice) h.trainedChoice = (d.train || []).find(p => h.powers.includes(p)) || null;
+    h.signature = h.powers.some(p => POWERS[p].signature);
+    if (!h.revealed || typeof h.revealed !== 'object') { h.revealed = {}; if (h.joined || h.xpPointsEarned > 0 || h.trainedChoice || h.signature) h.revealed[d.power] = true; } // a hero who already played keeps access to training
+    if (h.burnt === undefined) h.burnt = false; if (h.extendUsed === undefined) h.extendUsed = false;
+    if (!hasPower(h, 'retry')) h.retryUsed = false; } // retryUsed is ignored for heroes with no re-roll power (Mirrorlark after Encore -> Perfect Copy)
+  return c; }
 function migrateV18(c) { // v1.8: optional fields only (save format stays v5)
   for (const id in c.heroes) if (c.heroes[id].routeTrained === undefined) c.heroes[id].routeTrained = false;
   if (!c.missionSet) c.missionSet = 'v1.8'; return c; }
@@ -1452,7 +1480,7 @@ function migrateCampCore(c) { // returns a v2 campaign or throws on garbage
   if (c.v === 2) return toV5(toV4(toV3(c)));
   for (const id of LEGACY_POOL) if (!c.heroes[id]) c.heroes[id] = makeHero(heroDef(id));
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.stats) || h.stats.length !== 5) throw new Error('bad hero');
-    h.xp = h.xp || 0; h.xpPointsEarned = h.xpPointsEarned || 0; h.unspentPoints = h.unspentPoints || 0; h.wildPoints = h.wildPoints || 0; h.powers = Array.isArray(h.powers) ? h.powers.filter(p => POWERS[p]) : [d.power];
+    h.xp = h.xp || 0; h.xpPointsEarned = h.xpPointsEarned || 0; h.unspentPoints = h.unspentPoints || 0; h.wildPoints = h.wildPoints || 0; h.powers = Array.isArray(h.powers) ? h.powers.map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]) : [d.power];
     h.level = 1 + h.xpPointsEarned; h.xpOffset = d.xpOffset || 0; h.trainedChoice = (d.train || []).find(p => h.powers.includes(p)) || null;
     h.signature = h.powers.some(p => POWERS[p].signature); h.xpLog = h.xpLog || []; h.pendingLevelUps = 0; h.formToggled = false; h.buff = h.buff || [0, 0, 0, 0, 0]; h.pairCount = h.pairCount || {}; h.flags = h.flags || { requestedRefused: 0, granted: 0 }; }
   c.wildGiven = Object.values(c.heroes).reduce((a, h) => a + (h.wildPoints || 0), 0); c.seenLevelUp = c.seenLevelUp || {}; c.v = 2;
@@ -1499,7 +1527,7 @@ function startShift(camp) {
   const avg = camp.grades.length ? camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / camp.grades.length : 4;
   if (idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow) { camp.heroes.comptroller = makeHero(COMPTROLLER); camp.roster.push('comptroller'); camp.comptroller = true; }
   for (const id of camp.roster) { const h = camp.heroes[id]; if (!h.joined) { h.joined = idx + 1; if (idx > 0 && !h.noXP) addXP(camp, h, CONFIG.lateJoinXPPerShift * idx, null, { call: 'Hired with experience', reason: 'late hire' }); }
-    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false });
+    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false }); h.revealed = h.revealed || {};
     h.morale = h.nextMorale || 0; h.nextMorale = 0; h.flags.requestedRefused = 0; h.flags.granted = 0; }
   const seed = (camp.seed + idx * 7919) >>> 0;
   const S = { idx, plan, t: 0, speed: 1, calls: [], uid: 1, spawnRng: mulberry32(seed), rollRng: mulberry32(seed ^ 0x9e3779b9), rollNonce: (camp.rollNonce !== undefined && camp.rollNonceFor === idx ? camp.rollNonce : 0) >>> 0, hackRng: mulberry32(seed ^ 0x51ed27), seed, roster: camp.roster.slice(),
@@ -1564,17 +1592,19 @@ function hasPower(h, flag) { return h.powers.some(p => POWERS[p] && POWERS[p][fl
 function effStats(camp, h, slot, call, opts) {
   opts = opts || {};
   const st = h.stats.slice();
-  if (h.form === 'night' && hasPower(h, 'swap')) { [st[0], st[4]] = [st[4], st[0]]; [st[1], st[3]] = [st[3], st[1]]; }
-  const c = { hero: h, slot, st, call, camp };
-  c.teamSize = opts.teamSize || 0;
   const tr = opts.trace; const mark = (p, kind, b) => { if (!tr) return; const d = st.map((v, i) => v - b[i]); if (d.some(x => x)) tr.push({ hero: h.id, power: p, kind, delta: d, slot }); };
-  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute) { const b = st.slice(); POWERS[p].onCompute(c); mark(p, 'stat', b); }
+  if (h.form === 'night' && hasPower(h, 'swap')) { const b = st.slice(); [st[0], st[4]] = [st[4], st[0]]; [st[1], st[3]] = [st[3], st[1]]; mark(h.powers.find(p => POWERS[p] && POWERS[p].swap), 'swap', b); } // v1.10 B9: traced
+  const c = { hero: h, slot, st, call, camp, req: opts.req || (call && call.req) || null };
+  c.teamSize = opts.teamSize || 0;
+  const slotsOk = !!(call && (call.slots || 0) >= CONFIG.slotBonusMinSlots); // v1.10 B11: slot bonuses need a 3+ slot call
+  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute && (!POWERS[p].slotBonus || slotsOk)) { const b = st.slice(); POWERS[p].onCompute(c); mark(p, 'stat', b); }
   for (const p of h.powers) { const sm = POWERS[p] && POWERS[p].smallTeam; if (sm && c.teamSize && c.teamSize <= sm.max) { const b = st.slice(); sm.add.forEach((v, i) => st[i] += v); mark(p, 'stat', b); } }
   for (let i = 0; i < 5; i++) st[i] += h.buff[i] || 0;
   const injured = !opts.noInjury && h.injuries > 0 && !(opts.healed && opts.healed.includes(h.id));
+  const mor = h.morale < 0 ? 1 : 0;
   if (injured && !hasPower(h, 'ignoreInjury')) for (let i = 0; i < 5; i++) st[i] -= 1;
-  if (injured && hasPower(h, 'ignoreInjury') && tr) tr.push({ hero: h.id, power: h.powers.find(p => POWERS[p].ignoreInjury), kind: 'ignoreInjury', delta: [1, 1, 1, 1, 1], slot });
-  if (h.morale < 0) for (let i = 0; i < 5; i++) st[i] -= 1;
+  if (injured && hasPower(h, 'ignoreInjury') && tr) { const d = st.map(v => Math.max(1, v - mor) - Math.max(1, v - 1 - mor)); tr.push({ hero: h.id, power: h.powers.find(p => POWERS[p].ignoreInjury), kind: 'ignoreInjury', delta: d, slot }); } // v1.10 B10: real (clamped) delta
+  if (mor) for (let i = 0; i < 5; i++) st[i] -= 1;
   return st.map(v => Math.max(1, v));
 }
 function polyArea(pts) { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; }
@@ -1632,7 +1662,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   const ids = heroes.filter(Boolean).map(h => h.id);
   const healed = []; const healer = heroes.find(h => h && hasPower(h, 'heal'));
   if (healer && !xo.noHeal) { const n = powerProp(healer, 'healCount') || 1; for (const inj of heroes) if (inj && inj !== healer && inj.injuries > 0 && healed.length < n) healed.push(inj.id); }
-  const per = heroes.map((h, i) => h ? effStats(camp, h, i, call, { healed, teamSize: ids.length, trace }) : null);
+  const per = heroes.map((h, i) => h ? effStats(camp, h, i, call, { healed, teamSize: ids.length, trace, req }) : null);
   // v1.3 aura: each hero gets the best aura (per stat) from the OTHER heroes on this call
   const auras = heroes.map(h => { const a = [0, 0, 0, 0, 0]; if (h) for (const p of h.powers) { const au = POWERS[p] && POWERS[p].aura; if (au) au.forEach((v, k) => a[k] = Math.max(a[k], v)); } return a; });
   const auraCredit = {};
@@ -1640,8 +1670,19 @@ function computeCall(camp, S, call, assigned, opt, xo) {
     if (m) { const gid = heroes[by].id; const e = auraCredit[gid] = auraCredit[gid] || { hero: gid, power: heroes[by].powers.find(p => POWERS[p] && POWERS[p].aura), kind: 'aura', delta: [0, 0, 0, 0, 0], to: [] }; e.delta[k] += m; if (!e.to.includes(heroes[i].id)) e.to.push(heroes[i].id); } } });
   for (const k in auraCredit) trace.push(auraCredit[k]);
   const team = [0, 0, 0, 0, 0]; per.forEach(st => st && st.forEach((v, i) => team[i] += v));
-  let illusion = null;
-  heroes.forEach((h, i) => { if (h && hasPower(h, 'illusion') && i > 0 && per[i - 1] && ids.length < call.slots) { const ratio = powerProp(h, 'illusionRatio') || 0.5; illusion = { from: heroes[i - 1].id, ratio, stats: per[i - 1].map(v => Math.floor(v * ratio)) }; illusion.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].illusion), kind: 'illusion', delta: illusion.stats.slice(), from: illusion.from }); } });
+  /* v1.10 Double Take (user rule): Mirrorlark adds ratio x the FINAL effective stats (after their powers, aura, injury, morale) of the hero
+     directly to her LEFT to the team, full team or not. Fractions are kept (never floored). Slot 1 / empty left slot = no effect (stated).
+     Ratio = best illusionRatio among her powers (Double Take 0.5, Perfect Copy 1). Mk II adds illusionRight x the hero to her RIGHT. */
+  const illusions = [];
+  heroes.forEach((h, i) => { if (!h || !hasPower(h, 'illusion')) return; const pw = h.powers.find(p => POWERS[p].illusion && !POWERS[p].signature) || h.powers.find(p => POWERS[p].illusion);
+    const ratio = Math.max(...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRatio) || 0)) || 0.5; const pRatio = h.powers.find(p => POWERS[p].illusionRatio === ratio && !POWERS[p].signature) || pw;
+    if (i > 0 && per[i - 1]) { const il = { by: h.id, from: heroes[i - 1].id, side: 'left', ratio, power: pRatio, stats: per[i - 1].map(v => v * ratio) }; illusions.push(il); il.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: pRatio, kind: 'illusion', delta: il.stats.slice(), from: il.from, ratio }); }
+    else trace.push({ hero: h.id, power: pw, kind: 'illusion', delta: [0, 0, 0, 0, 0], from: null, noEffect: true, text: 'no hero to her left' });
+    const rr = Math.max(0, ...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRight) || 0));
+    if (rr && per[i + 1]) { const rp = h.powers.find(p => POWERS[p].illusionRight); const il = { by: h.id, from: heroes[i + 1].id, side: 'right', ratio: rr, power: rp, stats: per[i + 1].map(v => v * rr) }; illusions.push(il); il.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: rp, kind: 'illusion', delta: il.stats.slice(), from: il.from, ratio: rr, side: 'right' }); } });
+  const illusion = illusions[0] || null;
+  // v1.10 Spread Thin: each empty slot adds 25% of the hero's stats
+  { const empty = Math.max(0, (call.slots || assigned.length) - ids.length); heroes.forEach((h, i) => { const sp = h && powerProp(h, 'spread'); if (sp && empty) { const d = per[i].map(v => v * sp * empty); d.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].spread), kind: 'spread', delta: d, empty }); } }); }
   const capped = team.map(v => Math.min(CONFIG.teamCap, v));
   const sumReq = req.reduce((a, b) => a + b, 0);
   const perStat = sumReq ? capped.reduce((a, v, i) => a + Math.min(v, req[i]), 0) / sumReq : 0;
@@ -1660,7 +1701,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   let forced = null;
   { const af = afList(tpl).find(x => ids.includes(x.heroId)); if (af) forced = af.reason; }
   if (tpl.overCapFail && capped[tpl.overCapFail.stat] > tpl.overCapFail.value) forced = tpl.overCapFail.reason;
-  const preview = heroes.some(h => h && hasPower(h, 'preview'));
+  const preview = heroes.some(h => h && hasPower(h, 'preview')) || (camp.roster || []).some(id => camp.heroes[id] && hasPower(camp.heroes[id], 'previewAll') && camp.heroes[id].state !== 'downed');
   if (call.forcedFail) forced = call.forcedFail;
   const breakdown = [{ label: auto ? (tpl.type === 'story' ? 'Story call: always succeeds' : 'Training call: always succeeds') : `Coverage ${Math.round(coverage * 100)}% → base`, delta: base }];
   if (afterCap < base) breakdown.push({ label: `${difficulty === 'hard' ? 'Hard' : 'Difficulty'} cap ${Math.round(cap * 100)}%`, delta: afterCap - base });
@@ -1669,7 +1710,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   if (conflict) breakdown.push({ label: 'Conflict', delta: -conflict });
   { const sum = breakdown.reduce((a, b) => a + b.delta, 0); if (Math.abs(sum - chance) > 1e-12) breakdown.push({ label: 'Clamp 0–100%', delta: chance - sum }); }
   if (forced) breakdown.push({ label: 'Automatic failure: ' + forced, delta: -chance, forced: true });
-  return { req, difficulty, team: capped, rawTeam: team, per, coverage, perStat, chance, cap, synergy, conflict, morale, synPairs, conPairs, forced, preview, healed: xo.healed || healed, healer: xo.healer !== undefined ? xo.healer : (healer ? healer.id : null), illusion, ids, trace, breakdown, decidedByCheck: !!(tpl.disruption && tpl.disruption.always) };
+  return { req, difficulty, team: capped, rawTeam: team, per, coverage, perStat, chance, cap, synergy, conflict, morale, synPairs, conPairs, forced, preview, healed: xo.healed || healed, healer: xo.healer !== undefined ? xo.healer : (healer ? healer.id : null), illusion, illusions, ids, trace, breakdown, decidedByCheck: !!(tpl.disruption && tpl.disruption.always) };
 }
 /* v1.7: ONE success function for display AND resolution. Pending calls are previewed "as dispatched" (heal, healer buff,
    request morale applied to copies), and dispatch locks this exact result into call.locked, which rollReview uses. */
@@ -1693,34 +1734,56 @@ function successChance(camp, S, call, assigned, o) {
   if (sab) { info.sabotage = sab; info.breakdown.push({ label: `Sabotage: ${heroDef(sab.hero).codename} pulled off (full team ${sab.fullTeamDisplay}%)`, delta: 0, sabotage: true }); }
   return withRetry(camp, info);
 }
-function withRetry(camp, info) { // a once-per-shift re-roll power is a real modifier: effective = 1-(1-p)^2 (shown as its own breakdown row)
-  info.breakdown = info.breakdown.filter(b => !b.retry); info.effective = info.chance; info.retry = null;
-  if (!info.forced && info.chance > 0 && info.chance < 1) { const rh = info.ids.map(id => camp.heroes[id]).find(h => h && hasPower(h, 'retry') && !h.retryUsed);
-    if (rh) { info.retry = { hero: rh.id, power: rh.powers.find(p => POWERS[p].retry) }; info.effective = 1 - Math.pow(1 - info.chance, 2); info.breakdown.push({ label: `Re-roll ready (${rh.codename}: ${POWERS[info.retry.power].name})`, delta: info.effective - info.chance, retry: true }); } }
-  info.guaranteedSuccess = !info.forced && info.effective >= 1 && !info.disruptionRisk; info.display = chancePct(info); return info; }
-function chancePct(info) { if (info.forced) return 0; if (info.guaranteedSuccess) return 100; const e = info.effective !== undefined ? info.effective : info.chance; return clamp(Math.round(e * 100), 1, 99); }
+/* v1.10: re-roll powers are shown honestly. The headline (and everything the hidden helpers read) is the SINGLE-roll chance info.chance.
+   A re-roll power adds its own line "second try if this fails (~X% overall)", X = 1-(1-p)^2, never added to the headline.
+   Only the first re-roll hero on the team is used per call. info.effective stays === info.chance (kept for old callers). */
+function retryHeroFor(camp, ids) { const hs = ids.map(id => camp.heroes[id]).filter(h => h && hasPower(h, 'retry')); return { ready: hs.find(h => !h.retryUsed) || null, any: hs[0] || null }; }
+function withRetry(camp, info) {
+  info.breakdown = info.breakdown.filter(b => !b.retry); info.effective = info.chance; info.retry = null; info.retrySpent = null;
+  if (!info.forced && info.chance > 0 && info.chance < 1) { const r = retryHeroFor(camp, info.ids || []);
+    if (r.ready) { const pw = r.ready.powers.find(p => POWERS[p].retry); const overall = 1 - Math.pow(1 - info.chance, 2); info.retry = { hero: r.ready.id, power: pw, overall, overallPct: clamp(Math.round(overall * 100), 1, 99), text: `${POWERS[pw].name} (${r.ready.codename}): second try if this fails (~${clamp(Math.round(overall * 100), 1, 99)}% overall)` }; }
+    else if (r.any) { const pw = r.any.powers.find(p => POWERS[p].retry); info.retrySpent = { hero: r.any.id, power: pw, text: `${POWERS[pw].name} (${r.any.codename}): second try (used this shift)` }; } }
+  info.guaranteedSuccess = !info.forced && info.chance >= 1 && !info.disruptionRisk; info.display = chancePct(info); return info; }
+function chancePct(info) { if (info.forced) return 0; if (info.guaranteedSuccess) return 100; return clamp(Math.round(info.chance * 100), 1, 99); }
 function lockedInfo(camp, S, call) { // resolution info: the dispatch lock (+ any later forced failure), else legacy compute
   if (call.locked) { const info = Object.assign({}, call.locked); if (call.forcedFail) { info.forced = call.forcedFail; info.breakdown = info.breakdown.filter(b => !b.forced).concat([{ label: 'Automatic failure: ' + call.forcedFail, delta: -info.chance, forced: true }]); }
     info.guaranteedFail = !!info.forced; info.disruptionRisk = false; return withRetry(camp, info); }
   const info = computeCall(camp, S, call, call.teamSlots || call.team.concat(Array(Math.max(0, call.slots - call.team.length)).fill(null)));
   info.guaranteedFail = !!info.forced; info.disruptionRisk = false; return withRetry(camp, info); }
 /* ---------- v1.7 power activation events ---------- */
-function deltaText(d) { return d.map((v, i) => v ? `${v > 0 ? '+' : ''}${v} ${STAT_NAMES[STATS[i]]}` : '').filter(Boolean).join(', '); }
+const STAT_SHORT = ['MGT', 'END', 'AGI', 'PRS', 'WIT'];
+function numTxt(v) { const r = Math.round(v * 100) / 100; return String(r); }
+function deltaText(d) { return d.map((v, i) => Math.abs(v) > 1e-9 ? `${v > 0 ? '+' : ''}${numTxt(v)} ${STAT_NAMES[STATS[i]]}` : '').filter(Boolean).join(', '); }
+function deltaShort(d) { return deltaText(d); } // full stat names (matches the v1.7 power banners)
+/* v1.10: what one traced power did to coverage: coverage of the team WITHOUT this delta vs the real one (same capped area function). */
+function powerContribution(info, e) { if (!info || !info.rawTeam || !info.req || !e.delta) return null; const tot = e.kind === 'aura' ? e.delta : e.delta;
+  const wo = info.rawTeam.map((v, k) => Math.min(CONFIG.teamCap, Math.max(0, v - tot[k]))); const covWo = CONFIG.coverageMode === 'area' ? areaCoverage(wo, info.req) : 0;
+  return { before: covWo, after: info.coverage, pts: (info.coverage - covWo) * 100 }; }
+function contribText(info, e) { const c = powerContribution(info, e); if (!c) return ''; return ` (coverage ${Math.round(c.before * 100)}% → ${Math.round(c.after * 100)}%, ${c.pts >= 0 ? '+' : '−'}${Math.abs(c.pts).toFixed(1)} pts)`; }
 function powerEvText(camp, e) { const h = camp.heroes[e.hero]; return `${h ? h.codename : e.hero}: ${POWERS[e.power] ? POWERS[e.power].name : e.power} activated ${e.text}`; }
-function powerEv(camp, S, e) { e.text = e.text || (e.delta ? deltaText(e.delta) : ''); e.msg = powerEvText(camp, e); if (S) { (S.powerLog = S.powerLog || []).push(e); e.t = S.t; } Bus.emit('power', e); return e; }
-function traceEventText(camp, e) { if (e.kind === 'aura') return deltaText(e.delta.map(v => v / Math.max(1, e.to.length))) + ' to ' + e.to.map(id => camp.heroes[id].codename).join(', ');
-  if (e.kind === 'illusion') return 'copied ' + camp.heroes[e.from].codename + ' (' + deltaText(e.delta) + ')'; if (e.kind === 'ignoreInjury') return 'ignored the injury penalty (no −1)'; return deltaText(e.delta); }
+function revealPower(camp, heroId, power) { const h = camp && camp.heroes && camp.heroes[heroId]; if (!h || !power) return false; h.revealed = h.revealed || {}; if (h.revealed[power]) return false; h.revealed[power] = true; Bus.emit('powerRevealed', { hero: h, power }); return true; }
+function powerEv(camp, S, e) { e.text = e.text || (e.delta ? deltaText(e.delta) : ''); e.msg = powerEvText(camp, e); if (!e.noEffect) revealPower(camp, e.hero, e.power); if (S) { (S.powerLog = S.powerLog || []).push(e); e.t = S.t; } Bus.emit('power', e); return e; }
+function traceEventText(camp, e, info) { const ct = info ? contribText(info, e) : '';
+  if (e.kind === 'aura') return deltaShort(e.delta.map(v => v / Math.max(1, e.to.length))) + ' to ' + e.to.map(id => camp.heroes[id].codename).join(', ') + ' (doesn\'t stack with the same aura)' + ct;
+  if (e.kind === 'illusion') return e.noEffect ? 'no hero to her left (no effect)' : deltaShort(e.delta) + ' from ' + camp.heroes[e.from].codename + ` (${Math.round(e.ratio * 100)}% copy${e.side === 'right' ? ', right side' : ''})` + ct;
+  if (e.kind === 'spread') return deltaShort(e.delta) + ` (${e.empty} empty slot${e.empty === 1 ? '' : 's'} × 25%)` + ct;
+  if (e.kind === 'swap') return 'Night form: Might↔Wits, Endurance↔Presence (' + deltaShort(e.delta) + ')' + ct;
+  if (e.kind === 'ignoreInjury') return e.delta.some(v => v) ? 'ignored the injury penalty (' + deltaShort(e.delta) + ' kept)' + ct : 'ignored the injury penalty (no stat lost anyway)'; return deltaShort(e.delta) + ct; }
 function powerPreview(camp, S, call, info) { // what will trigger if dispatched now (briefing)
   const out = []; const ids = info.ids; const add = (hero, power, text, kind) => power && out.push({ hero, power, text, kind, msg: powerEvText(camp, { hero, power, text }) });
-  for (const e of info.trace) add(e.hero, e.power, traceEventText(camp, e), e.kind);
-  if (info.healed.length) add(info.healer, camp.heroes[info.healer].powers.find(p => POWERS[p].heal), 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + ' (+1 Presence)', 'heal');
+  const NP = ', does not change the %';
+  for (const e of info.trace) add(e.hero, e.power, traceEventText(camp, e, info), e.kind);
+  if (info.healed.length) add(info.healer, camp.heroes[info.healer].powers.find(p => POWERS[p].heal), 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + ' (+1 Presence, already in the %)', 'heal');
   for (const id of ids) { const h = camp.heroes[id];
-    const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, 'requirements revealed', 'preview');
-    const tm = h.powers.find(p => POWERS[p].travelMult); if (tm) add(id, tm, 'travel ×' + POWERS[tm].travelMult, 'travel');
-    const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) add(id, so, 'solo ×' + soloMultFor(h), 'solo');
-    for (const p of h.powers) if (POWERS[p].xpBoost) add(id, p, `+${Math.round(POWERS[p].xpBoost * 100)}% team XP on success`, 'xp');
-    const rt = h.powers.find(p => POWERS[p].retry); if (rt && !h.retryUsed) add(id, rt, 're-roll ready if this fails', 'retry');
-    const sh = h.powers.find(p => POWERS[p].injuryShield); if (sh && ids.length > 1) add(id, sh, `teammates ${POWERS[sh].injuryShield >= 1 ? 'never' : 'half as often'} injured`, 'shield'); }
+    const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, 'requirements revealed' + NP, 'preview');
+    const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) add(id, tm, 'travel ×' + POWERS[tm].travelMult + NP, 'travel');
+    const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) add(id, so, 'solo travel and work ×' + soloMultFor(h) + NP, 'solo');
+    for (const p of h.powers) if (POWERS[p].xpBoost) add(id, p, `+${Math.round(POWERS[p].xpBoost * 100)}% team XP on success` + NP, 'xp');
+    const rm = h.powers.find(p => POWERS[p].restMult); if (rm) add(id, rm, 'rest ×' + POWERS[rm].restMult + ' after the call' + NP, 'rest');
+    const sh = h.powers.find(p => POWERS[p].injuryShield); if (sh && ids.length > 1) add(id, sh, `teammates ${POWERS[sh].injuryShield >= 1 ? 'never' : 'half as often'} injured` + NP, 'shield');
+    const io = h.powers.find(p => POWERS[p].immuneOnSuccess); if (io) add(id, io, 'immune to injuries if the call succeeds' + NP, 'injury'); }
+  if (info.retry) add(info.retry.hero, info.retry.power, `second try if this fails (~${info.retry.overallPct}% overall; the headline stays the single-roll ${info.display}%)`, 'retry');
+  else if (info.retrySpent) add(info.retrySpent.hero, info.retrySpent.power, 'second try already used this shift', 'retry');
   return out; }
 
 /* ---------- Dispatch & mission timeline ---------- */
@@ -1728,7 +1791,7 @@ function canDispatchHero(camp, id) { const h = camp.heroes[id]; return h && h.st
 function travelTime(camp, call, ids) {
   const du = Math.abs(call.pos.u - HQ.u) * 1280, dv = Math.abs(call.pos.v - HQ.v) * 720;
   let t = clamp((du + dv) / CONFIG.heroSpeed, CONFIG.travelMin, CONFIG.travelMax);
-  const mults = ids.map(id => { const h = camp.heroes[id]; let m = 1; for (const p of h.powers) if (POWERS[p].travelMult) m *= POWERS[p].travelMult; if (h.routeTrained) m *= CONFIG.routeMult; return m; });
+  const mults = ids.map(id => { const h = camp.heroes[id]; let m = 1; for (const p of h.powers) if (POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)) m *= POWERS[p].travelMult; if (h.routeTrained) m *= CONFIG.routeMult; return m; });
   t *= mults.reduce((a, b) => a + b, 0) / mults.length;
   if (ids.length === 1 && hasPower(camp.heroes[ids[0]], 'solo')) t *= soloMultFor(camp.heroes[ids[0]]);
   return t;
@@ -1748,7 +1811,7 @@ function dispatch(camp, S, call) {
   call.stage = 'travel'; call.stageT = 0; call.team = ids.slice(); call.teamSlots = call.assigned.slice(); call.dispatchedAt = S.t;
   call.locked = JSON.parse(JSON.stringify(info));
   for (const id of ids) { const h = camp.heroes[id]; const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: 'requirements revealed' });
-    const tm = h.powers.find(p => POWERS[p].travelMult); if (tm) powerEv(camp, S, { hero: id, power: tm, kind: 'travel', callUid: call.uid, text: 'travel ×' + POWERS[tm].travelMult });
+    const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) powerEv(camp, S, { hero: id, power: tm, kind: 'travel', callUid: call.uid, text: 'travel ×' + POWERS[tm].travelMult + ', does not change the %' });
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) powerEv(camp, S, { hero: id, power: so, kind: 'solo', callUid: call.uid, text: 'solo run ×' + soloMultFor(h) }); }
   for (const id of ids) { const h = camp.heroes[id]; h.state = 'traveling'; h.callUid = call.uid; h.stateTimer = 0; h.stateDur = call.travel; }
   S.usedTemplates[call.tpl.id] = (S.usedTemplates[call.tpl.id] || 0) + 1;
@@ -1771,6 +1834,8 @@ function tick(camp, S, dt) {
   }
   for (const c of S.calls) {
     if (c.stage === 'pending') {
+      if (!c.tpl.noExpiry && c.expiresAt - S.t <= CONFIG.extendExpiryAt && c.expiresAt > S.t && !c.extended) { const ex = camp.roster.map(id => camp.heroes[id]).find(h => h && hasPower(h, 'extendExpiry') && !h.extendUsed && h.state !== 'downed');
+        if (ex) { ex.extendUsed = true; c.extended = true; c.expiresAt += CONFIG.extendExpirySeconds; if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.expiresAt = c.expiresAt; o.extended = true; } } powerEv(camp, S, { hero: ex.id, power: ex.powers.find(p => POWERS[p].extendExpiry), kind: 'time', callUid: c.uid, text: `+${CONFIG.extendExpirySeconds} s on "${c.tpl.title}" (once per shift), does not change the %` }); } }
       if (S.t >= c.expiresAt) { c.stage = 'closed'; c.result = 'missed'; S.stats.missed++; if (c.requestHero) refuseRequest(camp, c);
         if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; } } // a linked pair is ONE miss
         Bus.emit('missed', c); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); }
@@ -1813,7 +1878,7 @@ function injuryView(camp, h) { let base = h.stats.slice(), cur = base.slice();
 function afterReview(camp, h, call, S) {
   if (h.injuries >= 2 && !hasPower(h, 'noDown')) { h.state = 'downed'; h.callUid = null; return; }
   h.state = 'resting'; h.stateTimer = 0; h.stateDur = (CONFIG.restBase + CONFIG.restPerDiff * DIFF_LVL[call.difficulty]) * (powerProp(h, 'restMult') || 1);
-  const rp = h.powers.find(p => POWERS[p] && POWERS[p].restMult); if (rp && S) powerEv(camp, S, { hero: h.id, power: rp, kind: 'rest', callUid: call.uid, text: 'rest ×' + POWERS[rp].restMult });
+  const rp = h.powers.find(p => POWERS[p] && POWERS[p].restMult); if (rp && S) powerEv(camp, S, { hero: h.id, power: rp, kind: 'rest', callUid: call.uid, text: 'rest ×' + POWERS[rp].restMult + ', does not change the %' });
 }
 function reviewable(c) { return (c.stage === 'return' || c.stage === 'review') && !c.reviewed; }
 
@@ -1889,14 +1954,20 @@ function addXP(camp, h, amt, S, meta) {
     (camp.levelQueue = camp.levelQueue || []).push({ heroId: h.id, level: h.level });
     Bus.emit('levelUp', { hero: h, level: h.level });
     if (h.level === CONFIG.trainLevel && !h.trainedChoice && (heroDef(h.id) || {}).train && heroDef(h.id).train.length) Bus.emit('powerEligible', { hero: h, kind: 'training' });
-    if (h.level >= CONFIG.signatureLevel && !h.signature) grantSignature(h);
+    if (h.level === CONFIG.signatureLevel && canUpgradeMk2(h)) Bus.emit('powerEligible', { hero: h, kind: 'mk2', power: SIGNATURES[(heroDef(h.id) || {}).power] }); // v1.10: no automatic replacement
   }
   h.rank = 1 + h.xpPointsEarned + h.wildPoints; if (gained) Bus.emit('skillPoint', { hero: h, gained });
   return amt;
 }
 function grantSignature(h) { const def = heroDef(h.id); if (!def) return; const sig = SIGNATURES[def.power]; if (!sig) return; const i = h.powers.indexOf(def.power); if (i >= 0) h.powers[i] = sig; else if (!h.powers.includes(sig)) h.powers.push(sig); h.signature = true; Bus.emit('powerEligible', { hero: h, kind: 'signature', power: sig }); }
-function trainHero(camp, id, power) { const h = camp.heroes[id]; const def = heroDef(id); if (!h || h.trainedChoice || heroLevel(h) < CONFIG.trainLevel || !def.train.includes(power)) return false; h.trainedChoice = power; h.powers.push(power); return true; }
-function trainingEligible(camp) { return camp.roster.filter(id => { const h = camp.heroes[id], d = heroDef(id); return h && !h.noXP && d && d.train && d.train.length && !h.trainedChoice && heroLevel(h) >= CONFIG.trainLevel; }); }
+/* v1.10 Dispatch-style upgrades: train (pick 1 of 2) needs LV 3+ AND the base power revealed. Mk II (LV 8+, trained heroes only) is an
+   explicit choice that upgrades the base power; it never adds a re-roll or a second roll. */
+function baseRevealed(h) { const d = heroDef(h.id) || {}; return !!(h.revealed && (h.revealed[d.power] || h.revealed[SIGNATURES[d.power]])); }
+function canTrain(h) { const d = heroDef(h.id) || {}; return !!(h && !h.noXP && d.train && d.train.length && !h.trainedChoice && heroLevel(h) >= CONFIG.trainLevel && baseRevealed(h)); }
+function canUpgradeMk2(h) { const d = heroDef(h.id) || {}; const sig = SIGNATURES[d.power]; return !!(h && !h.noXP && sig && h.trainedChoice && !h.signature && heroLevel(h) >= CONFIG.signatureLevel && h.powers.includes(d.power)); }
+function upgradeMk2(camp, id) { const h = camp.heroes[id]; if (!h || !canUpgradeMk2(h)) return false; const d = heroDef(id); const sig = SIGNATURES[d.power]; if (POWERS[sig].retry) return false; h.powers[h.powers.indexOf(d.power)] = sig; h.signature = true; if (h.revealed) h.revealed[sig] = true; Bus.emit('mk2', { hero: h, power: sig }); return true; }
+function trainHero(camp, id, power) { const h = camp.heroes[id]; const def = heroDef(id); if (!h || !def || !canTrain(h) || !def.train.includes(power)) return false; h.trainedChoice = power; h.powers.push(power); return true; }
+function trainingEligible(camp) { return camp.roster.filter(id => { const h = camp.heroes[id], d = heroDef(id); return h && d && canTrain(h); }); }
 /* v1.9.2: per-call outcome dice. Seeded from (shift seed, attempt nonce, call uid, tag): a restart draws a new nonce (fresh dice),
    a save reload keeps the nonce stored in the shift-start snapshot (same dice), and review order no longer matters. */
 function hash32() { let h = 0x811c9dc5; for (const a of arguments) { const v = typeof a === 'string' ? [...a].reduce((x, ch) => Math.imul(x ^ ch.charCodeAt(0), 0x01000193) >>> 0, 0x9e37) : (a >>> 0); h = Math.imul(h ^ v, 0x01000193) >>> 0; h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d) >>> 0; h ^= h >>> 12; } return h >>> 0; }
@@ -1907,25 +1978,31 @@ function rollReview(camp, S, call) {
   if (call.tpl.training && call.team[0] && call.lvAtSend === undefined) call.lvAtSend = heroLevel(camp.heroes[call.team[0]]); // LV when sent (before this call's XP)
   const rng = rollFor(S, call, 'roll'); let roll = rng(), firstRoll = roll; let success, retried = false, forced = call.forcedFail || info.forced || null;
   if (call.disruption && call.disruption.resolved && disruptionDef(call.disruption.id).always) { success = !forced && call.disruption.outcome === 'success'; return { info, roll, firstRoll, success, retried, forced, check: call.disruption.log.slice(), decided: true }; }
-  let assist = null; const shown = info.effective !== undefined ? info.effective : info.chance;
+  /* v1.10 B5: the hidden helpers (76% streak assist, 15% floor, streak re-arm) read the SINGLE-roll chance info.chance, never the ~overall re-roll value.
+     A re-roll is a fresh draw from the same seeded per-call stream, against the same p, only after a first-roll miss. */
+  let assist = null; const p0 = info.chance; const rolls = [];
   if (forced) success = false; else {
-    const on = helpersOn(S) && shown < 1; let p = info.chance;
-    if (on && shown > CONFIG.streakAbove && (camp.streakBoosts || 0) < CONFIG.streakUses) { success = true; assist = 'streak'; camp.streakBoosts = (camp.streakBoosts || 0) + 1; }
+    const on = helpersOn(S) && p0 < 1; let p = p0;
+    if (on && p0 > CONFIG.streakAbove && (camp.streakBoosts || 0) < CONFIG.streakUses) { success = true; assist = 'streak'; camp.streakBoosts = (camp.streakBoosts || 0) + 1; }
     else {
       if (on && p > 0 && p < CONFIG.chanceFloor) { p = CONFIG.chanceFloor; assist = 'floor'; }
-      success = roll < p;
-      if (!success) { const rh = call.team.map(id => camp.heroes[id]).find(h => hasPower(h, 'retry') && !h.retryUsed); if (rh) { rh.retryUsed = true; retried = rh.id; roll = rng(); success = roll < p; } }
-      if (!success && shown > CONFIG.streakAbove) camp.streakBoosts = 0; // a >76% failure re-arms the streak
+      success = roll < p; rolls.push({ roll, need: p, ok: success });
+      if (!success) { const rh = retryHeroFor(camp, call.team).ready; if (rh) { rh.retryUsed = true; retried = rh.id; roll = rng(); success = roll < p; rolls.push({ roll, need: p, ok: success, hero: rh.id, power: rh.powers.find(x => POWERS[x].retry) }); } }
+      if (!success && p0 > CONFIG.streakAbove) camp.streakBoosts = 0; // a >76% failure re-arms the streak
     }
   }
-  return { info, roll, firstRoll, success, retried, forced, assist, rolledAgainst: forced ? 0 : (assist === 'streak' ? 1 : (assist === 'floor' ? CONFIG.chanceFloor : info.chance)) };
+  const retryReady = !retried && !forced && success && rolls.length === 1 ? (retryHeroFor(camp, call.team).ready || null) : null;
+  const R = { info, roll, firstRoll, success, retried, forced, assist, rolls, retryStillReady: retryReady ? retryReady.id : null, lockedChance: info.chance, rolledAgainst: forced ? 0 : (assist === 'streak' ? 1 : (assist === 'floor' ? CONFIG.chanceFloor : rolls.length ? rolls[0].need : info.chance)) };
+  R.parity = !!(forced || assist || R.rolledAgainst === R.lockedChance); // dev assertion: display and roll use one number (except the documented hidden helpers)
+  if (!R.parity && typeof globalThis !== 'undefined' && globalThis.ND_DEV) throw new Error('ND parity: rolledAgainst ' + R.rolledAgainst + ' !== lockedChance ' + R.lockedChance);
+  return R;
 }
 function applyReview(camp, S, call, R) {
   call.reviewed = true; call.stage = call.returnDone ? 'closed' : 'review'; call.result = R.success ? 'success' : 'fail';
   const team = call.team.map(id => camp.heroes[id]); const out = { xp: {}, injured: [], downed: [], bonus: false, perfect: null, conflictResolved: null, pts: [] };
   const ev0 = S && S.powerLog ? S.powerLog.length : 0;
-  for (const e of (R.info.trace || [])) if (e.power && camp.heroes[e.hero]) powerEv(camp, S, { hero: e.hero, power: e.power, kind: e.kind, callUid: call.uid, delta: e.kind === 'ignoreInjury' ? null : e.delta, text: traceEventText(camp, e) });
-  if (R.retried) { const rh = camp.heroes[R.retried]; powerEv(camp, S, { hero: rh.id, power: rh.powers.find(p => POWERS[p].retry), kind: 'retry', callUid: call.uid, text: 're-rolled the failed call → ' + (R.success ? 'SUCCESS' : 'still failed') }); }
+  for (const e of (R.info.trace || [])) if (e.power && camp.heroes[e.hero]) powerEv(camp, S, { hero: e.hero, power: e.power, kind: e.kind, callUid: call.uid, delta: e.kind === 'ignoreInjury' || e.noEffect ? null : e.delta, noEffect: !!e.noEffect, text: traceEventText(camp, e, R.info) });
+  if (R.retried) { const rh = camp.heroes[R.retried]; const r2 = R.rolls[1]; powerEv(camp, S, { hero: rh.id, power: rh.powers.find(p => POWERS[p].retry), kind: 'retry', callUid: call.uid, text: 'second try → Roll 2: ' + pctPair(r2.roll, r2.need).join(' vs needed < ') + ' → ' + (R.success ? 'SUCCESS' : 'still failed') }); }
   if (R.success) {
     S.stats.success++; const X = computeXP(camp, S, call, R); out.xpCalc = X; out.bonus = !!X.thrMet; out.before = {};
     for (const h of team) { out.before[h.id] = { xp: h.xp, frac: xpFrac(h), level: heroLevel(h) }; const e = X.perHero[h.id]; out.xp[h.id] = addXP(camp, h, e.gain, S, { call: call.tpl.title, reason: Object.keys(e.parts).filter(k => k !== 'base' && e.parts[k]).join('+') || 'base' }); }
@@ -1938,14 +2015,18 @@ function applyReview(camp, S, call, R) {
   const p = R.success ? (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0) : (CONFIG.injuryOnFail[call.difficulty] + (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0));
   for (const h of team) { const shields = team.filter(o => o !== h && (powerProp(o, 'injuryShield') || 0) > 0); const shield = team.reduce((m, o) => o !== h ? Math.max(m, powerProp(o, 'injuryShield') || 0) : m, 0);
     if (p > 0) { const roll = rollFor(S, call, 'inj')(), hit = roll < p * (1 - shield); // DESIGN: same single roll as v1.5; the extra checks below only read it
-      if (hit && !hasPower(h, 'immune')) applyInjury(camp, S, h, call, out);
-      else if (hit) { const ip = h.powers.find(pw => POWERS[pw].immune); logInjury(S, { id: h.id, kind: 'immune', by: ip, callUid: call.uid }); powerEv(camp, S, { hero: h.id, power: ip, kind: 'immune', callUid: call.uid, text: 'blocked an injury' }); }
-      else if (roll < p && shield > 0 && !hasPower(h, 'immune')) { const sh = shields.sort((a, b) => powerProp(b, 'injuryShield') - powerProp(a, 'injuryShield'))[0]; logInjury(S, { id: h.id, kind: 'shielded', by: sh.id, callUid: call.uid }); powerEv(camp, S, { hero: sh.id, power: sh.powers.find(pw => POWERS[pw].injuryShield), kind: 'shield', callUid: call.uid, text: 'shielded ' + h.codename + ' from an injury' }); } }
+      const imm = hasPower(h, 'immune') || (R.success && hasPower(h, 'immuneOnSuccess'));
+      if (hit && !imm) applyInjury(camp, S, h, call, out);
+      else if (hit) { const ip = h.powers.find(pw => POWERS[pw].immune || (R.success && POWERS[pw].immuneOnSuccess)); logInjury(S, { id: h.id, kind: 'immune', by: ip, callUid: call.uid }); powerEv(camp, S, { hero: h.id, power: ip, kind: 'immune', callUid: call.uid, text: 'blocked an injury' }); }
+      else if (roll < p && shield > 0 && !imm) { const sh = shields.sort((a, b) => powerProp(b, 'injuryShield') - powerProp(a, 'injuryShield'))[0]; logInjury(S, { id: h.id, kind: 'shielded', by: sh.id, callUid: call.uid }); powerEv(camp, S, { hero: sh.id, power: sh.powers.find(pw => POWERS[pw].injuryShield), kind: 'shield', callUid: call.uid, text: 'shielded ' + h.codename + ' from an injury' }); } }
   }
   // powers onResult, synergy counts, forms
-  for (const h of team) { for (const pw of h.powers) if (POWERS[pw].onResult) { const b0 = [h.streak || 0, h.streak2 || 0]; POWERS[pw].onResult({ hero: h, success: R.success, call }); const b1 = [h.streak || 0, h.streak2 || 0];
+  for (const h of team) { const prev = h.streak || 0; const cm = h.powers.find(pw => POWERS[pw] && POWERS[pw].burnout);
+    if (cm && !R.success && prev >= POWERS[cm].burnout && !R.forced) { if (!hasPower(h, 'immune')) { applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (injured)` }); } }
+    for (const pw of h.powers) if (POWERS[pw].onResult) { const b0 = [h.streak || 0, h.streak2 || 0]; const bt = !!h.burnt; POWERS[pw].onResult({ hero: h, success: R.success, call, prev }); if (POWERS[pw].supernova && !!h.burnt !== bt) powerEv(camp, S, { hero: h.id, power: pw, kind: 'stat', callUid: call.uid, text: h.burnt ? 'collapsed: Might and Agility 1 on her next call' : 'recovered from the collapse' }); const b1 = [h.streak || 0, h.streak2 || 0];
       if (b1[0] !== b0[0] || b1[1] !== b0[1]) { const v = b1[0] !== b0[0] ? b1[0] : b1[1]; powerEv(camp, S, { hero: h.id, power: pw, kind: 'streak', callUid: call.uid, text: R.success ? `streak ${v} (+${v} on the next call)` : `streak dropped to ${v}` }); } }
     if (hasPower(h, 'swap')) { h.form = h.form === 'day' ? 'night' : 'day'; powerEv(camp, S, { hero: h.id, power: h.powers.find(p => POWERS[p].swap), kind: 'swap', callUid: call.uid, text: 'switched to ' + (h.form === 'night' ? 'Night' : 'Day') + ' form' }); } }
+  for (const h of team) for (const pw of h.powers) { const P = POWERS[pw]; if (!P) continue; if ((P.noDown || P.ignoreInjury || P.immune || P.immuneOnSuccess) && (!R.success || h.injuries > 0)) revealPower(camp, h.id, pw); if (P.injuryShield && team.length > 1) revealPower(camp, h.id, pw); }
   out.powerEvents = S && S.powerLog ? S.powerLog.slice(ev0) : [];
   for (const [a, b] of SYNERGY_PAIRS) if (call.team.includes(a) && call.team.includes(b)) { camp.heroes[a].pairCount[b] = (camp.heroes[a].pairCount[b] || 0) + 1; camp.heroes[b].pairCount[a] = (camp.heroes[b].pairCount[a] || 0) + 1; }
   for (const [a, b] of R.info.conPairs) { const k = pairKey(a, b); if (R.success) { camp.conflictWins[k] = (camp.conflictWins[k] || 0) + 1; if (camp.conflictWins[k] >= CONFIG.conflictNeutralWins) { camp.conflictNeutral[k] = true; out.conflictResolved = CONFLICT_RESOLVE[k]; } } else camp.conflictWins[k] = 0; }
@@ -2035,7 +2116,7 @@ function trainingOffer(camp) { // every eligible hero (LV>=trainLevel, untrained
 function pruneLevelQueue(camp) { const q = camp.levelQueue = Array.isArray(camp.levelQueue) ? camp.levelQueue : []; const left = {};
   for (let i = q.length - 1; i >= 0; i--) { const h = camp.heroes[q[i].heroId]; if (!h) { q.splice(i, 1); continue; } left[h.id] = left[h.id] === undefined ? h.unspentPoints : left[h.id]; if (left[h.id] <= 0) q.splice(i, 1); else left[h.id]--; }
   return q; }
-function levelEntryFlags(camp, e) { const h = camp.heroes[e.heroId], d = heroDef(e.heroId) || {}; return { training: e.level === CONFIG.trainLevel && !h.trainedChoice && !!(d.train && d.train.length), signature: e.level === CONFIG.signatureLevel, max: e.level >= CONFIG.levelCap }; }
+function levelEntryFlags(camp, e) { const h = camp.heroes[e.heroId], d = heroDef(e.heroId) || {}; return { training: e.level === CONFIG.trainLevel && !h.trainedChoice && !!(d.train && d.train.length), revealedBase: baseRevealed(h), signature: e.level === CONFIG.signatureLevel && canUpgradeMk2(h), mk2: e.level === CONFIG.signatureLevel && canUpgradeMk2(h), max: e.level >= CONFIG.levelCap }; }
 function chooseLevelStat(camp, stat) { const q = pruneLevelQueue(camp); if (!q.length) return false; const e = q[0]; if (!allocate(camp, e.heroId, stat)) return false; q.shift(); return true; }
 function bankLevel(camp) { const q = pruneLevelQueue(camp); if (!q.length) return false; q.shift(); return true; }
 function undoAllocation(camp, id, batch, queue) { const h = camp.heroes[id]; batch.forEach((n, i) => { h.stats[i] -= n; h.unspentPoints += n; }); if (queue) camp.levelQueue = JSON.parse(queue); pruneLevelQueue(camp); return true; }
@@ -2109,6 +2190,7 @@ function aiBetweenShifts(camp) {
   pruneLevelQueue(camp);
   while (camp.wildQueue && camp.wildQueue.length) { if (!aiAssignWild(camp)) break; }
   if (CONFIG.trainingAfterShifts.includes(camp.shiftIdx) && !camp.trainingDone.includes(camp.shiftIdx)) { const o = trainingOffer(camp).slice(0, CONFIG.trainingSlotsPerSession); for (const t of o) trainHero(camp, t.hero, t.options[(t.hero.length + camp.shiftIdx) % 2]); camp.trainingDone.push(camp.shiftIdx); }
+  for (const id of camp.roster) if (camp.heroes[id] && canUpgradeMk2(camp.heroes[id])) upgradeMk2(camp, id); // AI: takes the optional Mk II
 }
 function simulateCampaigns(n, opts) {
   n = n || 10; opts = opts || {}; const results = []; const dt = 0.25; const silent = Bus.h; Bus.h = {};
@@ -2181,8 +2263,8 @@ function missionReviewed(camp, S, call, R, out) {
   if (t.training && R.success) { const h = camp.heroes[call.team[0]];
     if (t.training.kind === 'route') { const n = Object.values(camp.heroes).filter(x => x.routeTrained).length;
       if (!h.routeTrained && n < CONFIG.routeMax) { h.routeTrained = true; out.route = h.id; Bus.emit('routeTrained', h); } else out.trainNote = h.routeTrained ? `${h.codename} already knows the rooftop routes: base XP only.` : `All ${CONFIG.routeMax} route slots are used this campaign: base XP only.`; }
-    else { const d = heroDef(h.id) || {}; if (!h.noXP && !h.trainedChoice && (call.lvAtSend !== undefined ? call.lvAtSend : heroLevel(h)) >= CONFIG.trainLevel && d.train && d.train.length) { out.trainingOffer = { hero: h.id, options: d.train.slice() }; Bus.emit('trainingCall', out.trainingOffer); }
-      else out.trainNote = h.trainedChoice ? `${h.codename} already trained a power: base XP only.` : `${h.codename} is below LV ${CONFIG.trainLevel}: base XP only.`; } }
+    else { const d = heroDef(h.id) || {}; if (!h.noXP && !h.trainedChoice && (call.lvAtSend !== undefined ? call.lvAtSend : heroLevel(h)) >= CONFIG.trainLevel && d.train && d.train.length && baseRevealed(h)) { out.trainingOffer = { hero: h.id, options: d.train.slice() }; Bus.emit('trainingCall', out.trainingOffer); }
+      else out.trainNote = h.trainedChoice ? `${h.codename} already trained a power: base XP only.` : heroLevel(h) >= CONFIG.trainLevel && !baseRevealed(h) ? `${h.codename}'s power is still ??? (not revealed yet): base XP only.` : `${h.codename} is below LV ${CONFIG.trainLevel}: base XP only.`; } }
 }
 /* v1.9.2: plain-language reason for a reviewed result. Pure: reads the call + rollReview result. kind: instant-success | instant-fail | guaranteed | always | rolled */
 function outcomeReason(camp, S, call, R) {
@@ -2199,13 +2281,16 @@ function outcomeReason(camp, S, call, R) {
       lines.push(`Team ${sn(k)} ${info.team[k]} is over the limit of ${tpl.overCapFail.value}${who.length ? ' (most from ' + who.map(x => nm(x[0]) + ' ' + x[1]).join(', ') + ')' : ''}.`); }
     else { const af = afList(tpl).find(x => (call.team || []).includes(x.heroId)); if (af) lines.push(`${nm(af.heroId)} on the team means this call cannot succeed.`); }
   } else if (tpl.story || tpl.training || tpl.type === 'story' || tpl.type === 'training') { kind = 'always'; head = 'Always succeeds (' + (tpl.training || tpl.type === 'training' ? 'training' : 'story') + ' call).';
-  } else if (info.guaranteedSuccess || info.effective >= 1) { kind = 'guaranteed'; head = 'Guaranteed: ' + ((info.breakdown || []).filter(b => b.delta > 0 && !b.retry).map(b => b.label + ' ' + Math.round(b.delta * 100) + '%').join(' + ') || 'the team fully covers the call') + '.';
+  } else if (info.guaranteedSuccess || info.chance >= 1) { kind = 'guaranteed'; head = 'Guaranteed: ' + ((info.breakdown || []).filter(b => b.delta > 0 && !b.retry).map(b => b.label + ' ' + Math.round(b.delta * 100) + '%').join(' + ') || 'the team fully covers the call') + '.';
   } else if (R.assist === 'streak') { kind = 'assisted'; head = `Desk instinct: ${info.display}% call auto-cleared (no roll).`;
     lines.push(`Calls over ${Math.round(CONFIG.streakAbove * 100)}% clear on their own up to ${CONFIG.streakUses} times; a miss over ${Math.round(CONFIG.streakAbove * 100)}% re-arms it. Off in the finale.`);
-  } else { kind = 'rolled'; const need0 = R.rolledAgainst !== undefined ? R.rolledAgainst : info.chance; const [r1, need] = pctPair(R.firstRoll !== undefined ? R.firstRoll : R.roll, need0);
-    head = `Rolled ${r1} — needed under ${need} (${info.display}% shown).`;
+  } else { kind = 'rolled'; const need0 = R.rolledAgainst !== undefined ? R.rolledAgainst : info.chance; const rolls = R.rolls && R.rolls.length ? R.rolls : [{ roll: R.firstRoll !== undefined ? R.firstRoll : R.roll, need: need0, ok: R.success }];
+    const [r1, need] = pctPair(rolls[0].roll, rolls[0].need);
+    const still = R.retryStillReady ? (() => { const rh = camp.heroes[R.retryStillReady]; const pw = rh.powers.find(p => POWERS[p].retry); return ` (${POWERS[pw].name} re-roll not needed, still available)`; })() : '';
+    head = `Roll 1: ${r1} vs needed < ${need} → ${rolls[0].ok ? 'SUCCESS' + still : 'miss'} (${info.display}% shown).`;
     if (R.assist === 'floor') lines.push(`Long-shot floor: chances under ${Math.round(CONFIG.chanceFloor * 100)}% roll as ${Math.round(CONFIG.chanceFloor * 100)}% (off in the finale).`);
-    if (R.retried) { const rh = camp.heroes[R.retried]; const pw = rh && rh.powers.find(p => POWERS[p].retry); lines.push(`First roll failed; ${nm(R.retried)}'s ${pw ? POWERS[pw].name : 're-roll'} re-rolled ${pctPair(R.roll, need0)[0]} → ${R.success ? 'SUCCESS' : 'still failed'}.`); } }
+    if (rolls[1]) { const r = rolls[1]; const [a2, n2] = pctPair(r.roll, r.need); lines.push(`${POWERS[r.power] ? POWERS[r.power].name : 'Re-roll'} (${nm(r.hero)}) re-roll — Roll 2: ${a2} vs needed < ${n2} → ${r.ok ? 'SUCCESS' : 'miss'}.`); }
+    else if (!rolls[0].ok && info.retrySpent) lines.push(`${POWERS[info.retrySpent.power].name} (${nm(info.retrySpent.hero)}): second try already used this shift.`); }
   if (sab) lines.push(sab);
   return { kind, head, lines, text: [head].concat(lines).join(' ') };
 }
@@ -2257,7 +2342,7 @@ function aiDisruptAlways(camp, S, c, opts) { let guard = 0;
     if (!best) break; resolveDisruption(camp, S, c, best.o.key); } }
 function aiTrainingTeam(camp, S, c) { const k = c.tpl.training.kind, av = camp.roster.filter(id => canDispatchHero(camp, id) && !camp.heroes[id].noXP);
   if (k === 'route') { if (Object.values(camp.heroes).filter(h => h.routeTrained).length >= CONFIG.routeMax) return null; return av.find(id => !camp.heroes[id].routeTrained) || null; }
-  return av.find(id => { const h = camp.heroes[id], d = heroDef(id) || {}; return !h.trainedChoice && heroLevel(h) >= CONFIG.trainLevel && d.train && d.train.length; }) || null; }
+  return av.find(id => { const h = camp.heroes[id], d = heroDef(id) || {}; return canTrain(h); }) || null; }
 
 /* ================= AUDIO (WebAudio synth only) ================= */
 const Sfx = {
@@ -2341,8 +2426,9 @@ function pctLabel(info) { return info.forced ? '0%' : info.display + '%'; }
 function chanceHTML(info, open, review) { // v1.7 shared display of successChance(): headline + optional breakdown
   const cls = info.forced ? 'bad' : info.display >= 70 ? 'good' : info.display >= 40 ? 'mid' : 'low';
   const head = info.forced ? `0% — ${esc(info.forced)}` : `${info.display}%${info.guaranteedSuccess ? ' (guaranteed)' : ''}${info.disruptionRisk && info.chance >= 0.995 ? ' · disruption risk' : ''}`;
+  const rr = info.forced || info.guaranteedSuccess ? '' : info.retry ? `<div class="ch-retry" role="note">🔁 ${esc(info.retry.text)}</div>` : info.retrySpent ? `<div class="ch-retry used" role="note">🔁 ${esc(info.retrySpent.text)}</div>` : ''; // v1.10: separate line, never added to the headline
   const rows = info.breakdown.map(b => `<div class="br ${b.forced ? 'bad' : ''}"><span>${esc(b.label)}</span><b>${b.forced ? '✕' : (b.delta >= 0 && b !== info.breakdown[0] ? '+' : '') + (b.delta < 0 ? '-' + pctFloor(-b.delta) : pctFloor(b.delta)) + '%'}</b></div>`).join('');
-  return `<div class="chance ${cls}" role="button" tabindex="0" aria-label="Success chance ${info.forced ? 0 : info.display} percent"><div class="ch-head"><span>${review ? 'Chance' : 'Success chance'}</span><b class="ch-pct">${head}</b>${review ? '' : `<small>${open ? '▲' : '▼ why?'}</small>`}</div>${open ? `<div class="ch-break">${rows}<div class="br tot"><span>Total</span><b>${info.forced ? '0%' : pctFloor(info.effective !== undefined ? info.effective : info.chance) + '%'}</b></div></div>` : ''}</div>`; }
+  return `<div class="chance ${cls}" role="button" tabindex="0" aria-label="Success chance ${info.forced ? 0 : info.display} percent"><div class="ch-head"><span>${review ? 'Chance' : 'Success chance'}</span><b class="ch-pct">${head}</b>${review ? '' : `<small>${open ? '▲' : '▼ why?'}</small>`}</div>${rr}${open ? `<div class="ch-break">${rows}<div class="br tot"><span>Total (single roll)</span><b>${info.forced ? '0%' : pctFloor(info.chance) + '%'}</b></div></div>` : ''}</div>`; }
 function toast(text, ms) { const t = h('div', 'toast', text); $('toasts').appendChild(t); setTimeout(() => t.remove(), ms || 3500); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
 function tutorial(key, text) { if (UI.S && UI.S.idx === 0 && !UI.tutorial[key]) { UI.tutorial[key] = 1; toast('💡 ' + text, 6000); } }
 function shake() { const a = $('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
@@ -2487,7 +2573,7 @@ function updateTop() { const S = UI.S, camp = UI.camp; updateFinale(); $('clock'
 /* ---------- level-up celebration (once per point earned) ---------- */
 const Celebrate = { q: [], busy: false, fired: 0,
   push(h, level) { const camp = UI.camp; if (!camp) return; camp.seenLevelUp = camp.seenLevelUp || {}; if ((camp.seenLevelUp[h.id] || 1) >= level) return; camp.seenLevelUp[h.id] = level; this.fired++; h.pendingLevelUps = Math.max(0, (h.pendingLevelUps || 0) - 1);
-    let extra = ' · +1 skill point'; if (level === CONFIG.trainLevel && !h.trainedChoice) extra += ' · TRAINING UNLOCKED'; if (level === CONFIG.signatureLevel) extra += ' · SIGNATURE POWER'; if (level >= CONFIG.levelCap) extra += ' · MAX';
+    let extra = ' · +1 skill point'; if (level === CONFIG.trainLevel && !h.trainedChoice) extra += ' · TRAINING UNLOCKED'; if (level === CONFIG.signatureLevel && canUpgradeMk2(h)) extra += ' · MK II AVAILABLE'; if (level >= CONFIG.levelCap) extra += ' · MAX';
     this.q.push({ text: `LEVEL UP! ${h.codename} LV ${level}${extra}`, color: h.color }); if (this.q.length > 4) this.q.splice(0, this.q.length - 4); this.next(); },
   next() { if (this.busy || !this.q.length) return; this.busy = true; const it = this.q.shift(); const b = $('lvlBanner'); b.innerHTML = `<b>${esc(it.text)}</b>`; b.style.borderColor = it.color; b.classList.remove('hidden'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
     Sfx.fanfare(); FX.burst(); setTimeout(() => { b.classList.add('hidden'); this.busy = false; this.next(); }, 1700); } };
@@ -2561,7 +2647,7 @@ function openBriefing(c) {
       let links = '';
       for (const [a, b, n] of info.synPairs) links += `<div class="note good">🔗 Synergy: ${esc(camp.heroes[a].codename)} + ${esc(camp.heroes[b].codename)} (+${Math.round(100 * Math.min(CONFIG.synergyMax, CONFIG.synergyBase + CONFIG.synergyPerPairing * n))}%, paired ${n}×)</div>`;
       for (const [a, b] of info.conPairs) links += `<div class="note warn">⚡ Conflict: ${esc(camp.heroes[a].codename)} × ${esc(camp.heroes[b].codename)} (−${Math.round(CONFIG.conflictPenalty * 100)}%). ${camp.conflictWins[pairKey(a, b)] || 0}/${CONFIG.conflictNeutralWins} clean wins to resolve.</div>`;
-      if (info.illusion) links += `<div class="note">🪞 Illusion: half-copy of ${esc(camp.heroes[info.illusion.from].codename)} fills an empty slot.</div>`;
+      for (const e of info.trace.filter(e => e.kind === 'illusion')) links += e.noEffect ? `<div class="note warn illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: no hero to her left (put a hero in the slot before hers).</div>` : `<div class="note illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(traceEventText(camp, e, info))}. Added to the team, no extra roll.</div>`;
       if (info.healed.length) links += `<div class="note good">💚 ${esc(camp.heroes[info.healer].codename)} will heal ${info.healed.map(x => esc(camp.heroes[x].codename)).join(' + ')} on this call.</div>`;
       let baseTeam = null; for (const id of c.assigned.filter(Boolean)) { const hh = camp.heroes[id], v = injuryView(camp, hh); if (!v.injured || info.healed.includes(id)) continue;
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
@@ -2638,15 +2724,17 @@ function samplePoint(poly, notPoly, tries) { // legacy (unused since v1.9.5)
 function bandHTML(R) { // v1.9.5: how the % is built from the drawn overlap, and which hidden helper (if any) applied
   const i = R.info; if (!i || !i.breakdown || R.decided || i.forced) return '';
   const rows = i.breakdown.filter(b => !b.forced).map((b, k) => `<span class="band ${k === 0 ? 'b0' : b.delta >= 0 ? 'up' : 'dn'}">${k === 0 ? 'Overlap ' + pctFloor(i.coverage) + '%' : esc(b.label.replace(/ \(.*\)$/, '')) + ' ' + (b.delta >= 0 ? '+' : '−') + pctFloor(Math.abs(b.delta)) + '%'}</span>`).join('<i>→</i>');
-  const tot = i.effective !== undefined ? i.effective : i.chance;
-  const hint = R.assist === 'streak' ? '<div class="bandnote">⚡ Desk instinct cleared it (hidden helper, not part of the %).</div>' : R.assist === 'floor' ? `<div class="bandnote">🎯 Long-shot floor: rolled as ${Math.round(CONFIG.chanceFloor * 100)}%.</div>` : '';
+  const tot = i.chance; // v1.10: always the single-roll chance
+  const hint = (R.rolls && R.rolls.length > 1 ? `<div class="bandnote reroll">🔁 Re-roll used: ${R.rolls.map((r, k) => `Roll ${k + 1} ${pctPair(r.roll, r.need)[0]} ${r.ok ? '✓' : '✕'}`).join(' → ')} (both against ${pctFloor(R.rolls[0].need)}%).</div>` : '') + (R.assist === 'streak' ? '<div class="bandnote">⚡ Desk instinct cleared it (hidden helper, not part of the %).</div>' : R.assist === 'floor' ? `<div class="bandnote">🎯 Long-shot floor: rolled as ${Math.round(CONFIG.chanceFloor * 100)}%.</div>` : '');
   return `<div class="bands" aria-label="How the chance is built">${rows}<i>=</i><span class="band tot">${pctFloor(tot)}%</span></div>${hint}`; }
 function openReview(c) {
   const camp = UI.camp, S = UI.S; const R = rollReview(camp, S, c); let applied = null, done = false;
   const req = R.info.req, team = R.info.team, overlap = req.map((v, i) => Math.min(v, team[i]));
-  const DP = dotPath(S, c, req, team, R.success, CONFIG.dotDuration); const land = DP.land, hops = DP.hops; c._dot = { land, success: R.success, inOverlap: DP.inOverlap }; // v1.9.5: steered dot, seeded, consistent with the result
+  const DP = dotPath(S, c, req, team, R.success, CONFIG.dotDuration); const land = DP.land;
+  const two = R.rolls && R.rolls.length > 1; const DP1 = two ? dotPath(S, Object.assign({}, c, { uid: (c.uid || 0) * 31 + 7 }), req, team, false, CONFIG.dotDuration * 0.6) : null; // v1.10: the dot animates once per roll
+  const phases = two ? [{ hops: DP1.hops, dur: CONFIG.dotDuration * 0.6, land: DP1.land }, { hops: DP.hops, dur: CONFIG.dotDuration, land }] : [{ hops: DP.hops, dur: CONFIG.dotDuration, land }]; let ph = 0, hops = phases[0].hops; c._dot = { land, success: R.success, inOverlap: DP.inOverlap }; // v1.9.5: steered dot, seeded, consistent with the result
   openModal('review', m => {
-    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap = success area</span></div>${bandHTML(R)}${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
+    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap = success area</span></div>${two ? `<div class="note rolllabel" role="status">🎲 Roll 1…</div>` : ''}${bandHTML(R)}${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(two ? Object.assign({}, R.info, { retry: null, retrySpent: { text: `${POWERS[R.rolls[1].power].name} (${camp.heroes[R.rolls[1].hero].codename}): second try used on this call` } }) : R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
     const cv = P.B.querySelector('.revcv'); let t0 = performance.now(), lastHop = -1;
     const finish = () => {
       if (done) return; done = true; applied = applyReview(camp, S, c, R); const ok = R.success;
@@ -2678,9 +2766,12 @@ function openReview(c) {
       animateXPBars(P.B, applied);
       tutorial('rev', 'Reviewed heroes go to Rest (green ring), then are Ready again. Unreviewed heroes stay stuck at HQ!');
     };
-    const anim = () => { if (done || !cv.isConnected) return; const e = (performance.now() - t0) / 1000; if (e >= CONFIG.dotDuration) { finish(); return; }
+    const rl = P.B.querySelector('.rolllabel');
+    const anim = () => { if (done || !cv.isConnected) return; const e = (performance.now() - t0) / 1000;
+      if (e >= phases[ph].dur) { if (ph + 1 < phases.length) { const r0 = R.rolls[0], r1 = R.rolls[1]; if (rl) rl.innerHTML = `🎲 Roll 1: ${pctPair(r0.roll, r0.need)[0]} vs needed &lt; ${pctPair(r0.roll, r0.need)[1]} → miss · <b>${esc(POWERS[r1.power].name)} (${esc(camp.heroes[r1.hero].codename)}) re-roll!</b>`; drawRadar(cv, { req, team, overlap, dot: phases[ph].land, dotCol: '#ff4d5e' }); Sfx.thud(); ph++; hops = phases[ph].hops; lastHop = -1; t0 = performance.now() + 450; setTimeout(() => requestAnimationFrame(anim), 450); return; } finish(); return; }
+      if (e < 0) { requestAnimationFrame(anim); return; }
       let i = hops.findIndex(hp => hp.t > e) - 1; if (i < 0) i = 0; const a = hops[i], b = hops[i + 1] || a; const k = clamp((e - a.t) / ((b.t - a.t) || 1), 0, 1); const ease = 1 - Math.pow(1 - k, 2);
-      if (i !== lastHop) { lastHop = i; Sfx.tick(i % 2); Sfx.tension(e / CONFIG.dotDuration); }
+      if (i !== lastHop) { lastHop = i; Sfx.tick(i % 2); Sfx.tension(e / phases[ph].dur); }
       drawRadar(cv, { req, team, overlap, dot: [a.p[0] + (b.p[0] - a.p[0]) * ease, a.p[1] + (b.p[1] - a.p[1]) * ease - Math.sin(k * Math.PI) * 0.06] }); requestAnimationFrame(anim); };
     requestAnimationFrame(anim);
     P.F.querySelector('[data-a=skip]').onclick = finish; cv.onclick = finish;
@@ -2749,15 +2840,19 @@ function animateXPBars(root, applied) { // fill from the old value to the new; a
     else requestAnimationFrame(() => { row.style.width = (100 * xpFrac(h)) + '%'; }); }
 }
 function xpText(h) { if (h.noXP) return 'Gains no XP'; if (isMaxed(h)) return `${h.xp} XP · MAX (further XP is wasted)`; return `${h.xp} / ${xpTableNext(h.xpPointsEarned, h)} to next point`; }
-function powerListHTML(h) {
+function powerListHTML(h) { // v1.10: ??? until revealed, LV 3 training, optional Mk II at LV 8
   const def = heroDef(h.id); if (!def) return ''; const out = []; const sig = SIGNATURES[def.power];
-  const cur = h.powers.includes(sig) ? sig : def.power; out.push(`<div class="pw"><b>${esc(POWERS[cur].name)}</b> <span class="pill">${cur === sig ? 'SIGNATURE' : 'BASE'}</span><small>${esc(POWERS[cur].desc)}</small></div>`);
-  for (const p of def.train || []) { const chosen = h.trainedChoice === p, out2 = h.trainedChoice && !chosen; const locked = !h.trainedChoice && heroLevel(h) < CONFIG.trainLevel;
-    out.push(`<div class="pw ${out2 ? 'out' : locked || !chosen ? 'locked' : ''}"><b>${esc(POWERS[p].name)}</b> <span class="pill">${chosen ? 'TRAINED' : out2 ? 'LOCKED OUT' : locked ? 'LV ' + CONFIG.trainLevel : 'ELIGIBLE · next training'}</span><small>${esc(POWERS[p].desc)}</small></div>`); }
-  if (sig && cur !== sig) out.push(`<div class="pw locked"><b>${esc(POWERS[sig].name)}</b> <span class="pill">LV ${CONFIG.signatureLevel}</span><small>${esc(POWERS[sig].desc)}</small></div>`);
+  const cur = h.powers.includes(sig) ? sig : def.power; const rev = baseRevealed(h) || cur === sig;
+  out.push(rev ? `<div class="pw"><b>${esc(POWERS[cur].name)}</b> <span class="pill">${cur === sig ? 'MK II' : 'BASE'}</span><small>${esc(POWERS[cur].desc)}</small></div>`
+    : `<div class="pw unrevealed"><b>???</b> <span class="pill">NOT REVEALED</span><small>Revealed the first time it actually changes a call. Hint: ${esc(POWER_KINDS[POWERS[cur].kind] || POWERS[cur].kind)} power.</small></div>`);
+  for (const p of def.train || []) { const chosen = h.trainedChoice === p, out2 = h.trainedChoice && !chosen; const locked = !h.trainedChoice && (heroLevel(h) < CONFIG.trainLevel || !rev);
+    out.push(`<div class="pw ${out2 ? 'out' : locked || !chosen ? 'locked' : ''}"><b>${esc(POWERS[p].name)}</b> <span class="pill">${chosen ? 'TRAINED' : out2 ? 'LOCKED OUT' : heroLevel(h) < CONFIG.trainLevel ? 'LV ' + CONFIG.trainLevel : !rev ? 'REVEAL BASE FIRST' : 'ELIGIBLE · next training'}</span><small>${esc(POWERS[p].desc)}</small></div>`); }
+  if (sig && cur !== sig) out.push(`<div class="pw locked"><b>${esc(POWERS[sig].name)}</b> <span class="pill">${canUpgradeMk2(h) ? 'MK II READY' : 'OPTIONAL · LV ' + CONFIG.signatureLevel + ' + trained'}</span><small>${esc(POWERS[sig].desc)}</small>${canUpgradeMk2(h) ? `<button class="btn mk2btn" data-mk2="${h.id}">⬆ UPGRADE TO MK II (optional, permanent)</button>` : ''}</div>`);
   for (const p of h.powers) if (p !== cur && !(def.train || []).includes(p)) out.push(`<div class="pw"><b>${esc(POWERS[p].name)}</b><small>${esc(POWERS[p].desc)}</small></div>`);
   return out.join('');
 }
+document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('[data-mk2]'); if (!b) return; const id = b.dataset.mk2, camp = UI.camp, hh = camp && camp.heroes[id]; if (!hh) return; const d = heroDef(id);
+  confirmBox('Upgrade to Mk II?', `Replace <b>${esc(POWERS[d.power].name)}</b> with <b>${esc(POWERS[SIGNATURES[d.power]].name)}</b>?<br><br>${esc(POWERS[SIGNATURES[d.power]].desc)}<br><br>Optional and permanent.`, 'UPGRADE', () => { if (upgradeMk2(camp, id)) { Sfx.fanfare(); saveCamp(); toast(`✦ ${esc(hh.codename)}: ${esc(POWERS[SIGNATURES[d.power]].name)}`); openHeroInfo(id); } }); });
 function openHeroInfo(id) { openModal('hero', m => heroInfoBuild(m, id, null)); }
 /* v1.9.4: hero card as an overlay ABOVE an open briefing. Not a modal (UI.modals untouched), so the briefing, its picks and
    its linked-switch state survive; the clock stays paused because the briefing is still open (+ isPaused checks UI.heroCard). */
@@ -2888,7 +2983,7 @@ function openLevelUpChoice(onDone) {
       const tiles = STATS.map((s, i) => { const v = h.stats[i], mx = v >= CONFIG.statMax; return `<button class="lvtile ${sel === i ? 'sel' : ''} ${mx ? 'max' : ''}" data-s="${i}" ${mx ? 'disabled' : ''} style="--c:${STAT_COLORS[s]}"><span class="k">${i + 1}</span><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}</small><span class="vv">${mx ? 'MAX' : `${v} → <em>${v + 1}</em>`}</span></button>`; }).join('');
       const P = sheetParts(m, `<span style="font-size:28px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill lvbadge" style="background:${h.color}">LEVEL UP! LV ${e.level}</span>${N > 1 ? `<span class="pill lvcount">${idx + 1} of ${N}</span>` : ''}`,
         `<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
-         ${f.training ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.signature ? `<div class="note good">✦ Signature power: ${esc(h.powers.map(p => POWERS[p]).filter(p => p && p.signature).map(p => p.name).join(', ') || 'unlocked')}</div>` : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
+         ${f.training ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.mk2 ? `<div class="note good">✦ Mk II available (optional): ${esc(POWERS[SIGNATURES[heroDef(h.id).power]].name)}. Upgrade from the hero info panel.</div>` : ''}${f.training && !f.revealedBase ? '' : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
          ${more > 0 ? `<div class="note">+${more} more banked · <button class="lnk" data-a="all">SPEND ALL…</button></div>` : ''}${q.length >= 2 ? `<div style="text-align:center;margin-top:6px"><button class="lnk" data-a="skipall">SKIP ALL (bank ${q.length})</button></div>` : ''}</div></div>`,
         `<button class="btn ghost" data-a="later">DECIDE LATER</button><button class="btn pri" data-a="ok" ${sel < 0 ? 'disabled' : ''}>CONFIRM +1 STAT</button>`);
       drawRadar(P.B.querySelector('.rad'), { team: h.stats, preview: sel >= 0 ? h.stats.map((v, i) => v + (i === sel ? 1 : 0)) : null });
@@ -2919,7 +3014,7 @@ function heroDetailHTML(d, o) { o = o || {}; const syn = d.synergy ? heroDef(d.s
            <div class="note good">🔗 Synergy: ${syn ? link(syn) : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
 /* ---------- v1.3 Hero Codex ---------- */
 function codexPowerHTML(d) { const sig = SIGNATURES[d.power]; const row = (p, tag) => `<div class="pw"><b>${esc(POWERS[p].name)}</b> <span class="pill">${tag}</span><small>${esc(POWERS[p].desc)}</small></div>`;
-  return row(d.power, 'BASE') + `<div class="cx-sub">LV ${CONFIG.trainLevel}: choose one</div><div class="tropts">${d.train.map(p => row(p, 'TRAIN')).join('')}</div>` + (sig ? row(sig, 'LV ' + CONFIG.signatureLevel + ' SIGNATURE') : ''); }
+  return row(d.power, 'BASE') + `<div class="cx-sub">LV ${CONFIG.trainLevel} + power revealed: choose one</div><div class="tropts">${d.train.map(p => row(p, 'TRAIN')).join('')}</div>` + (sig ? row(sig, 'LV ' + CONFIG.signatureLevel + ' MK II (optional, trained heroes)') : ''); }
 function inCampaign(id) { const c = UI.camp || loadCampPeek(); return !!(c && c.pool && c.pool.includes(id)); }
 function loadCampPeek() { if (UI._peek !== undefined) return UI._peek; try { const r = Store.get(SAVE_KEY); UI._peek = r ? JSON.parse(r) : null; if (UI._peek && !UI._peek.pool) UI._peek.pool = LEGACY_POOL; } catch (e) { UI._peek = null; } return UI._peek; }
 function openCodex(startId) {
@@ -3230,9 +3325,9 @@ function showTraining() {
   if (!offer.length) { camp.trainingDone.push(camp.shiftIdx); UI.trainedThisSession = 0; showBrief(); return; }
   const slots = CONFIG.trainingSlotsPerSession - UI.trainedThisSession;
   const finish = () => { camp.trainingDone.push(camp.shiftIdx); UI.trainedThisSession = 0; saveCamp(); showBrief(); };
-  showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">TRAINING DAY</div><p class="tag">Heroes at LV ${CONFIG.trainLevel}+ can learn ONE of two powers. You can train ${slots} more hero${slots === 1 ? '' : 'es'} this session.</p>
+  showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">TRAINING DAY</div><p class="tag">Heroes at LV ${CONFIG.trainLevel}+ whose power has been revealed can learn ONE of two powers. You can train ${slots} more hero${slots === 1 ? '' : 'es'} this session (max ${CONFIG.trainingSlotsPerSession}).</p>${(() => { const w = camp.roster.map(id => camp.heroes[id]).filter(x => x && !x.trainedChoice && heroLevel(x) >= CONFIG.trainLevel && !baseRevealed(x)); return w.length ? `<div class="note">❔ Not yet: ${w.map(x => esc(x.codename)).join(', ')} (power still ???, reveal it on a call first).</div>` : ''; })()}
    <div class="note warn">⚠ Exclusive: you can't change this later. The other option is locked out for good.</div>
-   ${offer.map(o => { const hh = camp.heroes[o.hero]; return `<div class="card" style="border-color:${hh.color}"><h3>${hh.emoji} ${esc(hh.codename)} <span class="pill">LV ${heroLevel(hh)}</span></h3><div class="tropts">${o.options.map(p => `<button class="tropt" data-h="${o.hero}" data-p="${p}" ${slots > 0 ? '' : 'disabled'}><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div></div>`; }).join('')}
+   ${offer.map(o => { const hh = camp.heroes[o.hero]; return `<div class="card" style="border-color:${hh.color}"><h3>${hh.emoji} ${esc(hh.codename)} <span class="pill">LV ${heroLevel(hh)}</span></h3><div class="cx-sub">Pick 1 of 2</div><div class="tropts">${o.options.map(p => `<button class="tropt" data-h="${o.hero}" data-p="${p}" ${slots > 0 ? '' : 'disabled'}><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div></div>`; }).join('')}
    <button class="btn pri" data-a="fin">${slots > 0 ? 'FINISH TRAINING (skip the rest)' : 'CONTINUE'}</button>`, s => {
     s.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { const id = b.dataset.h, p = b.dataset.p; const other = heroDef(id).train.find(x => x !== p);
       confirmBox('Confirm training', `Train <b>${esc(camp.heroes[id].codename)}</b> in <b>${esc(POWERS[p].name)}</b>?<br><br>This is permanent: <b>${esc(POWERS[other].name)}</b> will be locked out forever.`, 'TRAIN', () => { if (trainHero(camp, id, p)) { UI.trainedThisSession++; Sfx.fanfare(); FX.burst(); saveCamp(); } if (UI.trainedThisSession >= CONFIG.trainingSlotsPerSession || !trainingOffer(camp).length) finish(); else showTraining(); }); });
@@ -3277,7 +3372,7 @@ Bus.on('districtOnline', d => { if (UI.sim) return; toast('💡 ' + DISTRICTS[d]
 Bus.on('skillPoint', d => { if (UI.sim) return; });
 Bus.on('levelUp', d => { if (UI.sim) return; if (UI.S && UI.camp) replayPick(d.hero, d.level); { const sl = UI.camp.seenLevelUp = UI.camp.seenLevelUp || {}; if ((sl[d.hero.id] || 1) < d.level) { sl[d.hero.id] = d.level; Celebrate.fired++; } } // v1.2: no banners; the point is queued in camp.levelQueue
   if (UI.auto && UI.S) { const h = d.hero; const ord = [0, 1, 2, 3, 4].filter(i => h.stats[i] < CONFIG.statMax).sort((a, b) => h.stats[a] - h.stats[b]); if (ord.length) allocate(UI.camp, h.id, ord[0]); pruneLevelQueue(UI.camp); } });
-Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
+Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'mk2' ? `✦ ${esc(d.hero.codename)} can upgrade to ${esc(POWERS[d.power].name)} (optional, hero info).` : d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
 Bus.on('injured', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; if (!hh) return; injToast(d.id, d.downed ? `✚ ${esc(hh.codename)} is DOWNED` : `🩹 ${esc(hh.codename)} injured (−1 all)`); if (UI.S) radio(d.id, d.downed ? "I'm down. Seriously down. Tag someone else in." : 'Ow. Still walking. Mostly.'); });
 Bus.on('healed', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; injToast(d.id + 'h', `💚 ${esc(hh.codename)} healed${d.source === 'medkit' ? ' (Med Kit)' : d.by ? ' by ' + esc(UI.camp.heroes[d.by].codename) : ''}`); });
 Bus.on('revived', d => { if (UI.sim || !UI.camp) return; injToast(d.id + 'r', `⚡ ${esc(UI.camp.heroes[d.id].codename)} is back in action`); });
