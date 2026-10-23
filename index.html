@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>
+<script>window.ND_VERSION='nd-v1.10.2';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3180,7 +3180,8 @@ function showTitle() {
    <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
    <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
    ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
-   <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>`, s => {
+   <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>
+   <div class="tag ver" id="verLbl" style="font-size:12px">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</div>`, s => {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
     s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); const v = parseInt($('seedIn').value, 10); showNewCampaign(isNaN(v) ? ((Math.random() * 1e9) >>> 0) : v, false, !!save); };
     s.querySelector('[data-a=look]').onclick = () => { Sfx.init(); Sfx.click(); openLooks(); };
