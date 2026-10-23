@@ -33,7 +33,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 #map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
 #radio{position:absolute;left:6px;bottom:6px;max-width:min(70%,420px);font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;color:#9effc0;background:#02060ccc;border:1px solid #1d3b2a;border-radius:8px;padding:4px 7px;pointer-events:none}
 #radio div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#radio div:not(:last-child){opacity:.55}
+#radio div:not(:last-child){opacity:.8}
 #toasts{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(92%,460px);pointer-events:none}
 .toast{background:#101a3acc;border:1px solid var(--cyan);color:#e6fbff;border-radius:10px;padding:7px 12px;font-size:13px;text-align:center;box-shadow:0 0 14px #3ef0ff44;animation:tin .3s}
 @keyframes tin{from{opacity:0;transform:translateY(-8px)}}
@@ -441,6 +441,22 @@ html.reduce-fx .hero-overlay,html.reduce-fx .hero-overlay .sheet{animation:none!
 .illusion-note.warn{border-color:#ffb020}
 .rolllabel{font-size:13px}
 .bandnote.reroll{color:#9fd3ff}
+/* v1.10.1 contrast: theme tokens for boxes that used hard-coded dark backgrounds. Every background sets its text colour too. */
+:root{--box-dark:#0a1024;--box-dark-txt:#d8e1ff;--box-dark-dim:#a3aed4;--box-dark2:#101831;--box-warm:#2a2610;--box-dis:#2a0d18;--email-bg:#05080f;--email-txt:#d8e1ff;--yel-txt:var(--yel);--btn-dis-bg:#151c33;--btn-dis-txt:#9aa6cf;--btn-dis-line:#56628f;--muted-txt:#a3aed4}
+.pw{background:var(--box-dark);color:var(--box-dark-txt)}.pw small,.pw .pill{color:var(--box-dark-dim)}.pw .pill{background:var(--box-dark)}
+.pw.locked{opacity:1;color:var(--muted-txt);border-color:#555}.pw.out{opacity:1;color:var(--muted-txt);border-color:#555;text-decoration:line-through}
+.pw.locked b,.pw.locked small,.pw.locked .pill,.pw.out b,.pw.out small,.pw.out .pill{color:var(--muted-txt)!important}
+.email{background:var(--email-bg);color:var(--email-txt)}
+.thr span{background:var(--box-dark);color:var(--box-dark-dim)}.thr span.on{background:var(--box-warm);color:var(--yel-txt)}
+.cx-cover div{background:var(--box-dark2);color:var(--box-dark-txt)}.cx-cover b{color:var(--c-ink,var(--c))}.cx-cover small{color:var(--box-dark-dim)}
+.cx-top b{color:var(--hc-ink,var(--hc))}.wc-chip{color:var(--c-ink,var(--c))}.wc-chip.hl{color:#111}
+.pfx-banner{background:var(--box-warm);color:var(--box-dark-txt)}
+.qi.dis{background:var(--box-dis);color:var(--box-dark-txt)}
+.float,.xpest{color:var(--yel-txt)}
+.sel-slot.empty{opacity:1}
+.chip.used,.chip:disabled{opacity:1;filter:grayscale(.85);border-style:dashed}.chip.used .n,.chip.used small,.chip:disabled .n,.chip:disabled small{color:var(--muted-txt)!important}
+html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;color:var(--btn-dis-txt)!important;border:1px dashed var(--btn-dis-line)!important;box-shadow:none!important;text-shadow:none!important}
+.btn.pri{background:linear-gradient(#d61f7f,#a3155f)}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -714,6 +730,28 @@ html[data-look="crt"] .hinfo{border:1px dashed #ffb000!important;color:#ffcf66!i
 html[data-look="crt"] .hc-call{border-left-color:#ffb000}
 html[data-look="clean"] .hinfo{border:1px solid rgba(255,255,255,.2)!important;background:rgba(20,22,28,.9)!important;font-style:normal;font-family:system-ui,sans-serif}
 html[data-look="clean"] .hc-call{border-left-color:rgba(255,255,255,.35)}
+/* v1.10.1 contrast fixes (per look). See CHANGELOG-v1.10.1.md. */
+html[data-look="comic"]{--box-dark:#ffe9a8;--box-dark-txt:#111;--box-dark-dim:#3a3a3a;--box-dark2:#fff;--box-warm:#fff1b8;--box-dis:#ffd6d6;--email-bg:#fff;--email-txt:#111;--yel-txt:#7a5c00;--btn-dis-bg:#e8e2d0;--btn-dis-txt:#4a4a4a;--btn-dis-line:#111;--muted-txt:#4a4a4a}
+html[data-look="comic"] .pw{border:2px solid #111;border-left-width:4px}html[data-look="comic"] .pw.locked,html[data-look="comic"] .pw.out{background:#eee6cf;border-color:#777}
+html[data-look="comic"] .email{border:2px solid #111;box-shadow:3px 3px 0 #111}
+html[data-look="comic"] .btn:not(.pri):not(.ghost){background:#fff!important;color:#111!important}
+html[data-look="comic"] .mini>.btn.small:not(.pri){background:#e8e2d0!important;color:#111!important;box-shadow:none!important}
+html[data-look="comic"] body .btn.btn:disabled{border:3px dashed #111!important}
+html[data-look="comic"] .qempty{color:#e8e2d0}
+html[data-look="comic"] .bandnote.reroll{color:#0b4f8a}
+html[data-look="comic"] .opt .need.ok{background:#11702f;color:#fff}
+html[data-look="comic"] .cx-card{background:#fff!important;color:#111!important}
+html[data-look="neon"]{--box-dark-txt:#efe6ff;--box-dark-dim:#b8a9e0;--muted-txt:#b8a9e0;--email-txt:#efe6ff;--btn-dis-bg:#160c2e;--btn-dis-txt:#a898d4;--btn-dis-line:#6a4fa8}
+html[data-look="crt"]{--dim:#c88d22;--box-dark-txt:#ffc24a;--box-dark-dim:#d39a33;--muted-txt:#d39a33;--email-txt:#ffc24a;--btn-dis-bg:#140d02;--btn-dis-txt:#c88d22;--btn-dis-line:#8a5f12}
+html[data-look="clean"]{--box-dark-txt:#eef2ff;--box-dark-dim:#aab4d6;--muted-txt:#aab4d6;--email-txt:#eef2ff;--btn-dis-bg:#1a2038;--btn-dis-txt:#9aa6cf;--btn-dis-line:#4a5680}
+html .lk-prev[data-look="current"]{--lk-btn:linear-gradient(90deg,#d61f7f,#a84f00);--lk-btn-txt:#fff}
+html .lk-prev[data-look="neon"]{--lk-btn:linear-gradient(90deg,#b8128f,#6a1fd0)}
+html .lk-prev[data-look="clean"]{--lk-btn:linear-gradient(180deg,#c22a62,#a01f50)}
+html[data-look="comic"] .cx-card b:not([style]),html[data-look="comic"] .cx-stats b{color:#111!important}
+html[data-look="comic"] .opt .need.ok{background:#11702f!important;color:#fff!important}
+html[data-look="comic"] .sheet .card{background:#fff8e7;border:2px solid #111}html[data-look="comic"] .sheet .card *{color:#111}html[data-look="comic"] .sheet .card h3{color:#0b4fb3}html[data-look="comic"] .sheet .card small{color:#3a3a3a}
+html[data-look="comic"] .statrow span{background:#fff;color:#111}
+html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -2904,7 +2942,7 @@ function openAllocate(id, back) {
   openModal('allocate', m => { const render = () => {
     const used = pending.reduce((a, b) => a + b, 0), avail = h.unspentPoints - used; const prev = h.stats.map((v, i) => v + pending[i]);
     const rows = STATS.map((s, i) => { const capped = h.stats[i] + pending[i] >= CONFIG.statMax; return `<div class="al-row ${h.stats[i] >= CONFIG.statMax ? 'capped' : ''}"><div><b style="color:${STAT_COLORS[s]};font-size:14px;text-align:left">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}${capped ? ' · MAX 10' : ''}</small></div><button data-m="${i}" ${pending[i] ? '' : 'disabled'} aria-label="minus ${s}">−</button><b>${prev[i]}${pending[i] ? `<small style="color:var(--cyan)">+${pending[i]}</small>` : ''}</b><button data-p="${i}" ${avail > 0 && !capped ? '' : 'disabled'} aria-label="plus ${s}" ${capped ? 'title="Already at the max of 10"' : ''}>＋</button></div>`; }).join('');
-    const P = sheetParts(m, `<span style="font-size:26px">${h.emoji}</span><h2>Spend points: ${esc(h.codename)}</h2><span class="pill" style="color:var(--yel)">★ ${avail} left</span>`,
+    const P = sheetParts(m, `<span style="font-size:26px">${h.emoji}</span><h2>Spend points: ${esc(h.codename)}</h2><span class="pill" style="color:var(--yel-txt)">★ ${avail} left</span>`,
       `<div class="bgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ current</span><span style="color:#3ef0ff">⬡ preview</span></div></div><div>${rows}<div style="font-size:12px;color:var(--dim);margin-top:6px">1 point = +1 stat (max 10). Points can be banked. ${CONFIG.allowAllocUndo ? 'UNDO reverts what you confirmed in this screen.' : 'CONFIRM is final; UNDO clears unconfirmed picks.'}</div></div></div>`,
       `<button class="btn ghost" data-a="back">${back ? 'BACK' : 'DONE'}</button><button class="btn" data-a="undo" ${(CONFIG.allowAllocUndo && session.length) || used ? '' : 'disabled'}>UNDO</button><button class="btn pri" data-a="ok" ${used ? '' : 'disabled'}>CONFIRM</button>`);
     drawRadar(P.B.querySelector('.rad'), { team: h.stats, preview: used ? prev : null });
@@ -3002,14 +3040,14 @@ function openLevelUpChoice(onDone) {
 }
 
 /* v1.5: shared hero card + detail markup (Codex and Hero Selection) */
-function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel)">IN YOUR CAMPAIGN</span>' : ''}</div></button>`;
+function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div></button>`;
   return o.extra || o.cls ? base.replace('<button class="cx-card"', `<button class="cx-card ${o.cls || ''}" ${o.attrs || ''}`).replace(/<\/button>$/, (o.extra || '') + '</button>') : base; }
 function heroDetailHTML(d, o) { o = o || {}; const syn = d.synergy ? heroDef(d.synergy) : null; const cons = CONFLICT_PAIRS.filter(p => p.includes(d.id)).map(p => heroDef(p[0] === d.id ? p[1] : p[0]));
-  const link = o.link || (h => `<span class="pill">${h.emoji} ${esc(h.codename)}</span>${o.inCrew && o.inCrew(h.id) ? ' <span class="pill" style="color:var(--yel)">in your 8</span>' : ''}`);
+  const link = o.link || (h => `<span class="pill">${h.emoji} ${esc(h.codename)}</span>${o.inCrew && o.inCrew(h.id) ? ' <span class="pill" style="color:var(--yel-txt)">in your 8</span>' : ''}`);
   return `<div class="bgrid"><div><div class="radarbox"><canvas class="rad"></canvas></div>
            ${d.stats.map((v, k) => `<div class="cx-bar"><span style="color:${STAT_COLORS[STATS[k]]}">${STAT_NAMES[STATS[k]]}</span><i><b style="width:${v * 10}%;background:${STAT_COLORS[STATS[k]]}"></b></i><em>${v}</em><small>${esc(STAT_DESC[STATS[k]])}</small></div>`).join('')}</div>
          <div><p class="txt">${esc(d.bio)}</p><div class="quip">"${esc(d.quips[0])}"</div>
-           <div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel)">IN YOUR CAMPAIGN</span>' : ''}</div>
+           <div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div>
            <h4 style="margin:8px 0 2px">Powers</h4>${codexPowerHTML(d)}
            <div class="note good">🔗 Synergy: ${syn ? link(syn) : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
 /* ---------- v1.3 Hero Codex ---------- */
@@ -3271,7 +3309,7 @@ const EMAILS = {
 };
 function promoRewardsHTML(res) { let w = res.wild || 0;
   return (res.rewards || []).map(({ rank, reward }) => { if (!reward) return ''; const [n, d] = rewardText(reward); let extra = '';
-    if (reward === 'wildcard') { if (w > 0) { w--; extra = ' <span class="pill" style="color:var(--yel)">rolled: assign it next</span>'; } else extra = res.finalShift && !CONFIG.wildcardOnFinalShift ? ' <span class="pill">none on the final shift</span>' : ' <span class="pill">all 4 handed out</span>'; }
+    if (reward === 'wildcard') { if (w > 0) { w--; extra = ' <span class="pill" style="color:var(--yel-txt)">rolled: assign it next</span>'; } else extra = res.finalShift && !CONFIG.wildcardOnFinalShift ? ' <span class="pill">none on the final shift</span>' : ' <span class="pill">all 4 handed out</span>'; }
     return `<div class="pw"><b>${n}</b> <span class="pill">Rank ${rank}</span>${extra}<small>${d}</small></div>`; }).join(''); }
 function injuryReportHTML(camp, rep) { const nm = id => camp.heroes[id] ? `${camp.heroes[id].emoji} ${esc(camp.heroes[id].codename)}` : esc(id);
   if (!rep.length) return `<div class="card inj-report"><h3>🩹 Injury report</h3><p class="txt">No injuries tonight. ✔ Everyone is fit for the next shift.</p></div>`;
@@ -3286,7 +3324,7 @@ function showSummary() {
   if (res.grade === 'S') { FX.confetti(); Sfx.fanfare(); } else if (res.grade === 'D') Sfx.thud(); else Sfx.chime();
   const late = S.calls.filter(c => c.late).length;
   showScreen(`<div class="logo" style="font-size:30px;margin-top:2vh">SHIFT ${S.idx + 1} REVIEW</div>
-   <div class="card"><div class="grade ${res.grade}">${res.grade}</div><div style="text-align:center;font:700 20px ui-monospace,monospace;color:var(--yel)">${res.score} pts</div>
+   <div class="card"><div class="grade ${res.grade}">${res.grade}</div><div style="text-align:center;font:700 20px ui-monospace,monospace;color:var(--yel-txt)">${res.score} pts</div>
    <table class="sum"><tr><td>✅ Successes</td><td>${st.success}</td></tr><tr><td>❌ Failures</td><td>${st.fail}</td></tr><tr><td>⌛ Missed</td><td>${st.missed}</td></tr><tr><td>⭐ Perfect Picks</td><td>${st.perfect}</td></tr><tr><td>⌘ Hacks cleared</td><td>${st.hacks}</td></tr><tr><td>🩹 Injuries</td><td>${st.injuries}</td></tr><tr><td>📈 XP earned</td><td>${st.xp}</td></tr></table>
    <div style="font-size:12px;color:var(--dim);margin-top:6px">Score = 100×success − 40×fail − 60×missed + 25×perfect + 50×hack. ${late ? late + ' late report(s) were auto-resolved at 02:00.' : ''}</div></div>
    ${res.promos ? `<div class="card"><h3>🎖 Promotion!</h3><p class="txt">Agency rank ${camp.rank}: <b>${CONFIG.rankNames[camp.rank - 1]}</b>.</p>${promoRewardsHTML(res)}<p class="txt" style="display:none">${res.wild ? `You earned ${res.wild} wildcard skill point${res.wild > 1 ? 's' : ''}.` : 'All ' + CONFIG.maxWildcards + ' wildcard points have been handed out, so this one is just the title.'}${camp.rank >= CONFIG.medKitRank && camp.rank - res.promos < CONFIG.medKitRank ? ' 🩹 Med Kit unlocked!' : ''}${camp.rank >= CONFIG.jumpStartRank && camp.rank - res.promos < CONFIG.jumpStartRank ? ' ⚡ Jump Start unlocked!' : ''}</p></div>` : ''}
@@ -3305,7 +3343,7 @@ function showLevelUp() {
     if (camp.wildQueue.length) html += `<div class="note warn">🎲 ${camp.wildQueue.length} promotion stat point${camp.wildQueue.length > 1 ? 's' : ''} to assign first. <button class="lnk" data-a="wild">ASSIGN NOW</button></div>`;
     if (msg) html += `<div class="note good">${msg}</div>`;
     const lq = pruneLevelQueue(camp).length; if (lq && !camp.wildQueue.length) html += `<button class="btn pri" data-a="pick" style="margin:8px 0">★ PICK STATS FOR ${lq} NEW POINT${lq > 1 ? 'S' : ''}</button>`;
-    html += `<div class="card"><h3>Heroes</h3><p class="txt" style="font-size:13px;color:var(--dim)">Points come from XP (1000, 1300, 1600…; max 9 = LV 10). Spend now or bank them. Stats max at 10.</p><div class="alloc">${ids.map(id => { const hh = camp.heroes[id]; return `<div class="mini devcard"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b> <span class="pill">LV ${isMaxed(hh) ? 'MAX' : heroLevel(hh)}</span>${hh.trainedChoice ? ` <span class="pill">🎓 ${esc(POWERS[hh.trainedChoice].name)}</span>` : heroLevel(hh) >= CONFIG.trainLevel ? ' <span class="pill" style="color:var(--yel)">training ready</span>' : ''}<div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:6px;margin:4px 0"><i style="width:${100 * xpFrac(hh)}%"></i></div><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')} · ${xpText(hh)}</small></div><button class="btn small ${hh.unspentPoints ? 'pri' : ''}" data-sp="${id}">★${hh.unspentPoints} SPEND</button></div>`; }).join('')}</div></div>
+    html += `<div class="card"><h3>Heroes</h3><p class="txt" style="font-size:13px;color:var(--dim)">Points come from XP (1000, 1300, 1600…; max 9 = LV 10). Spend now or bank them. Stats max at 10.</p><div class="alloc">${ids.map(id => { const hh = camp.heroes[id]; return `<div class="mini devcard"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b> <span class="pill">LV ${isMaxed(hh) ? 'MAX' : heroLevel(hh)}</span>${hh.trainedChoice ? ` <span class="pill">🎓 ${esc(POWERS[hh.trainedChoice].name)}</span>` : heroLevel(hh) >= CONFIG.trainLevel ? ' <span class="pill" style="color:var(--yel-txt)">training ready</span>' : ''}<div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:6px;margin:4px 0"><i style="width:${100 * xpFrac(hh)}%"></i></div><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')} · ${xpText(hh)}</small></div><button class="btn small ${hh.unspentPoints ? 'pri' : ''}" data-sp="${id}">★${hh.unspentPoints} SPEND</button></div>`; }).join('')}</div></div>
      <button class="btn pri" data-a="done" ${camp.wildQueue.length ? 'disabled' : ''}>${camp.wildQueue.length ? 'ASSIGN WILDCARD FIRST' : 'CONTINUE'}</button>`;
     showScreen(html, s => {
       const wb = s.querySelector('[data-a=wild]'); if (wb) wb.onclick = () => runWild();
@@ -3523,5 +3561,31 @@ function openLooks(fromPause) {
     new MutationObserver(ms => { for (const mu of ms) for (const n of mu.addedNodes) { if (n.nodeType !== 1) continue; const r = n.classList && n.classList.contains('result') ? n : n.querySelector && n.querySelector('.result');
       if (r && !r._hz) { r._hz = 1; haptic(r.classList.contains('bad') ? [60, 40, 60] : 30); } } }).observe(md, { childList: true, subtree: true }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); })();
+
+// v1.10.1 contrast: per-look "ink" variants of fixed accent colours (stat, hero, state colours) used as TEXT.
+// Static CSS keyed on html[data-look] + the inline colour, so it follows look switches without re-rendering.
+// Dark looks lighten a colour (mix toward white) and Comic darkens it (mix toward black) until it reaches
+// >=4.6:1 against every panel colour that look puts behind text. Colours that already pass stay unchanged.
+const INK_BGS = { current: ['#141c38', '#101831', '#0d1430', '#0a1024'], neon: ['#1a1036', '#101831', '#0d1430', '#0a1024'], crt: ['#1a1104', '#101831', '#0d1430', '#0a1024'], clean: ['#1d2540', '#222b47', '#101831', '#0a1024'], comic: ['#ffd400', '#fff8e7', '#ffffff', '#ffe9a8', '#cfe3ff', '#e8e2d0'] };
+function inkColor(hex, look) {
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const bgs = (INK_BGS[look] || INK_BGS.current).map(rgb), to = look === 'comic' ? [0, 0, 0] : [255, 255, 255], c0 = rgb(hex);
+  for (let t = 0; t <= 1.0001; t += 0.02) { const c = c0.map((v, i) => Math.round(v + (to[i] - v) * t)); if (bgs.every(b => ratio(c, b) >= 4.6)) return '#' + c.map(v => v.toString(16).padStart(2, '0')).join(''); }
+  return look === 'comic' ? '#111111' : '#ffffff';
+}
+(function inkCSS() {
+  try {
+    const pal = new Set(['#ffd23f']); const add = o => Object.values(o || {}).forEach(v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) && pal.add(v.toLowerCase()));
+    if (typeof STAT_COLORS !== 'undefined') add(STAT_COLORS); if (typeof STATE_COL !== 'undefined') add(STATE_COL); if (typeof HERO_DEFS !== 'undefined') HERO_DEFS.forEach(h => h.color && add({ c: h.color }));
+    let css = '';
+    for (const l of LOOKS) for (const c of pal) {
+      const k = inkColor(c, l.id), L = l.id === 'current' ? 'html:not([data-look])' : `html[data-look="${l.id}"]`;
+      css += `${L} :is([style*="--hc:${c}" i]){--hc-ink:${k}}${L} :is([style*="--c:${c}" i]){--c-ink:${k}}`;
+      if (k !== c) css += `${L} :is([style^="color:${c}" i],[style*=";color:${c}" i],[style*=" color:${c}" i]):not(#radio *):not(canvas){color:${k}!important}`;
+    }
+    const st = document.createElement('style'); st.id = 'nd-ink'; st.textContent = css; document.head.appendChild(st);
+  } catch (e) { }
+})();
 
 </script></body></html>
