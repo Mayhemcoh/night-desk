@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.10.3';
+<script>window.ND_VERSION='nd-v1.10.4';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2506,6 +2506,12 @@ function drawRadar(cv, opts) {
   if (opts.preview) { g.setLineDash([6, 4]); poly(opts.preview, 'rgba(62,240,255,.12)', '#3ef0ff', 2.5); g.setLineDash([]); }
   if (opts.hl) radarPts([10.6, 10.6, 10.6, 10.6, 10.6], R).forEach((p, i) => { if (!opts.hl[i]) return; g.save(); g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.shadowColor = '#ffd23f'; g.shadowBlur = 10; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + p[0], cy + p[1]); g.stroke(); g.beginPath(); g.arc(cx + p[0], cy + p[1], 5, 0, 7); g.fillStyle = '#ffd23f'; g.fill(); g.restore(); });
   if (opts.dot) { const [x, y] = opts.dot; g.fillStyle = opts.dotCol || '#fff'; g.shadowColor = '#fff'; g.shadowBlur = 12; g.beginPath(); g.arc(cx + x * R, cy + y * R, 6, 0, 7); g.fill(); g.shadowBlur = 0; }
+  // v1.10.4: mission threshold markers (over-cap ✕ / bonus ★) — skip mini hero chips
+  if (!mini) {
+    const markAt = (stat, value) => { if (stat == null || value == null || !(value > 0)) return null; const vals = [0, 0, 0, 0, 0]; vals[stat] = value; const p = radarPts(vals, R)[stat]; return [cx + p[0], cy + p[1]]; };
+    const oc = opts.overCap; if (oc && oc.stat != null && oc.value != null) { const pt = markAt(oc.stat, oc.value); if (pt) { const [mx, my] = pt, s = 6; g.save(); g.lineCap = 'round'; g.strokeStyle = '#1a1020'; g.lineWidth = 4.5; g.beginPath(); g.moveTo(mx - s, my - s); g.lineTo(mx + s, my + s); g.moveTo(mx + s, my - s); g.lineTo(mx - s, my + s); g.stroke(); g.strokeStyle = '#ff3b4a'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(mx - s, my - s); g.lineTo(mx + s, my + s); g.moveTo(mx + s, my - s); g.lineTo(mx - s, my + s); g.stroke(); g.restore(); } }
+    const bn = opts.bonus; if (bn && bn.stat != null && bn.value != null) { const pt = markAt(bn.stat, bn.value); if (pt) { const [mx, my] = pt; g.save(); g.font = 'bold 16px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = '#1a1020'; g.strokeText('★', mx, my + 0.5); g.fillStyle = '#ffd23f'; g.fillText('★', mx, my + 0.5); g.restore(); } }
+  }
   return { cx, cy, R };
 }
 
@@ -2689,7 +2695,8 @@ function openBriefing(c) {
       if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
       if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
-      if (tpl.bonusThreshold) notes += `<div class="note good">★ Bonus XP threshold on this call.</div>`;
+      if (tpl.overCapFail) notes += `<div class="note warn">⚠ Auto-fail if ${esc(STAT_NAMES[STATS[tpl.overCapFail.stat]])} goes over ${tpl.overCapFail.value}</div>`;
+      if (tpl.bonusThreshold) notes += `<div class="note good">★ Double XP if ${esc(STAT_NAMES[STATS[tpl.bonusThreshold.stat]])} reaches ${tpl.bonusThreshold.value}</div>`;
       if (tpl.disruption && !tpl.disruption.always && S.idx + 1 >= CONFIG.disruptionsFromShift) notes += `<div class="note">📻 Things may get disrupted mid-mission. Keep the radio close.</div>`;
       let links = '';
       for (const [a, b, n] of info.synPairs) links += `<div class="note good">🔗 Synergy: ${esc(camp.heroes[a].codename)} + ${esc(camp.heroes[b].codename)} (+${Math.round(100 * Math.min(CONFIG.synergyMax, CONFIG.synergyBase + CONFIG.synergyPerPairing * n))}%, paired ${n}×)</div>`;
@@ -2712,7 +2719,7 @@ function openBriefing(c) {
          <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}
          <div style="margin-top:8px;font-size:12px;color:var(--dim)">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div></div>`,
         `<button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canDispatchHero(camp, id)) ? '' : 'disabled'}>DISPATCH</button>`);
-      drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam }); m.baseTeam = baseTeam;
+      drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
@@ -2786,7 +2793,7 @@ function openReview(c) {
     const finish = () => {
       if (done) return; done = true; applied = applyReview(camp, S, c, R); const ok = R.success;
       const hl = [0, 0, 0, 0, 0]; for (const e of applied.powerEvents || []) if (e.delta) e.delta.forEach((v, k) => { if (v > 0) hl[k] = 1; }); m.hl = hl;
-      drawRadar(cv, { req, team, overlap, dot: land, dotCol: ok ? '#4cd97b' : '#ff4d5e', hl });
+      drawRadar(cv, { req, team, overlap, dot: land, dotCol: ok ? '#4cd97b' : '#ff4d5e', hl, overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null });
       if (ok) Sfx.chime(); else { Sfx.thud(); shake(); }
       let html = `<div class="result ${ok ? 'ok' : 'bad'}">${ok ? 'SUCCESS' : 'FAILURE'}</div>`;
       { const why = outcomeReason(camp, S, c, R); html += `<div class="note outcome-reason ${why.kind}${R.forced ? ' warn forced-note' : why.kind === 'instant-success' || why.kind === 'guaranteed' ? ' good' : ''}" role="status"><b>${why.kind === 'instant-fail' ? '⛔' : why.kind === 'instant-success' ? '⚡' : why.kind === 'rolled' ? '🎲' : '✔'} ${esc(why.head)}</b>${why.lines.map(l => `<div class="why">${esc(l)}</div>`).join('')}</div>`; } // v1.9.2: why this result
@@ -2815,11 +2822,11 @@ function openReview(c) {
     };
     const rl = P.B.querySelector('.rolllabel');
     const anim = () => { if (done || !cv.isConnected) return; const e = (performance.now() - t0) / 1000;
-      if (e >= phases[ph].dur) { if (ph + 1 < phases.length) { const r0 = R.rolls[0], r1 = R.rolls[1]; if (rl) rl.innerHTML = `🎲 Roll 1: ${pctPair(r0.roll, r0.need)[0]} vs needed &lt; ${pctPair(r0.roll, r0.need)[1]} → miss · <b>${esc(POWERS[r1.power].name)} (${esc(camp.heroes[r1.hero].codename)}) re-roll!</b>`; drawRadar(cv, { req, team, overlap, dot: phases[ph].land, dotCol: '#ff4d5e' }); Sfx.thud(); ph++; hops = phases[ph].hops; lastHop = -1; t0 = performance.now() + 450; setTimeout(() => requestAnimationFrame(anim), 450); return; } finish(); return; }
+      if (e >= phases[ph].dur) { if (ph + 1 < phases.length) { const r0 = R.rolls[0], r1 = R.rolls[1]; if (rl) rl.innerHTML = `🎲 Roll 1: ${pctPair(r0.roll, r0.need)[0]} vs needed &lt; ${pctPair(r0.roll, r0.need)[1]} → miss · <b>${esc(POWERS[r1.power].name)} (${esc(camp.heroes[r1.hero].codename)}) re-roll!</b>`; drawRadar(cv, { req, team, overlap, dot: phases[ph].land, dotCol: '#ff4d5e', overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null }); Sfx.thud(); ph++; hops = phases[ph].hops; lastHop = -1; t0 = performance.now() + 450; setTimeout(() => requestAnimationFrame(anim), 450); return; } finish(); return; }
       if (e < 0) { requestAnimationFrame(anim); return; }
       let i = hops.findIndex(hp => hp.t > e) - 1; if (i < 0) i = 0; const a = hops[i], b = hops[i + 1] || a; const k = clamp((e - a.t) / ((b.t - a.t) || 1), 0, 1); const ease = 1 - Math.pow(1 - k, 2);
       if (i !== lastHop) { lastHop = i; Sfx.tick(i % 2); Sfx.tension(e / phases[ph].dur); }
-      drawRadar(cv, { req, team, overlap, dot: [a.p[0] + (b.p[0] - a.p[0]) * ease, a.p[1] + (b.p[1] - a.p[1]) * ease - Math.sin(k * Math.PI) * 0.06] }); requestAnimationFrame(anim); };
+      drawRadar(cv, { req, team, overlap, dot: [a.p[0] + (b.p[0] - a.p[0]) * ease, a.p[1] + (b.p[1] - a.p[1]) * ease - Math.sin(k * Math.PI) * 0.06], overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null }); requestAnimationFrame(anim); };
     requestAnimationFrame(anim);
     P.F.querySelector('[data-a=skip]').onclick = finish; cv.onclick = finish;
     m.onClose = () => { if (!done) finish(); };
