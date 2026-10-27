@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.11.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.12.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -841,6 +841,10 @@ const CONFIG = {
   signatureLevel: 8,        // v1.10: LV at which a hero who has trained MAY upgrade the base power to Mk II (explicit choice, never automatic)
   slotBonusMinSlots: 3,     // v1.10: slot-bonus powers only work on calls with 3+ slots (Dispatch: En Pointe / Diamond in the Rough)
   extendExpirySeconds: 8, extendExpiryAt: 5, // v1.10 Head Time Mk II: once per shift, +8 s on a call about to expire
+  flyTravelMult: 0.65, // v1.12 Flybae / En L'air / Strong Back flight
+  portalTravelMult: 0.3, // v1.12 Velvet Hex Portal Ritual approx (once/shift after heal)
+  spreadMaxMult: 1.0, // v1.12 Spread Thin: +25%/empty up to +100% (=200% of base contribution)
+  harderHeadRestMult: 0.5, // v1.12 Knuckles Harder Head while injured
   trainingSlotsPerSession: 2, // heroes that may train per training session
   poolMinStatTotal: 14,     // v1.3: each stat summed over a drawn 8 must reach this
   maxWildcards: 4,          // wildcard (random-stat) points from promotions over a whole campaign
@@ -900,19 +904,19 @@ const HQ = { u: 0.5, v: 0.5 };
 const HERO_DEFS = [
   { id: 'brightwire', name: 'Dana Volk', codename: 'Brightwire', color: '#ffd23f', emoji: '⚡', stats: [4, 1, 4, 2, 1], bio: 'Former power-grid thief. Once blacked out six city blocks to steal one toaster.', power: 'overclock', train: ['comet', 'supernova'], synergy: 'mirrorlark',
     quips: ['Relax, I have done crimes way scarier than this.', 'If it has a plug, I can talk to it.', 'Zapping is a conversation. A short one.'] },
-  { id: 'mirrorlark', name: 'Lia Moreau', codename: 'Mirrorlark', color: '#b9a7ff', emoji: '🪞', stats: [3, 1, 2, 4, 2], bio: 'Illusionist and ex-con artist. Has sold the Harbor Bridge four times.', power: 'doubletake', train: ['perfectcopy', 'silvertongue'], synergy: 'brightwire',
+  { id: 'mirrorlark', name: 'Lia Moreau', codename: 'Mirrorlark', color: '#b9a7ff', emoji: '🪞', stats: [3, 1, 2, 4, 2], bio: 'Illusionist and ex-con artist. Has sold the Harbor Bridge four times.', power: 'doubletake', train: ['perfectcopy', 'longrangeillusion'], synergy: 'brightwire',
     quips: ['Which one of me are you talking to?', 'Smile, darling. The illusion is doing the heavy lifting.', 'I have a twin for that. She is also me.'] },
   { id: 'slab', name: 'Gus Ostrowski', codename: 'Slab', color: '#a8a29e', emoji: '🪨', stats: [4, 5, 1, 1, 1], bio: 'Living concrete. Formerly a getaway wall. Literally.', power: 'settlingin', train: ['spreadthin', 'foundhimself'], synergy: 'hush',
     quips: ['Slab is here. Slab is load-bearing.', 'I can hold this door. I can BE this door.', 'Gravel in my boots again.'] },
   { id: 'hush', name: 'Noor Kade', codename: 'Hush', color: '#5eead4', emoji: '🥷', stats: [3, 1, 3, 2, 3] /* v1.3: was [3,1,3,2,2] (sum 11); every hero now sums to 12. Old saves keep their stored stats. */, bio: 'Stealth burglar. Has been in your apartment. Left it tidier.', power: 'soloact', train: ['wolfpack', 'eartoground'], synergy: 'slab', xpOffset: -300 /* starts 1 point low: first point at 700 */,
     quips: ['...', 'I was already here before you called.', 'Shh. Everybody is loud except me.'] },
-  { id: 'velvethex', name: 'Odessa Lune', codename: 'Velvet Hex', joinQuip: ' (please stop calling it a "coven")', color: '#e879f9', emoji: '🔮', stats: [3, 2, 2, 3, 2], bio: 'Ex-cult leader, now "wellness coach". The candles are non-negotiable.', power: 'borrowedtime', train: ['covenpay', 'lastrites'], synergy: 'echo',
+  { id: 'velvethex', name: 'Odessa Lune', codename: 'Velvet Hex', joinQuip: ' (please stop calling it a "coven")', color: '#e879f9', emoji: '🔮', stats: [3, 2, 2, 3, 2], bio: 'Ex-cult leader, now "wellness coach". The candles are non-negotiable.', power: 'borrowedtime', train: ['visions', 'portalritual'], synergy: 'echo',
     quips: ['The spirits say: duck.', 'I sense a disturbance. Also a smell.', 'Borrow a little time, pay it back with interest.'] },
-  { id: 'echo', name: 'Theo Marsh', codename: 'Echo', color: '#60a5fa', emoji: '🦇', stats: [1, 1, 2, 4, 4], bio: 'Bat-eared analyst. Brainy by day, bruiser by night. Hates both.', power: 'shiftchange', train: ['eavesdrop', 'nightowl'], synergy: 'velvethex',
+  { id: 'echo', name: 'Theo Marsh', codename: 'Echo', color: '#60a5fa', emoji: '🦇', stats: [1, 1, 2, 4, 4], bio: 'Bat-eared analyst. Brainy by day, bruiser by night. Hates both.', power: 'shiftchange', train: ['batshit', 'talkshit'], synergy: 'velvethex',
     quips: ['I can hear your heartbeat. It is judging me.', 'Day me would have a plan. Night me has fists.', 'Ping. Ping. ...Ping. Got it.'] },
-  { id: 'knuckles', name: 'Rocco Bellini', codename: 'Knuckles McGee', color: '#f97316', emoji: '🥊', stats: [3, 4, 1, 3, 1], bio: 'Retired enforcer. Still collects debts, but now it is library fines.', power: 'thickskull', train: ['musclememory', 'runningtab'], synergy: 'pasdechat',
+  { id: 'knuckles', name: 'Rocco Bellini', codename: 'Knuckles McGee', color: '#f97316', emoji: '🥊', stats: [3, 4, 1, 3, 1], bio: 'Retired enforcer. Still collects debts, but now it is library fines.', power: 'thickskull', train: ['squeezein', 'harderhead'], synergy: 'pasdechat',
     quips: ['I got a guy. I AM the guy.', 'Headbutt solves most problems. Ask me how.', 'Back in my day we just punched the weather.'] },
-  { id: 'pasdechat', name: 'Mimi Arceneaux', codename: 'Pas de Chat', color: '#f472b6', emoji: '🩰', stats: [4, 2, 3, 1, 2], bio: 'Ballet assassin, retired. Still does pliés on hostage takers.', power: 'positions', train: ['encoredanse', 'lightfeet'], synergy: 'knuckles',
+  { id: 'pasdechat', name: 'Mimi Arceneaux', codename: 'Pas de Chat', color: '#f472b6', emoji: '🩰', stats: [4, 2, 3, 1, 2], bio: 'Ballet assassin, retired. Still does pliés on hostage takers.', power: 'positions', train: ['encoredanse', 'alaseconde'], synergy: 'knuckles',
     quips: ['Five, six, seven, eight... knee.', 'Grace is just violence with good posture.', 'Point your toes, darling, especially when kicking.'] },
   // ---- v1.3 pool additions (17 new heroes; each stat spread sums to 12, all spreads distinct) ----
   { id: 'tidewall', name: 'Marisol Teague', codename: 'Tidewall', color: '#38bdf8', emoji: '🌊', stats: [2, 6, 1, 2, 1], bio: 'Former dam saboteur who now holds back floods. Calm as a lake, stubborn as a levee.', power: 'breakwater', train: ['riptide', 'undertow'], synergy: 'matron',
@@ -977,39 +981,48 @@ const SLAB_SLOTS = [0, 1, 3, 2];
 const SIGNATURES = { overclock: 'overclock2', doubletake: 'doubletake2', settlingin: 'settlingin2', soloact: 'soloact2', borrowedtime: 'borrowedtime2', shiftchange: 'shiftchange2', thickskull: 'thickskull2', positions: 'positions2',
   breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', gambit: 'gambit2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2' };
 const POWERS = {
-  overclock: { name: 'Overclock', desc: '+1 Might and Agility for every success this shift. Resets on a failure.', onCompute(c) { const s = c.hero.streak || 0; c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
-  comet: { name: 'Comet', desc: 'While Overclock has 1+ stacks, travel time x0.6. Burning out hurts: a failure with 2+ stacks injures her.', travelMult: 0.6, travelNeedsStreak: 1, burnout: 2 },
-  supernova: { name: 'Supernova', desc: 'At 2+ Overclock stacks, Might and Agility jump to 10. A failure at 2+ stacks drops both to 1 for her next call.', supernova: true, onCompute(c) { const h = c.hero; if (h.burnt) { c.st[0] = 1; c.st[2] = 1; } else if ((h.streak || 0) >= 2) { c.st[0] = Math.max(c.st[0], 10); c.st[2] = Math.max(c.st[2], 10); } }, onResult(c) { const h = c.hero; if (h.burnt) h.burnt = false; else if (!c.success && (c.prev || 0) >= 2) h.burnt = true; } },
-  doubletake: { name: 'Double Take', desc: 'Illusion: adds 50% of the stats of the hero in the slot directly to her LEFT to the team (fractions kept, team cap 10 still applies). Slot 1 or an empty left slot: no effect. Never a second roll.', illusion: true, illusionRatio: 0.5 },
-  perfectcopy: { name: 'Perfect Copy', desc: 'Double Take copies 100% of the left-slot hero instead of 50% (same left-slot rule). Never a second roll.', illusion: true, illusionRatio: 1 },
+  overclock: { name: 'Overclock', desc: '+1 Might and Agility for every success this shift. Resets on a failure. Flybae: she flies to calls (travel ×0.65).', flies: true, onCompute(c) { const s = c.hero.streak || 0; c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
+  comet: { name: 'Comet', desc: 'While Overclock has 1+ stacks, travel and work time ×0.6. A failure with 2+ stacks Downs her.', travelMult: 0.6, workMult: 0.6, travelNeedsStreak: 1, burnout: 2, burnoutDown: true },
+  supernova: { name: 'Supernova', desc: 'At 2+ Overclock stacks, Might and Agility jump to 10 and she skips rest after the call. A failure at 2+ stacks drops both to 1 for her next call.', supernova: true, restMult: 0, restNeedsStreak: 2, onCompute(c) { const h = c.hero; if (h.burnt) { c.st[0] = 1; c.st[2] = 1; } else if ((h.streak || 0) >= 2) { c.st[0] = Math.max(c.st[0], 10); c.st[2] = Math.max(c.st[2], 10); } }, onResult(c) { const h = c.hero; if (h.burnt) h.burnt = false; else if (!c.success && (c.prev || 0) >= 2) h.burnt = true; } },
+  doubletake: { name: 'Double Take', desc: 'Doppelganger: if a hero is in the slot to her LEFT and at least one slot is empty, fills an empty slot with a half-copy of that hero\'s final stats (coverage only; no XP, injury, or synergy). Full team or no left neighbor: no effect. Never a second roll.', illusion: true, illusionRatio: 0.5, illusionNeedsEmpty: true },
+  perfectcopy: { name: 'Perfect Copy', desc: 'Double Take copies 100% of the left-slot hero instead of 50% (same empty-slot + left-neighbor rules). Never a second roll.', illusion: true, illusionRatio: 1, illusionNeedsEmpty: true },
+  longrangeillusion: { name: 'Long Range Illusion', desc: 'Once per shift, while she is on shift, a call about to expire stays up +8 s.', extendExpiry: true },
   silvertongue: { name: 'Silver Tongue', desc: 'Slot bonus (calls with 3+ slots): +2 Presence in slot 1, +1 Wits in slot 2.', slotBonus: true, onCompute(c) { if (c.slot === 0) c.st[3] += 2; if (c.slot === 1) c.st[4] += 1; } },
-  settlingin: { name: 'Settling In', desc: 'Slot bonus (calls with 3+ slots): slot 1 +2 Might, slot 2 +2 Endurance, slot 3 +2 Presence, slot 4 +2 Agility; -1 to the other stats.', slotBonus: true, onCompute(c) { const k = SLAB_SLOTS[c.slot % 4]; for (let i = 0; i < 5; i++) c.st[i] += (i === k ? 2 : -1); } },
-  spreadthin: { name: 'Spread Thin', desc: 'Fills the gaps: each EMPTY slot on his call adds 25% of his stats to the team (fractions kept, team cap 10).', spread: 0.25 },
-  foundhimself: { name: 'Found Himself', desc: 'Knows his role now: +2 to the stat the call needs most (any call size).', onCompute(c) { const r = c.req; if (!r) return; let k = 0; for (let i = 1; i < 5; i++) if (r[i] > r[k]) k = i; c.st[k] += 2; } },
+  settlingin: { name: 'Settling In', desc: 'Slot bonus (calls with 3+ slots): slot 1 +2 Might, slot 2 +2 Endurance, slot 3 +2 Presence, slot 4 +2 Agility; -1 to the other stats. (Dispatch Diamond slot table not fully public — Night Desk map kept.)', slotBonus: true, onCompute(c) { const k = SLAB_SLOTS[c.slot % 4]; for (let i = 0; i < 5; i++) c.st[i] += (i === k ? 2 : -1); } },
+  spreadthin: { name: 'Spread Thin', desc: 'Fills the gaps: each EMPTY slot on his call adds 25% of his stats to the team (fractions kept, up to +100% = 200% of his contribution, team cap 10).', spread: 0.25 },
+  foundhimself: { name: 'Found Himself', desc: 'Once per shift, open his hero card to redistribute all of his stat points (same total). Does not change mid-call %.', respecOncePerShift: true },
   soloact: { name: 'Solo Act', desc: 'Travel and work time x0.6 when sent alone.', solo: true },
-  wolfpack: { name: 'Wolf Pack', desc: 'Runs with the pack: team XP +50% on calls she joins.', xpBoost: 0.5 },
-  eartoground: { name: 'Ear to the Ground', desc: 'While she is on shift, every briefing reveals the call requirements (even if she is not sent).', preview: true, previewAll: true },
-  borrowedtime: { name: 'Borrowed Time', desc: 'Heals one injury on a teammate sent with her. Has +1 Presence on every call she is sent on (a flat +1 for the shift, heal or not).', heal: true, alwaysPrs: true },
+  wolfpack: { name: 'Wolf Pack', desc: 'If she is on the call, team XP is doubled (+100%). XP doubles never stack — the larger bonus wins.', xpBoost: 1.0 },
+  eartoground: { name: 'Ear to the Ground', desc: 'While she is on shift, hovering upcoming calls on the map shows their slot count and type/tags (not full requirements).', previewMeta: true },
+  borrowedtime: { name: 'Borrowed Time', desc: 'Life Trade: heals one injury on a teammate sent with her. After a heal, she gains +1 Presence or +1 Endurance for the shift (your choice; stacks). No heal → no stack.', heal: true, lifeTrade: true },
+  visions: { name: 'Life Trade Visions', desc: 'After she heals someone, her next assigned call reveals its requirements in the briefing.', visionAfterHeal: true },
+  portalritual: { name: 'Portal Ritual', desc: 'After she heals someone, once per shift her next travel is ×0.3 (portal approx).', portalAfterHeal: true },
   covenpay: { name: 'Coven Pay', desc: 'Team XP +20% on calls she joins.', xpBoost: 0.20 },
   lastrites: { name: 'Last Rites', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
-  shiftchange: { name: 'Shift Change', desc: 'Day form (brains) and Night form (brawn) swap after every call: Might<->Wits, Endurance<->Presence.', swap: true },
+  shiftchange: { name: 'Shift Change', desc: 'Day form (brains) and Night form (brawn) swap after every call: Might↔Wits, Endurance↔Presence. Strong Back: in Night form he flies and carries the team (travel ×0.65).', swap: true, flies: true, travelMult: 0.65, carryTravel: true, formGateTravel: 'night' },
+  batshit: { name: 'Bat Shit', desc: 'Night form only: immune to injuries; rest time halved.', formGate: 'night', immune: true, restMult: 0.5 },
+  talkshit: { name: 'Talk Shit', desc: 'Day form only: once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', formGate: 'day', retry: true },
   eavesdrop: { name: 'Eavesdrop', desc: 'Hears everything: reveals call requirements in the briefing when assigned.', preview: true },
   nightowl: { name: 'Night Owl', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 2, +1 Agility in slot 3.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; if (c.slot === 2) c.st[2] += 1; } },
   thickskull: { name: 'Thick Skull', desc: 'Ignores injury debuffs and can never be Downed.', ignoreInjury: true, noDown: true },
+  squeezein: { name: 'Squeeze In', desc: 'On a call with fewer than 4 slots, adds one exclusive slot only he can fill (up to 4 total).', extraSlot: true },
+  harderhead: { name: 'Harder Head', desc: 'While injured: +2 Might, +2 Endurance, and rest ×0.5.', onCompute(c) { if (c.hero.powers.includes('thickskull2')) return; if (c.hero.injuries > 0) { c.st[0] += 2; c.st[1] += 2; } }, restMult: 0.5, restWhileInjured: true },
   musclememory: { name: 'Muscle Memory', desc: 'Momentum: +1 Might per success this shift, resets on a failure.', onCompute(c) { c.st[0] += (c.hero.streak2 || 0); }, onResult(c) { c.hero.streak2 = c.success ? (c.hero.streak2 || 0) + 1 : 0; } },
   runningtab: { name: 'Running Tab', desc: 'Knows every shortcut: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  positions: { name: 'Positions', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +1 Might in slot 1, +1 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 1; if (c.slot === 1) c.st[2] += 1; } },
+  positions: { name: 'Positions', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +1 Might in slot 1, +1 Agility in slot 2. En L\'air: she flies to calls (travel ×0.65).', flies: true, onCompute(c) { if (c.hero.powers.includes('alaseconde')) return; if (c.slot === 0) c.st[0] += 1; if (c.slot === 1) c.st[2] += 1; } },
   encoredanse: { name: 'Encore Dansé', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  alaseconde: { name: 'À la Seconde', slotBonus: true, desc: 'Upgrades Positions: on calls with 3+ slots, +3 Might in slot 1 and +3 Agility in slot 2 (replaces the +1/+1).', onCompute(c) { if (c.slot === 0) c.st[0] += 3; if (c.slot === 1) c.st[2] += 3; } },
   lightfeet: { name: 'Light Feet', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   // ---- Signature upgrades (LV 8) ----
-  overclock2: { name: 'Overclock ✦', signature: true, desc: 'MK II: +1 Might and Agility per success (max +4). A failure only removes 2 stacks.', onCompute(c) { const s = Math.min(4, c.hero.streak || 0); c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? Math.min(4, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 2); } },
-  doubletake2: { name: 'Hall of Mirrors ✦', signature: true, desc: 'MK II: Double Take keeps its left copy (50%, or 100% with Perfect Copy) AND also adds 50% of the hero directly to her RIGHT. Never a second roll.', illusion: true, illusionRatio: 0.5, illusionRight: 0.5 },
+  overclock2: { name: 'Overclock ✦', signature: true, desc: 'MK II: +1 Might and Agility per success (max +4). A failure only removes 2 stacks. Still flies (travel ×0.65).', flies: true, onCompute(c) { const s = Math.min(4, c.hero.streak || 0); c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? Math.min(4, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 2); } },
+  doubletake2: { name: 'Hall of Mirrors ✦', signature: true, desc: 'MK II: Double Take (half-copy of left into an empty slot) plus Long Range Illusion once per shift. Never a second roll; no right-side copy.', illusion: true, illusionRatio: 0.5, illusionNeedsEmpty: true, extendExpiry: true },
   settlingin2: { name: 'Settling In ✦', signature: true, slotBonus: true, desc: 'MK II: slot bonus (calls with 3+ slots) +3 (slot 1 Might, 2 Endurance, 3 Presence, 4 Agility) with no penalty.', onCompute(c) { c.st[SLAB_SLOTS[c.slot % 4]] += 3; } },
   soloact2: { name: 'Solo Act ✦', signature: true, desc: 'MK II: solo travel and work x0.45, and a solo success gives +25% XP.', solo: true, soloMult: 0.45, soloXpBoost: 0.25 },
-  borrowedtime2: { name: 'Borrowed Time ✦', signature: true, desc: 'MK II: heals up to 2 injured teammates on the call. Has +1 Presence on every call she is sent on (a flat +1 for the shift, heal or not).', heal: true, alwaysPrs: true, healCount: 2 },
-  shiftchange2: { name: 'Shift Change ✦', signature: true, desc: 'MK II: forms still swap after each call, and you may toggle the form manually once per shift (hero info).', swap: true, manualToggle: true },
-  thickskull2: { name: 'Thick Skull ✦', signature: true, desc: 'MK II: ignores injury debuffs, can never be Downed, and gets +2 Might and +2 Endurance while injured.', ignoreInjury: true, noDown: true, onCompute(c) { if (c.hero.injuries > 0) { c.st[0] += 2; c.st[1] += 2; } } },
-  positions2: { name: 'Positions ✦', signature: true, slotBonus: true, desc: 'MK II (calls with 3+ slots): +3 Might in slot 1, +3 Agility in slot 2.', onCompute(c) { if (c.slot === 0) c.st[0] += 3; if (c.slot === 1) c.st[2] += 3; } },
+  borrowedtime2: { name: 'Borrowed Time ✦', signature: true, desc: 'MK II: heals up to 2 injured teammates. After each heal, +1 Presence or +1 Endurance (your choice; stacks).', heal: true, lifeTrade: true, healCount: 2 },
+  shiftchange2: { name: 'Shift Change ✦', signature: true, desc: 'MK II: forms still swap after each call, and you may toggle the form manually once per shift (hero info). Strong Back still applies in Night form.', swap: true, manualToggle: true, flies: true, travelMult: 0.65, carryTravel: true, formGateTravel: 'night' },
+  thickskull2: { name: 'Thick Skull ✦', signature: true, desc: 'MK II: ignores injury debuffs, can never be Downed, and while injured gets +3 Might, +3 Endurance, and rest ×0.5 (deepens Harder Head without granting Squeeze In).', ignoreInjury: true, noDown: true, onCompute(c) { if (c.hero.injuries > 0) { c.st[0] += 3; c.st[1] += 3; } }, restMult: 0.5, restWhileInjured: true },
+  positions2: { name: 'Positions ✦', signature: true, slotBonus: true, desc: 'MK II: Positions becomes +2 Might in slot 1 and +2 Agility in slot 2 (calls with 3+ slots). Still flies. Does not grant Encore Dansé or full À la Seconde.', flies: true, onCompute(c) { if (c.hero.powers.includes('alaseconde')) return; if (c.slot === 0) c.st[0] += 2; if (c.slot === 1) c.st[2] += 2; } },
+
 
   // ---- v1.3 new-hero powers. New hooks: aura (adds to OTHER heroes on the call, max per stat), smallTeam {max, add}, restMult, injuryShield ----
   breakwater: { name: 'Breakwater', desc: 'Aura: teammates on her call get +1 Endurance (doesn\'t stack with the same aura).', aura: [0, 1, 0, 0, 0] },
@@ -1085,10 +1098,10 @@ const POWERS = {
 /* v1.10: every power declares where it acts: stat (pentagon -> coverage -> %), cap (acts on the roll itself: re-roll), time (travel/work/expiry),
    rest, xp, injury, info. Explicit `kind` wins; otherwise it is derived from the hooks so a new power can never be left without one. */
 const POWER_KINDS = ['stat', 'cap', 'time', 'rest', 'xp', 'injury', 'info'];
-function powerKindOf(P) { if (P.kind) return P.kind; if (P.onCompute || P.smallTeam || P.aura || P.illusion || P.spread || P.swap || P.supernova) return 'stat'; if (P.retry) return 'cap';
-  if (P.travelMult || P.solo || P.extendExpiry) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.preview) return 'info'; return 'info'; }
+function powerKindOf(P) { if (P.kind) return P.kind; if (P.onCompute || P.smallTeam || P.aura || P.illusion || P.spread || P.swap || P.supernova || P.respecOncePerShift || P.extraSlot) return 'stat'; if (P.retry) return 'cap';
+  if (P.travelMult || P.solo || P.extendExpiry || P.flies || P.workMult || P.portalAfterHeal) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.preview || P.previewMeta || P.visionAfterHeal) return 'info'; return 'info'; }
 for (const k in POWERS) POWERS[k].kind = powerKindOf(POWERS[k]);
-const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground' }; // v1.10 save migration
+const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground', silvertongue: 'longrangeillusion', covenpay: 'visions', lastrites: 'portalritual', eavesdrop: 'talkshit', nightowl: 'batshit', musclememory: 'harderhead', runningtab: 'squeezein', lightfeet: 'alaseconde' }; // v1.10 + v1.12 Dispatch parity migrations
 
 /* ================= CALL TEMPLATES ================= */
 // req order: CMB END AGI PRS WIT. Text keywords: [[word|STAT]]
@@ -1516,7 +1529,7 @@ function makeHero(def) {
     stats: def.stats.slice(), baseTotal: def.stats.reduce((a, b) => a + b, 0), xp: 0, xpPointsEarned: 0, unspentPoints: 0, wildPoints: 0, rank: 1,
     state: 'available', injuries: 0, morale: 0, nextMorale: 0, stateTimer: 0, stateDur: 0, powers: [def.power], synergyPartner: def.synergy,
     pairCount: {}, flags: { requestedRefused: 0, granted: 0 }, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, noXP: !!def.noXP, callUid: null, temp: !!def.noXP,
-    level: 1, trainedChoice: null, signature: false, revealed: {}, burnt: false, extendUsed: false, xpLog: [], pendingLevelUps: 0, xpOffset: def.xpOffset || 0, formToggled: false, routeTrained: false };
+    level: 1, trainedChoice: null, signature: false, revealed: {}, burnt: false, extendUsed: false, xpLog: [], pendingLevelUps: 0, xpOffset: def.xpOffset || 0, formToggled: false, routeTrained: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false, lifeTradeChoice: 3 };
 }
 function heroDef(id) { return id === 'comptroller' ? COMPTROLLER : HERO_DEFS.find(h => h.id === id); }
 
@@ -1559,7 +1572,7 @@ function newCampaign(seed, opts) {
 function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i)); return ids; }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV110(migrateV18(c)); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV112(migrateV110(migrateV18(c))); }
 function migrateV110(c) { // v1.10 powers rework: retired ids map to their replacements; Mk II (old Signatures) keep their ids; no crash on unknown ids
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.powers)) h.powers = d.power ? [d.power] : [];
     h.powers = h.powers.map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]); h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
@@ -1571,6 +1584,21 @@ function migrateV110(c) { // v1.10 powers rework: retired ids map to their repla
     if (h.burnt === undefined) h.burnt = false; if (h.extendUsed === undefined) h.extendUsed = false;
     if (!hasPower(h, 'retry')) h.retryUsed = false; } // retryUsed is ignored for heroes with no re-roll power (Mirrorlark after Encore -> Perfect Copy)
   return c; }
+function migrateV112(c) { // v1.12 Dispatch original-8 parity: remapped trains + new flags
+  for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {};
+    h.powers = (h.powers || []).map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]); h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
+    if (h.trainedChoice) h.trainedChoice = RETIRED_POWERS[h.trainedChoice] || h.trainedChoice; if (h.trainedChoice && !POWERS[h.trainedChoice]) h.trainedChoice = null;
+    if (!h.trainedChoice) h.trainedChoice = (d.train || []).find(p => h.powers.includes(p)) || null;
+    // Drop trains that are no longer on this hero's exclusive pair (except keep if still a valid power they somehow have)
+    if (h.trainedChoice && d.train && !d.train.includes(h.trainedChoice)) {
+      // trainedChoice was remapped above; if still not in train list, keep the power but clear exclusive marker only when truly invalid
+      if (!POWERS[h.trainedChoice]) h.trainedChoice = null;
+    }
+    if (h.respecUsed === undefined) h.respecUsed = false; if (h.visionReady === undefined) h.visionReady = false;
+    if (h.portalReady === undefined) h.portalReady = false; if (h.portalUsed === undefined) h.portalUsed = false;
+    if (h.lifeTradeChoice === undefined) h.lifeTradeChoice = 3;
+    if (!hasPower(h, 'retry')) h.retryUsed = false;
+  } return c; }
 function migrateV18(c) { // v1.8: optional fields only (save format stays v5)
   for (const id in c.heroes) if (c.heroes[id].routeTrained === undefined) c.heroes[id].routeTrained = false;
   if (!c.missionSet) c.missionSet = 'v1.8'; if (!c.missionBag) c.missionBag = emptyMissionBag(); return c; }
@@ -1629,7 +1657,7 @@ function startShift(camp) {
   const avg = camp.grades.length ? camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / camp.grades.length : 4;
   if (idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow) { camp.heroes.comptroller = makeHero(COMPTROLLER); camp.roster.push('comptroller'); camp.comptroller = true; }
   for (const id of camp.roster) { const h = camp.heroes[id]; if (!h.joined) { h.joined = idx + 1; if (idx > 0 && !h.noXP) addXP(camp, h, CONFIG.lateJoinXPPerShift * idx, null, { call: 'Hired with experience', reason: 'late hire' }); }
-    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false }); h.revealed = h.revealed || {};
+    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false }); h.revealed = h.revealed || {}; if (h.lifeTradeChoice === undefined) h.lifeTradeChoice = 3;
     h.morale = h.nextMorale || 0; h.nextMorale = 0; h.flags.requestedRefused = 0; h.flags.granted = 0; }
   const seed = (camp.seed + idx * 7919) >>> 0;
   const S = { idx, plan, t: 0, speed: 1, calls: [], uid: 1, spawnRng: mulberry32(seed), rollRng: mulberry32(seed ^ 0x9e3779b9), rollNonce: (camp.rollNonce !== undefined && camp.rollNonceFor === idx ? camp.rollNonce : 0) >>> 0, hackRng: mulberry32(seed ^ 0x51ed27), seed, roster: camp.roster.slice(),
@@ -1700,13 +1728,19 @@ function pickTemplate(camp, S, rng) { // v1.11.0: Classic ON hard prefer-unused 
 function pendingCalls(S) { return S.calls.filter(c => c.stage === 'pending'); }
 
 /* ---------- Stats & chance ---------- */
-function powerProp(h, prop) { for (const p of h.powers) if (POWERS[p] && POWERS[p][prop] !== undefined) return POWERS[p][prop]; return undefined; }
+function powerFormOk(h, P) { if (!P) return false; if (P.formGate && h.form !== P.formGate) return false; return true; }
+function lifeTradeStat(h) { const c = h && h.lifeTradeChoice; return (c === 1 || c === 3) ? c : 3; } // 3=PRS default, 1=END
+function powerProp(h, prop) { for (const p of h.powers) { const P = POWERS[p]; if (P && P[prop] !== undefined && powerFormOk(h, P)) return P[prop]; } return undefined; }
 function soloMultFor(h) { return powerProp(h, 'soloMult') || CONFIG.soloMult; }
-function restMultFor(h) { // v1.10.3: best (lowest) rest multiplier across all powers, so an upgrade never makes a hero rest longer
-  let best = null; for (const p of h.powers) if (POWERS[p] && POWERS[p].restMult && (!best || POWERS[p].restMult < POWERS[best].restMult)) best = p; return best ? { mult: POWERS[best].restMult, power: best } : null; }
+function restMultFor(h) { // v1.10.3/v1.12: best (lowest) rest multiplier; form/streak/injured gates respected
+  let best = null; for (const p of h.powers) { const P = POWERS[p]; if (!P || P.restMult === undefined || !powerFormOk(h, P)) continue;
+    if (P.restNeedsStreak && (h.streak || 0) < P.restNeedsStreak) continue;
+    if (P.restWhileInjured && !(h.injuries > 0)) continue;
+    if (!best || P.restMult < POWERS[best].restMult) best = p; }
+  return best ? { mult: POWERS[best].restMult, power: best } : null; }
 function prsBonusDue(camp, S, healerId, healedN) { // v1.10.3: healer +1 PRS. Borrowed Time (alwaysPrs): a flat +1 for the shift from her first call, heal or not, never stacked; other healers: +1 per heal (unchanged)
   if (!healerId) return false; const h = camp.heroes[healerId]; if (hasPower(h, 'alwaysPrs')) return !(S && S.prsGiven && S.prsGiven[healerId]); return healedN > 0; }
-function hasPower(h, flag) { return h.powers.some(p => POWERS[p] && POWERS[p][flag]); }
+function hasPower(h, flag) { return h.powers.some(p => { const P = POWERS[p]; return P && P[flag] && powerFormOk(h, P); }); }
 function effStats(camp, h, slot, call, opts) {
   opts = opts || {};
   const st = h.stats.slice();
@@ -1771,6 +1805,19 @@ function pctPair(a, b) { let d = 1; while (d < 4 && pctFloor(a, d) === pctFloor(
 function helpersOn(S) { return !!S && !S.finale && S.idx < CONFIG.helpersOffFromIdx; }
 function orient(p) { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return s < 0 ? p.slice().reverse() : p; }
 
+function callHasSqueeze(camp, call) { if ((call.slots || 0) >= 4) return false; return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && hasPower(h, 'extraSlot') && ( (call.assigned && call.assigned.includes(id)) || canDispatchHero(camp, id) ); }); }
+function effectiveSlotCount(camp, call) { const base = call.slots || 0; return callHasSqueeze(camp, call) ? Math.min(4, base + 1) : base; }
+function ensureAssignedSlots(camp, call) { const n = effectiveSlotCount(camp, call); if (!call.assigned) call.assigned = Array(n).fill(null); while (call.assigned.length < n) call.assigned.push(null); while (call.assigned.length > n) { const last = call.assigned.pop(); if (last && call.assigned.indexOf(last) < 0) { /* dropped exclusive empty */ } } return call.assigned; }
+function isExclusiveSqueezeSlot(camp, call, i) { return i >= (call.slots || 0) && callHasSqueeze(camp, call); }
+function canFillSlot(camp, call, id, i) { if (!isExclusiveSqueezeSlot(camp, call, i)) return true; const h = camp.heroes[id]; return !!(h && hasPower(h, 'extraSlot')); }
+function heroFlies(h) { return h.powers.some(p => { const P = POWERS[p]; return P && P.flies && powerFormOk(h, P) && (!P.formGateTravel || h.form === P.formGateTravel); }) || !!h.routeTrained; }
+function travelMultForHero(h) { let m = 1; let flew = false;
+  for (const p of h.powers) { const P = POWERS[p]; if (!P || !powerFormOk(h, P)) continue;
+    if (P.travelMult) { if (P.formGateTravel && h.form !== P.formGateTravel) continue; if (P.travelNeedsStreak && (h.streak || 0) < P.travelNeedsStreak) continue; m *= P.travelMult; if (P.flies) flew = true; }
+    else if (P.flies && (!P.formGateTravel || h.form === P.formGateTravel)) { m *= CONFIG.flyTravelMult; flew = true; } }
+  if (h.routeTrained && !flew) m *= CONFIG.routeMult; else if (h.routeTrained && flew) { /* route stacks lightly */ m *= CONFIG.routeMult; }
+  if (h.portalReady && !h.portalUsed) m *= CONFIG.portalTravelMult; return m; }
+
 function computeCall(camp, S, call, assigned, opt, xo) {
   xo = xo || {}; const trace = [];
   assigned = assigned || call.assigned; opt = opt !== undefined ? opt : call.option;
@@ -1788,19 +1835,20 @@ function computeCall(camp, S, call, assigned, opt, xo) {
     if (m) { const gid = heroes[by].id; const e = auraCredit[gid] = auraCredit[gid] || { hero: gid, power: heroes[by].powers.find(p => POWERS[p] && POWERS[p].aura), kind: 'aura', delta: [0, 0, 0, 0, 0], to: [] }; e.delta[k] += m; if (!e.to.includes(heroes[i].id)) e.to.push(heroes[i].id); } } });
   for (const k in auraCredit) trace.push(auraCredit[k]);
   const team = [0, 0, 0, 0, 0]; per.forEach(st => st && st.forEach((v, i) => team[i] += v));
-  /* v1.10 Double Take (user rule): Mirrorlark adds ratio x the FINAL effective stats (after their powers, aura, injury, morale) of the hero
-     directly to her LEFT to the team, full team or not. Fractions are kept (never floored). Slot 1 / empty left slot = no effect (stated).
-     Ratio = best illusionRatio among her powers (Double Take 0.5, Perfect Copy 1). Mk II adds illusionRight x the hero to her RIGHT. */
+  /* v1.12 Prism parity: Double Take needs a left neighbor AND at least one empty slot; contributes ratio × left hero's final eff stats (coverage only). */
   const illusions = [];
+  const emptyCount = assigned.filter(id => !id).length;
   heroes.forEach((h, i) => { if (!h || !hasPower(h, 'illusion')) return; const pw = h.powers.find(p => POWERS[p].illusion && !POWERS[p].signature) || h.powers.find(p => POWERS[p].illusion);
     const ratio = Math.max(...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRatio) || 0)) || 0.5; const pRatio = h.powers.find(p => POWERS[p].illusionRatio === ratio && !POWERS[p].signature) || pw;
-    if (i > 0 && per[i - 1]) { const il = { by: h.id, from: heroes[i - 1].id, side: 'left', ratio, power: pRatio, stats: per[i - 1].map(v => v * ratio) }; illusions.push(il); il.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: pRatio, kind: 'illusion', delta: il.stats.slice(), from: il.from, ratio }); }
-    else trace.push({ hero: h.id, power: pw, kind: 'illusion', delta: [0, 0, 0, 0, 0], from: null, noEffect: true, text: 'no hero to her left' });
+    const needsEmpty = h.powers.some(p => POWERS[p] && POWERS[p].illusion && POWERS[p].illusionNeedsEmpty);
+    if (!(i > 0 && per[i - 1])) { trace.push({ hero: h.id, power: pw, kind: 'illusion', delta: [0, 0, 0, 0, 0], from: null, noEffect: true, text: 'no hero to her left' }); return; }
+    if (needsEmpty && emptyCount < 1) { trace.push({ hero: h.id, power: pw, kind: 'illusion', delta: [0, 0, 0, 0, 0], from: heroes[i - 1].id, noEffect: true, text: 'no empty slot' }); return; }
+    const il = { by: h.id, from: heroes[i - 1].id, side: 'left', ratio, power: pRatio, stats: per[i - 1].map(v => v * ratio) }; illusions.push(il); il.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: pRatio, kind: 'illusion', delta: il.stats.slice(), from: il.from, ratio });
     const rr = Math.max(0, ...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRight) || 0));
-    if (rr && per[i + 1]) { const rp = h.powers.find(p => POWERS[p].illusionRight); const il = { by: h.id, from: heroes[i + 1].id, side: 'right', ratio: rr, power: rp, stats: per[i + 1].map(v => v * rr) }; illusions.push(il); il.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: rp, kind: 'illusion', delta: il.stats.slice(), from: il.from, ratio: rr, side: 'right' }); } });
+    if (rr && per[i + 1] && (!needsEmpty || emptyCount > 1)) { const rp = h.powers.find(p => POWERS[p].illusionRight); const il2 = { by: h.id, from: heroes[i + 1].id, side: 'right', ratio: rr, power: rp, stats: per[i + 1].map(v => v * rr) }; illusions.push(il2); il2.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: rp, kind: 'illusion', delta: il2.stats.slice(), from: il2.from, ratio: rr, side: 'right' }); } });
   const illusion = illusions[0] || null;
-  // v1.10 Spread Thin: each empty slot adds 25% of the hero's stats
-  { const empty = Math.max(0, (call.slots || assigned.length) - ids.length); heroes.forEach((h, i) => { const sp = h && powerProp(h, 'spread'); if (sp && empty) { const d = per[i].map(v => v * sp * empty); d.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].spread), kind: 'spread', delta: d, empty }); } }); }
+  // v1.12 Spread Thin: each empty slot +25% up to +100% of his stats when beneficial
+  { const empty = Math.max(0, assigned.length - ids.length); heroes.forEach((h, i) => { const sp = h && powerProp(h, 'spread'); if (sp && empty) { const eUse = Math.min(empty, Math.floor((CONFIG.spreadMaxMult || 1) / sp + 1e-9)); const d = per[i].map(v => v * sp * eUse); d.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].spread), kind: 'spread', delta: d, empty: eUse }); } }); }
   const capped = team.map(v => Math.min(CONFIG.teamCap, v));
   const sumReq = req.reduce((a, b) => a + b, 0);
   const perStat = sumReq ? capped.reduce((a, v, i) => a + Math.min(v, req[i]), 0) / sumReq : 0;
@@ -1819,7 +1867,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   let forced = null;
   { const af = afList(tpl).find(x => ids.includes(x.heroId)); if (af) forced = af.reason; }
   if (tpl.overCapFail && capped[tpl.overCapFail.stat] > tpl.overCapFail.value) forced = tpl.overCapFail.reason;
-  const preview = heroes.some(h => h && hasPower(h, 'preview')) || (camp.roster || []).some(id => camp.heroes[id] && hasPower(camp.heroes[id], 'previewAll') && camp.heroes[id].state !== 'downed');
+  const preview = heroes.some(h => h && (hasPower(h, 'preview') || h.visionReady)) || (camp.roster || []).some(id => camp.heroes[id] && hasPower(camp.heroes[id], 'previewAll') && camp.heroes[id].state !== 'downed');
   if (call.forcedFail) forced = call.forcedFail;
   const breakdown = [{ label: auto ? (tpl.type === 'story' ? 'Story call: always succeeds' : 'Training call: always succeeds') : `Coverage ${Math.round(coverage * 100)}% → base`, delta: base }];
   if (afterCap < base) breakdown.push({ label: `${difficulty === 'hard' ? 'Hard' : 'Difficulty'} cap ${Math.round(cap * 100)}%`, delta: afterCap - base });
@@ -1842,7 +1890,8 @@ function successChance(camp, S, call, assigned, o) {
     const heroes = Object.assign({}, camp.heroes), c2 = Object.assign({}, camp, { heroes });
     for (const id of assigned) if (id) heroes[id] = Object.assign({}, camp.heroes[id], { buff: camp.heroes[id].buff.slice() });
     for (const id of first.healed) heroes[id].injuries = Math.max(0, heroes[id].injuries - 1);
-    if (prsBonusDue(camp, S, first.healer, first.healed.length)) heroes[first.healer].buff[3] += 1;
+    if (first.healer && first.healed.length && hasPower(camp.heroes[first.healer], 'lifeTrade')) { const st = lifeTradeStat(heroes[first.healer]); heroes[first.healer].buff[st] = (heroes[first.healer].buff[st] || 0) + first.healed.length; }
+    else if (prsBonusDue(camp, S, first.healer, first.healed.length)) heroes[first.healer].buff[3] += 1;
     if (call.requestHero && assigned.includes(call.requestHero)) heroes[call.requestHero].morale = 1;
     info = computeCall(c2, S, call, assigned, o.opt, { noHeal: true, healed: first.healed, healer: first.healer });
   } else info = computeCall(camp, S, call, assigned, o.opt);
@@ -1883,7 +1932,7 @@ function revealPower(camp, heroId, power) { const h = camp && camp.heroes && cam
 function powerEv(camp, S, e) { e.text = e.text || (e.delta ? deltaText(e.delta) : ''); e.msg = powerEvText(camp, e); if (!e.noEffect) revealPower(camp, e.hero, e.power); if (S) { (S.powerLog = S.powerLog || []).push(e); e.t = S.t; } Bus.emit('power', e); return e; }
 function traceEventText(camp, e, info) { const ct = info ? contribText(info, e) : '';
   if (e.kind === 'aura') return deltaShort(e.delta.map(v => v / Math.max(1, e.to.length))) + ' to ' + e.to.map(id => camp.heroes[id].codename).join(', ') + ' (doesn\'t stack with the same aura)' + ct;
-  if (e.kind === 'illusion') return e.noEffect ? 'no hero to her left (no effect)' : deltaShort(e.delta) + ' from ' + camp.heroes[e.from].codename + ` (${Math.round(e.ratio * 100)}% copy${e.side === 'right' ? ', right side' : ''})` + ct;
+  if (e.kind === 'illusion') return e.noEffect ? ((e.text || 'no effect') + ' (no effect)') : deltaShort(e.delta) + ' from ' + camp.heroes[e.from].codename + ` (${Math.round(e.ratio * 100)}% copy into empty slot${e.side === 'right' ? ', right side' : ''})` + ct;
   if (e.kind === 'spread') return deltaShort(e.delta) + ` (${e.empty} empty slot${e.empty === 1 ? '' : 's'} × 25%)` + ct;
   if (e.kind === 'swap') return 'Night form: Might↔Wits, Endurance↔Presence (' + deltaShort(e.delta) + ')' + ct;
   if (e.kind === 'ignoreInjury') return e.delta.some(v => v) ? 'ignored the injury penalty (' + deltaShort(e.delta) + ' kept)' + ct : 'ignored the injury penalty (no stat lost anyway)'; return deltaShort(e.delta) + ct; }
@@ -1891,10 +1940,12 @@ function powerPreview(camp, S, call, info) { // what will trigger if dispatched 
   const out = []; const ids = info.ids; const add = (hero, power, text, kind) => power && out.push({ hero, power, text, kind, msg: powerEvText(camp, { hero, power, text }) });
   const NP = ', does not change the %';
   for (const e of info.trace) add(e.hero, e.power, traceEventText(camp, e, info), e.kind);
-  if (info.healer) { const hh = camp.heroes[info.healer], always = hasPower(hh, 'alwaysPrs'), due = prsBonusDue(camp, S, info.healer, info.healed.length), hp = hh.powers.find(p => POWERS[p].heal);
+  if (info.healer) { const hh = camp.heroes[info.healer], always = hasPower(hh, 'alwaysPrs'), lt = hasPower(hh, 'lifeTrade'), due = prsBonusDue(camp, S, info.healer, info.healed.length), hp = hh.powers.find(p => POWERS[p].heal);
+    const st = lifeTradeStat(hh), stName = STAT_NAMES[STATS[st]];
     const prs = due ? '+1 Presence (already in the %)' : always ? '+1 Presence already active this shift (in the %)' : '';
-    if (info.healed.length) add(info.healer, hp, 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (prs ? ', ' + prs : ''), 'heal');
-    else if (always) add(info.healer, hp, 'no one to heal, still ' + prs, 'heal'); }
+    if (info.healed.length) add(info.healer, hp, 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (lt ? `, then +1 ${stName} (stacks, already in the %)` : (prs ? ', ' + prs : '')), 'heal');
+    else if (always) add(info.healer, hp, 'no one to heal, still ' + prs, 'heal');
+    else if (lt) add(info.healer, hp, 'no one to heal — no Life Trade stack', 'heal'); }
   for (const id of ids) { const h = camp.heroes[id];
     const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, 'requirements revealed' + NP, 'preview');
     const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) add(id, tm, 'travel ×' + POWERS[tm].travelMult + NP, 'travel');
@@ -1912,10 +1963,17 @@ function canDispatchHero(camp, id) { const h = camp.heroes[id]; return h && h.st
 function travelTime(camp, call, ids) {
   const du = Math.abs(call.pos.u - HQ.u) * 1280, dv = Math.abs(call.pos.v - HQ.v) * 720;
   let t = clamp((du + dv) / CONFIG.heroSpeed, CONFIG.travelMin, CONFIG.travelMax);
-  const mults = ids.map(id => { const h = camp.heroes[id]; let m = 1; for (const p of h.powers) if (POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)) m *= POWERS[p].travelMult; if (h.routeTrained) m *= CONFIG.routeMult; return m; });
-  t *= mults.reduce((a, b) => a + b, 0) / mults.length;
+  const carrier = ids.map(id => camp.heroes[id]).find(h => h && hasPower(h, 'carryTravel') && heroFlies(h) && (!POWERS[h.powers.find(p => POWERS[p].carryTravel)].formGateTravel || h.form === POWERS[h.powers.find(p => POWERS[p].carryTravel)].formGateTravel));
+  if (carrier) t *= travelMultForHero(carrier);
+  else { const mults = ids.map(id => travelMultForHero(camp.heroes[id])); t *= mults.reduce((a, b) => a + b, 0) / Math.max(1, mults.length); }
   if (ids.length === 1 && hasPower(camp.heroes[ids[0]], 'solo')) t *= soloMultFor(camp.heroes[ids[0]]);
   return t;
+}
+function workTimeFor(camp, call, ids) {
+  let w = call.tpl.workTime;
+  for (const id of ids) { const h = camp.heroes[id]; for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.workMult || !powerFormOk(h, P)) continue; if (P.travelNeedsStreak && (h.streak || 0) < P.travelNeedsStreak) continue; w *= P.workMult; } }
+  if (ids.length === 1 && hasPower(camp.heroes[ids[0]], 'solo')) w *= soloMultFor(camp.heroes[ids[0]]);
+  return w;
 }
 function dispatch(camp, S, call) {
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
@@ -1924,17 +1982,28 @@ function dispatch(camp, S, call) {
   if (call.pairUid) declinePartner(camp, S, call);
   if (call.tpl.type === 'competing' && (call.option === null || call.option === undefined)) call.option = 0;
   const info = successChance(camp, S, call, call.assigned, { atDispatch: true, noSabotage: true });
-  const prsDue = prsBonusDue(camp, S, info.healer, info.healed.length); if (prsDue) { camp.heroes[info.healer].buff[3] += 1; if (hasPower(camp.heroes[info.healer], 'alwaysPrs')) (S.prsGiven = S.prsGiven || {})[info.healer] = true; }
+  const healer0 = info.healer ? camp.heroes[info.healer] : null; const lt0 = !!(healer0 && hasPower(healer0, 'lifeTrade'));
+  const prsDue = !lt0 && prsBonusDue(camp, S, info.healer, info.healed.length); if (prsDue) { camp.heroes[info.healer].buff[3] += 1; if (hasPower(camp.heroes[info.healer], 'alwaysPrs')) (S.prsGiven = S.prsGiven || {})[info.healer] = true; }
   if (prsDue && !info.healed.length) { const hp = camp.heroes[info.healer].powers.find(p => POWERS[p].heal); powerEv(camp, S, { hero: info.healer, power: hp, kind: 'heal', callUid: call.uid, delta: [0, 0, 0, 1, 0], text: 'no one to heal, still +1 Presence for the shift (already in the %)' }); }
-  if (info.healed.length) { for (const id of info.healed) { const h = camp.heroes[id]; h.injuries = Math.max(0, h.injuries - 1); } for (const id of info.healed) { logInjury(S, { id, kind: 'healed', by: info.healer }); Bus.emit('healed', { id, by: info.healer, source: 'power' }); } const hp = camp.heroes[info.healer].powers.find(p => POWERS[p].heal); Bus.emit('radio', { hero: info.healer, text: POWERS[hp].name + ': patched up ' + info.healed.map(id => camp.heroes[id].codename).join(' and ') + (prsDue ? '. (+1 Presence)' : '.') }); powerEv(camp, S, { hero: info.healer, power: hp, kind: 'heal', callUid: call.uid, delta: [0, 0, 0, prsDue ? 1 : 0, 0], text: 'healed ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (prsDue ? ', +1 Presence' : ' (+1 Presence already active this shift)') }); }
+  if (info.healed.length) { for (const id of info.healed) { const h = camp.heroes[id]; h.injuries = Math.max(0, h.injuries - 1); } for (const id of info.healed) { logInjury(S, { id, kind: 'healed', by: info.healer }); Bus.emit('healed', { id, by: info.healer, source: 'power' }); }
+    const healer = camp.heroes[info.healer]; const hp = healer.powers.find(p => POWERS[p].heal); const lt = hasPower(healer, 'lifeTrade'); let ltDelta = [0, 0, 0, 0, 0];
+    if (lt) { const st = lifeTradeStat(healer); const n = info.healed.length; healer.buff[st] = (healer.buff[st] || 0) + n; ltDelta[st] = n;
+      if (hasPower(healer, 'visionAfterHeal')) healer.visionReady = true;
+      if (hasPower(healer, 'portalAfterHeal') && !healer.portalUsed) healer.portalReady = true; }
+    const ltTxt = lt ? `, +${info.healed.length} ${STAT_NAMES[STATS[lifeTradeStat(healer)]]} (Life Trade stack)` : (prsDue ? '. (+1 Presence)' : '.');
+    Bus.emit('radio', { hero: info.healer, text: POWERS[hp].name + ': patched up ' + info.healed.map(id => camp.heroes[id].codename).join(' and ') + ltTxt });
+    powerEv(camp, S, { hero: info.healer, power: hp, kind: 'heal', callUid: call.uid, delta: lt ? ltDelta : [0, 0, 0, prsDue ? 1 : 0, 0], text: 'healed ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (lt ? `, +${info.healed.length} ${STAT_NAMES[STATS[lifeTradeStat(healer)]]}` : (prsDue ? ', +1 Presence' : ' (+1 Presence already active this shift)')) }); }
   if (call.requestHero) { const rh = camp.heroes[call.requestHero]; if (ids.includes(call.requestHero)) { rh.morale = 1; rh.nextMorale = Math.max(rh.nextMorale, 1); rh.flags.granted++; Bus.emit('radio', { hero: rh.id, text: 'You let me take it? You are the best boss. (+1 morale)' }); } else refuseRequest(camp, call); }
   if (call.tpl.type === 'competing' && (call.option === null || call.option === undefined)) call.option = 0;
   if (call.tpl.type === 'competing') { const o = call.tpl.options[call.option]; if (o.req) call.req = o.req.slice(); if (o.difficulty) call.difficulty = o.difficulty; }
-  call.travel = travelTime(camp, call, ids); call.work = call.tpl.workTime * (ids.length === 1 && hasPower(camp.heroes[ids[0]], 'solo') ? soloMultFor(camp.heroes[ids[0]]) : 1);
+  call.travel = travelTime(camp, call, ids); call.work = workTimeFor(camp, call, ids);
+  // consume portal on the hero(es) who contributed portalReady
+  for (const id of ids) { const h = camp.heroes[id]; if (h.portalReady && !h.portalUsed) { h.portalUsed = true; h.portalReady = false; powerEv(camp, S, { hero: id, power: h.powers.find(p => POWERS[p].portalAfterHeal), kind: 'travel', callUid: call.uid, text: `portal travel ×${CONFIG.portalTravelMult}, does not change the %` }); } }
   call.stage = 'travel'; call.stageT = 0; call.team = ids.slice(); call.teamSlots = call.assigned.slice(); call.dispatchedAt = S.t;
   call.locked = JSON.parse(JSON.stringify(info));
-  for (const id of ids) { const h = camp.heroes[id]; const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: 'requirements revealed' });
-    const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) powerEv(camp, S, { hero: id, power: tm, kind: 'travel', callUid: call.uid, text: 'travel ×' + POWERS[tm].travelMult + ', does not change the %' });
+  for (const id of ids) { const h = camp.heroes[id]; if (h.visionReady) { h.visionReady = false; const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) powerEv(camp, S, { hero: id, power: vp, kind: 'preview', callUid: call.uid, text: 'Life Trade Visions: requirements revealed' }); }
+    const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: 'requirements revealed' });
+    const tm = travelMultForHero(h); if (tm !== 1) { const tp = h.powers.find(p => POWERS[p].travelMult || POWERS[p].flies); if (tp) powerEv(camp, S, { hero: id, power: tp, kind: 'travel', callUid: call.uid, text: 'travel ×' + tm.toFixed(2) + ', does not change the %' }); }
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) powerEv(camp, S, { hero: id, power: so, kind: 'solo', callUid: call.uid, text: 'solo run ×' + soloMultFor(h) }); }
   for (const id of ids) { const h = camp.heroes[id]; h.state = 'traveling'; h.callUid = call.uid; h.stateTimer = 0; h.stateDur = call.travel; }
   S.usedTemplates[call.tpl.id] = (S.usedTemplates[call.tpl.id] || 0) + 1;
@@ -2090,6 +2159,12 @@ function canTrain(h) { const d = heroDef(h.id) || {}; return !!(h && !h.noXP && 
 function canUpgradeMk2(h) { const d = heroDef(h.id) || {}; const sig = SIGNATURES[d.power]; return !!(h && !h.noXP && sig && h.trainedChoice && !h.signature && heroLevel(h) >= CONFIG.signatureLevel && h.powers.includes(d.power)); }
 function upgradeMk2(camp, id) { const h = camp.heroes[id]; if (!h || !canUpgradeMk2(h)) return false; const d = heroDef(id); const sig = SIGNATURES[d.power]; if (POWERS[sig].retry) return false; h.powers[h.powers.indexOf(d.power)] = sig; h.signature = true; if (h.revealed) h.revealed[sig] = true; Bus.emit('mk2', { hero: h, power: sig }); return true; }
 function trainHero(camp, id, power) { const h = camp.heroes[id]; const def = heroDef(id); if (!h || !def || !canTrain(h) || !def.train.includes(power)) return false; h.trainedChoice = power; h.powers.push(power); return true; }
+function canRespec(h) { return !!(h && hasPower(h, 'respecOncePerShift') && !h.respecUsed && h.state !== 'downed'); }
+function respecHero(camp, id, newStats) { const h = camp.heroes[id]; if (!canRespec(h) || !Array.isArray(newStats) || newStats.length !== 5) return false;
+  const sum0 = h.stats.reduce((a, b) => a + b, 0), sum1 = newStats.reduce((a, b) => a + b, 0); if (sum0 !== sum1) return false;
+  if (newStats.some(v => v < 1 || v > 10 || v !== Math.floor(v))) return false; h.stats = newStats.slice(); h.respecUsed = true;
+  powerEv(camp, null, { hero: id, power: h.powers.find(p => POWERS[p].respecOncePerShift), kind: 'stat', text: 'redistributed stats (once this shift)' }); return true; }
+function rosterPreviewMeta(camp) { return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && hasPower(h, 'previewMeta') && h.state !== 'downed'; }); }
 function trainingEligible(camp) { return camp.roster.filter(id => { const h = camp.heroes[id], d = heroDef(id); return h && d && canTrain(h); }); }
 /* v1.9.2: per-call outcome dice. Seeded from (shift seed, attempt nonce, call uid, tag): a restart draws a new nonce (fresh dice),
    a save reload keeps the nonce stored in the shift-start snapshot (same dice), and review order no longer matters. */
@@ -2145,7 +2220,9 @@ function applyReview(camp, S, call, R) {
   }
   // powers onResult, synergy counts, forms
   for (const h of team) { const prev = h.streak || 0; const cm = h.powers.find(pw => POWERS[pw] && POWERS[pw].burnout);
-    if (cm && !R.success && prev >= POWERS[cm].burnout && !R.forced) { if (!hasPower(h, 'immune')) { applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (injured)` }); } }
+    if (cm && !R.success && prev >= POWERS[cm].burnout && !R.forced) { if (!hasPower(h, 'immune')) {
+      if (POWERS[cm].burnoutDown && !hasPower(h, 'noDown')) { h.injuries = Math.max(h.injuries, 1); applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (Downed)` }); }
+      else { applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (injured)` }); } } }
     for (const pw of h.powers) if (POWERS[pw].onResult) { const b0 = [h.streak || 0, h.streak2 || 0]; const bt = !!h.burnt; POWERS[pw].onResult({ hero: h, success: R.success, call, prev }); if (POWERS[pw].supernova && !!h.burnt !== bt) powerEv(camp, S, { hero: h.id, power: pw, kind: 'stat', callUid: call.uid, text: h.burnt ? 'collapsed: Might and Agility 1 on her next call' : 'recovered from the collapse' }); const b1 = [h.streak || 0, h.streak2 || 0];
       if (b1[0] !== b0[0] || b1[1] !== b0[1]) { const v = b1[0] !== b0[0] ? b1[0] : b1[1]; powerEv(camp, S, { hero: h.id, power: pw, kind: 'streak', callUid: call.uid, text: R.success ? `streak ${v} (+${v} on the next call)` : `streak dropped to ${v}` }); } }
     if (hasPower(h, 'swap')) { h.form = h.form === 'day' ? 'night' : 'day'; powerEv(camp, S, { hero: h.id, power: h.powers.find(p => POWERS[p].swap), kind: 'swap', callUid: call.uid, text: 'switched to ' + (h.form === 'night' ? 'Night' : 'Day') + ' form' }); } }
@@ -2756,6 +2833,7 @@ function drawMap(t) {
     g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 10; g.beginPath(); g.arc(x, y, r - 2, 0, 7); g.fill(); g.shadowBlur = 0;
     g.fillStyle = T.icon; g.font = `800 ${Math.round(r * 0.95)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon, x, y + 1);
     if (label) { g.font = '800 11px ui-monospace,monospace'; const tw = g.measureText(label).width + 10; g.fillStyle = T.review; g.fillRect(x - tw / 2, y - r - 22, tw, 16); g.fillStyle = '#000'; g.fillText(label, x, y - r - 13); }
+    else if (cl.stage === 'pending' && rosterPreviewMeta(UI.camp)) { const tags = (tpl.tags || []).slice(0, 2).join('/') || (tpl.type || 'call'); const meta = `👥${cl.slots} · ${tags}`; g.font = '700 9px ui-monospace,monospace'; const tw = g.measureText(meta).width + 8; g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(x - tw / 2, y + r + 2, tw, 13); g.fillStyle = '#5eead4'; g.fillText(meta, x, y + r + 9); }
     if (cl.willDisrupt === false && tpl.disruption && S.idx >= 2 && cl.stage === 'pending') { }
   }
   if (UI.debug) { $('dbg').classList.remove('hidden'); $('dbg').textContent = `t=${S.t.toFixed(1)}s seed=${S.seed}\npending=${pendingCalls(S).length} calls=${S.calls.length}\nnextSpawn=${S.nextSpawn.toFixed(1)} speed=${S.speed}x`; } else $('dbg').classList.add('hidden');
@@ -2799,7 +2877,8 @@ function updateQueue() {
   const q = $('queue'); const items = queueItems(); const S = UI.S; const sig = items.map(i => i.c.uid + ':' + i.pri).join(',');
   if (q._sig !== sig) { q._sig = sig; q.innerHTML = ''; if (!items.length) q.appendChild(h('div', 'qempty', 'No calls. Enjoy the quiet... it will not last.'));
     for (const it of items) { const c = it.c; const b = h('button', 'qi'); b.dataset.uid = c.uid; const ci = callIcon(c), ic = it.pri === 0 ? '✋' : it.pri === 1 ? '★' : ci !== '!' ? ci : c.difficulty === 'hard' ? '🔴' : c.difficulty === 'normal' ? '🟠' : '🟢';
-      b.innerHTML = `<span class="qic">${ic}</span><span class="qt">${it.pri === 1 ? 'REVIEW: ' : it.pri === 0 ? 'DISRUPTED: ' : ''}${esc(c.tpl.title)}</span><i class="qb"></i>`; if (it.pri === 1) b.classList.add('rev'); if (it.pri === 0) b.classList.add('dis'); b.onclick = () => openCall(c); q.appendChild(b); } }
+      const meta = (it.pri === 2 && rosterPreviewMeta(UI.camp)) ? ` · 👥${c.slots}${(c.tpl.tags && c.tpl.tags[0]) ? ' · ' + c.tpl.tags[0] : (c.tpl.type && c.tpl.type !== 'standard' ? ' · ' + c.tpl.type : '')}` : '';
+      b.innerHTML = `<span class="qic">${ic}</span><span class="qt">${it.pri === 1 ? 'REVIEW: ' : it.pri === 0 ? 'DISRUPTED: ' : ''}${esc(c.tpl.title)}${esc(meta)}</span><i class="qb"></i>`; if (it.pri === 1) b.classList.add('rev'); if (it.pri === 0) b.classList.add('dis'); b.onclick = () => openCall(c); q.appendChild(b); } }
   for (const b of q.querySelectorAll('.qi')) { const c = S.calls.find(x => x.uid == b.dataset.uid); if (!c) continue; const bar = b.querySelector('.qb');
     if (c.stage === 'pending') { const rem = c.expiresAt - S.t, f = rem / (c.expiresAt - c.spawnedAt); bar.style.width = (100 * f) + '%'; bar.style.background = f < 0.3 ? '#ff4d5e' : f < 0.6 ? '#ffb03a' : '#4cd97b'; b.classList.toggle('urgent', rem <= CONFIG.alarmSeconds); }
     else if (c.disruption && !c.disruption.resolved) { bar.style.width = (100 * c.disruption.timer / CONFIG.disruptionTimer) + '%'; bar.style.background = '#ff2244'; } else bar.style.width = '0'; }
@@ -2891,12 +2970,14 @@ function openBriefing(c) {
       let links = '';
       for (const [a, b, n] of info.synPairs) links += `<div class="note good">🔗 Synergy: ${esc(camp.heroes[a].codename)} + ${esc(camp.heroes[b].codename)} (+${Math.round(100 * Math.min(CONFIG.synergyMax, CONFIG.synergyBase + CONFIG.synergyPerPairing * n))}%, paired ${n}×)</div>`;
       for (const [a, b] of info.conPairs) links += `<div class="note warn">⚡ Conflict: ${esc(camp.heroes[a].codename)} × ${esc(camp.heroes[b].codename)} (−${Math.round(CONFIG.conflictPenalty * 100)}%). ${camp.conflictWins[pairKey(a, b)] || 0}/${CONFIG.conflictNeutralWins} clean wins to resolve.</div>`;
-      for (const e of info.trace.filter(e => e.kind === 'illusion')) links += e.noEffect ? `<div class="note warn illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: no hero to her left (put a hero in the slot before hers).</div>` : `<div class="note illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(traceEventText(camp, e, info))}. Added to the team, no extra roll.</div>`;
+      for (const e of info.trace.filter(e => e.kind === 'illusion')) links += e.noEffect ? `<div class="note warn illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(e.text || 'no effect')}.</div>` : `<div class="note illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(traceEventText(camp, e, info))}. Fills an empty slot (coverage only), no extra roll.</div>`;
       if (info.healed.length) links += `<div class="note good">💚 ${esc(camp.heroes[info.healer].codename)} will heal ${info.healed.map(x => esc(camp.heroes[x].codename)).join(' + ')} on this call.</div>`;
+      if (info.healer && hasPower(camp.heroes[info.healer], 'lifeTrade')) { const hh = camp.heroes[info.healer]; const st = lifeTradeStat(hh);
+        links += `<div class="note life-trade">💜 Life Trade ${info.healed.length ? 'stack after heal' : '(no heal → no stack)'}: <button class="btn small ${st === 3 ? 'pri' : ''}" data-lt="3">+1 Presence</button> <button class="btn small ${st === 1 ? 'pri' : ''}" data-lt="1">+1 Endurance</button></div>`; }
       let baseTeam = null; for (const id of c.assigned.filter(Boolean)) { const hh = camp.heroes[id], v = injuryView(camp, hh); if (!v.injured || info.healed.includes(id)) continue;
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
-      const slots = c.assigned.map((id, i) => { if (!id) return `<div class="slot ${sel === i ? 'sel' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>Slot ${i + 1}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
+      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div><div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]);
         return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${i + 1}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
@@ -2904,7 +2985,7 @@ function openBriefing(c) {
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
-      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${Math.ceil(rem)}s${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.slots}</span>`,
+      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${Math.ceil(rem)}s${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}<div class="slots">${slots}</div>${chanceBox}<div class="links">${links}</div></div>
          <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}
          <div style="margin-top:8px;font-size:12px;color:var(--dim)">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div></div>`,
@@ -2913,6 +2994,7 @@ function openBriefing(c) {
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
+      P.B.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { const hh = camp.heroes[info.healer]; if (hh) { hh.lifeTradeChoice = +b.dataset.lt; Sfx.click(); render(); } });
       P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) c.assigned[i] = null; sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
       P.B.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
       P.B.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
@@ -2923,7 +3005,7 @@ function openBriefing(c) {
       P.F.querySelector('[data-a=go]').onclick = () => doDispatch();
       m.keyHero = i => { const id = camp.roster[i]; if (id) assign(id, null); }; m.enter = () => doDispatch();
     };
-    const assign = (id, slotIdx) => { if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.slots) return; if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
+    const assign = (id, slotIdx) => { if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
     const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean) || c.stage !== 'pending') return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
     render(); m.render = render;
   });
@@ -3139,12 +3221,28 @@ function heroInfoBuild(m, id, opts) {
        <div class="note"><div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:8px"><i style="width:${100 * xpFrac(hh)}%"></i></div><div style="font:12px ui-monospace,monospace;margin-top:3px">${xpText(hh)} · ★${hh.unspentPoints} unspent</div>${thr}</div>
        ${hh.synergyPartner ? `<div class="note ${syn ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(hh.synergyPartner).codename)}${syn ? '' : ' <small>(not in this campaign)</small>'}</div>` : ''}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}</div>
        <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow herostats">${st.map((v, i) => statChip(i, v, hh.stats[i], effReasons(camp, hh, i), UI.recentPick && UI.recentPick.id === id && UI.recentPick.stat === i && Date.now() - UI.recentPick.t < 2500)).join('')}</div>${st.some((v, i) => v !== hh.stats[i]) ? '<div class="note" style="font-size:11px">Big number = trained stat. (n now) = what it counts as right now.</div>' : ''}</div><h4 style="margin:8px 0 2px">Recent XP</h4>${log}</div></div>`,
-      overlay ? `<button class="btn pri" data-a="close" aria-label="Close hero info">✕ BACK TO BRIEFING</button>` : `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
+      overlay ? `<button class="btn pri" data-a="close" aria-label="Close hero info">✕ BACK TO BRIEFING</button>` : `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${canRespec(hh) ? '<button class="btn" data-a="respec">♻ FOUND HIMSELF</button>' : (hasPower(hh, 'respecOncePerShift') && hh.respecUsed ? '<button class="btn" disabled>♻ USED THIS SHIFT</button>' : '')}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
     { const v = injuryView(camp, hh); drawRadar(P.B.querySelector('.rad'), { team: st, base: v.penalty ? v.base : null }); } P.F.querySelector('[data-a=close]').onclick = () => closeIt(); if (overlay) { const hx = h('button', 'hc-x', '✕'); hx.setAttribute('aria-label', 'Close'); hx.dataset.a = 'x'; hx.onclick = () => closeIt(); P.H.appendChild(hx); }
     P.F.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { if (useToolUI(id, b.dataset.tool)) { toast(b.dataset.tool === 'jump' ? `⚡ ${esc(hh.codename)} is back in action` : `🩹 ${esc(hh.codename)} patched up`); render(); } });
     const sp = P.F.querySelector('[data-a=spend]'); if (sp) sp.onclick = () => openAllocate(id, () => openHeroInfo(id));
     const fm = P.F.querySelector('[data-a=form]'); if (fm) fm.onclick = () => { hh.form = hh.form === 'day' ? 'night' : 'day'; hh.formToggled = true; powerEv(UI.camp, UI.S, { hero: id, power: hh.powers.find(p => POWERS[p].manualToggle), kind: 'toggle', text: 'toggled to ' + (hh.form === 'night' ? 'Night' : 'Day') + ' form' }); Sfx.chime(); radio(id, hh.form === 'night' ? 'Night mode. Knuckles out.' : 'Day mode. Glasses on.'); render(); };
+    const rs = P.F.querySelector('[data-a=respec]'); if (rs) rs.onclick = () => openRespec(id, () => openHeroInfo(id));
   }; render(); m.render = render; }
+}
+function openRespec(id, back) {
+  const camp = UI.camp, h = camp.heroes[id]; if (!canRespec(h)) { toast('Respec already used this shift.'); return; }
+  const draft = h.stats.slice(); const total = draft.reduce((a, b) => a + b, 0);
+  openModal('respec', m => { const render = () => {
+    const used = draft.reduce((a, b) => a + b, 0), left = total - used;
+    const rows = STATS.map((s, i) => `<div class="al-row"><div><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b></div><button data-m="${i}" ${draft[i] > 1 ? '' : 'disabled'}>−</button><b>${draft[i]}</b><button data-p="${i}" ${left > 0 && draft[i] < CONFIG.statMax ? '' : 'disabled'}>＋</button></div>`).join('');
+    const P = sheetParts(m, `<span style="font-size:26px">${h.emoji}</span><h2>Found Himself: ${esc(h.codename)}</h2><span class="pill">★ ${left} to place</span>`,
+      `<p class="txt">Redistribute all ${total} points once this shift. Min 1 / max 10 per stat.</p><div>${rows}</div>`,
+      `<button class="btn ghost" data-a="back">CANCEL</button><button class="btn pri" data-a="ok" ${left === 0 ? '' : 'disabled'}>CONFIRM RESPEC</button>`);
+    P.B.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { draft[+b.dataset.p]++; Sfx.click(); render(); });
+    P.B.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { draft[+b.dataset.m]--; Sfx.click(); render(); });
+    P.F.querySelector('[data-a=ok]').onclick = () => { if (respecHero(camp, id, draft)) { Sfx.chime(); saveCamp(); toast(`♻ ${esc(h.codename)} redistributed`); if (back) back(); else closeModal(); } };
+    P.F.querySelector('[data-a=back]').onclick = () => { if (back) back(); else closeModal(); };
+  }; render(); });
 }
 // Allocation screen: shared by the hero info modal (mid-shift, time paused) and TEAM DEVELOPMENT. Pending points show as a dashed preview.
 function openAllocate(id, back) {
