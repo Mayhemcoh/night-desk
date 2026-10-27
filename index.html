@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.10.4';
+<script>window.ND_VERSION='nd-v1.10.5';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2686,6 +2686,7 @@ function openBriefing(c) {
       const est = info.forced ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info }).perHero : {};
       let notes = '';
       if (tpl.type === 'competing') notes += `<div class="opts" style="margin-bottom:6px">${tpl.options.map((o, i) => `<button class="opt ${c.option === i ? 'on' : ''}" data-opt="${i}"><span>${c.option === i ? '◉' : '○'}</span><span><b>${esc(o.label)}</b><br><small>${esc(o.desc.replace('the named hero', camp.heroes[c.namedHero].codename))}</small></span></button>`).join('')}</div>`;
+      if (tpl.type === 'competing' && c.option !== null && c.option !== undefined && tpl.options[c.option] && tpl.options[c.option].risky) notes += `<div class="note warn risky-inj" role="status">⚠ Risky option: each hero has a ${Math.round(CONFIG.injuryRiskyCompeting * 100)}% chance of injury even if this call succeeds.</div>`;
       if (tpl.goals && tpl.goals.length) notes = `<div class="goals"><b>GOALS</b>${tpl.goals.map((g, i) => `<div class="goal">${i + 1}. ${esc(g)}</div>`).join('')}</div>` + notes;
       if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); notes += `<div class="note pair">⇄ Option ${pairLetter(c)} of 2 · linked with <b>${esc(o ? o.tpl.title : '?')}</b>. Dispatching either one declines the other. Both expire together in ${Math.ceil(rem)}s.${tpl.competingReward ? ` Reward: <b>${esc(tpl.competingReward)}</b>` : ''}${c.namedHero ? ` (named hero: ${esc(camp.heroes[c.namedHero].codename)})` : ''}</div>`; }
       if (c.requestHero) { const rh = camp.heroes[c.requestHero]; notes += `<div class="note req">🙋 <b>${esc(rh.codename)}</b> asks to take this call.${c.requestReason ? ' ' + esc(c.requestReason) : ''} Grant it for +1 morale; refusing twice sulks them for a shift.</div>`; }
@@ -2799,6 +2800,9 @@ function openReview(c) {
       { const why = outcomeReason(camp, S, c, R); html += `<div class="note outcome-reason ${why.kind}${R.forced ? ' warn forced-note' : why.kind === 'instant-success' || why.kind === 'guaranteed' ? ' good' : ''}" role="status"><b>${why.kind === 'instant-fail' ? '⛔' : why.kind === 'instant-success' ? '⚡' : why.kind === 'rolled' ? '🎲' : '✔'} ${esc(why.head)}</b>${why.lines.map(l => `<div class="why">${esc(l)}</div>`).join('')}</div>`; } // v1.9.2: why this result
       if (applied.injured.length) { html += applied.injured.map(id => injBannerHTML(camp, id, applied.downed.includes(id), S)).join('');
         const dn = applied.downed.length; setTimeout(() => { if (dn) Sfx.down(); else Sfx.hurt(); }, 120); haptic(dn ? [80, 60, 120] : 60); injFlash(m.sheet); }
+      { const opt = c.tpl.type === 'competing' && c.option !== null && c.option !== undefined ? c.tpl.options[c.option] : null;
+        if (R.success && opt && opt.risky && (applied.injured.length || applied.downed.length)) {
+          html += `<div class="note warn risky-inj" role="status">⚠ ${esc(opt.label)} is a risky option: each hero had a ${Math.round(CONFIG.injuryRiskyCompeting * 100)}% chance to be injured even though the call succeeded.</div>`; } }
       for (const e of (S.injuryLog || []).filter(e => e.callUid === c.uid && (e.kind === 'shielded' || e.kind === 'immune'))) { const hh = camp.heroes[e.id]; html += e.kind === 'shielded' ? `<div class="note good">🛡 ${esc(hh.codename)} was shielded by ${esc(camp.heroes[e.by].codename)}.</div>` : `<div class="note good">🪨 ${esc(hh.codename)} is immune (${esc(POWERS[e.by] ? POWERS[e.by].name : 'immune')}).</div>`; }
       if (applied.powerEvents && applied.powerEvents.length) { html += `<div class="pfx-list">${applied.powerEvents.map(e => `<div class="pfx-banner" data-hero="${e.hero}" style="border-color:${camp.heroes[e.hero].color}"><span class="pfx-ico">⚡</span>${esc(e.msg)}</div>`).join('')}</div>`; }
       if (applied.bonus) html += `<div class="note good">★ Bonus threshold met: double XP!</div>`;
@@ -3016,7 +3020,7 @@ function helpHTML() { return `<ul class="help">
 <li>⬢ Team stats add up per stat (capped at 10). Success chance = coverage<sup>1.5</sup>; hard calls cap at 85% unless a 🔗 synergy pair pushes it higher. ⚡ Conflict pairs cost 8%.</li>
 <li>★ When a mission ends, tap the REVIEW pin. Heroes from unreviewed calls cannot be sent again.</li>
 <li>✋ Disruptions need a fast answer: each option checks one team stat against a hidden threshold. ⭐ hero options are usually perfect picks (but not always).</li>
-<li>🩹 Failed normal/hard calls can injure heroes (−1 all stats). A second injury downs them for the shift.</li>
+<li>🩹 Failed normal/hard calls can injure heroes (−1 all stats). A second injury downs them for the shift. Some competing "risky" options can injure even on success (~${Math.round(CONFIG.injuryRiskyCompeting * 100)}% per hero).</li>
 <li>⌘ Hack calls: you play a maze on the console. D-pad or swipe, ACT for nodes, HOLD at the exit.</li>
 <li>📈 XP comes only from successes and is split evenly across the team (solo = biggest share). Riskier sends (lower chance) pay up to +25%, ★ thresholds ×2, perfect picks +33%. Each point at 1000, 1300, 1600… XP raises the hero's LV (max LV 10); after that XP is wasted. Veterans earn a little less per call.</li>
 <li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked.</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 4 a hero can train one of two powers (permanent choice); at LV 8 their starting power becomes a Signature. Tap the rank bar for your Dispatcher File.</li>
