@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.12.0';
+<script>window.ND_VERSION='nd-v1.12.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1948,6 +1948,7 @@ function powerPreview(camp, S, call, info) { // what will trigger if dispatched 
     else if (lt) add(info.healer, hp, 'no one to heal — no Life Trade stack', 'heal'); }
   for (const id of ids) { const h = camp.heroes[id];
     const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, 'requirements revealed' + NP, 'preview');
+    if (h.visionReady) { const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) add(id, vp, 'Life Trade Visions: requirements revealed' + NP, 'preview'); }
     const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) add(id, tm, 'travel ×' + POWERS[tm].travelMult + NP, 'travel');
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) add(id, so, 'solo travel and work ×' + soloMultFor(h) + NP, 'solo');
     for (const p of h.powers) if (POWERS[p].xpBoost) add(id, p, `+${Math.round(POWERS[p].xpBoost * 100)}% team XP on success` + NP, 'xp');
@@ -1985,6 +1986,7 @@ function dispatch(camp, S, call) {
   const healer0 = info.healer ? camp.heroes[info.healer] : null; const lt0 = !!(healer0 && hasPower(healer0, 'lifeTrade'));
   const prsDue = !lt0 && prsBonusDue(camp, S, info.healer, info.healed.length); if (prsDue) { camp.heroes[info.healer].buff[3] += 1; if (hasPower(camp.heroes[info.healer], 'alwaysPrs')) (S.prsGiven = S.prsGiven || {})[info.healer] = true; }
   if (prsDue && !info.healed.length) { const hp = camp.heroes[info.healer].powers.find(p => POWERS[p].heal); powerEv(camp, S, { hero: info.healer, power: hp, kind: 'heal', callUid: call.uid, delta: [0, 0, 0, 1, 0], text: 'no one to heal, still +1 Presence for the shift (already in the %)' }); }
+  const visionWasReady = {}; for (const id of ids) visionWasReady[id] = !!(camp.heroes[id] && camp.heroes[id].visionReady);
   if (info.healed.length) { for (const id of info.healed) { const h = camp.heroes[id]; h.injuries = Math.max(0, h.injuries - 1); } for (const id of info.healed) { logInjury(S, { id, kind: 'healed', by: info.healer }); Bus.emit('healed', { id, by: info.healer, source: 'power' }); }
     const healer = camp.heroes[info.healer]; const hp = healer.powers.find(p => POWERS[p].heal); const lt = hasPower(healer, 'lifeTrade'); let ltDelta = [0, 0, 0, 0, 0];
     if (lt) { const st = lifeTradeStat(healer); const n = info.healed.length; healer.buff[st] = (healer.buff[st] || 0) + n; ltDelta[st] = n;
@@ -2001,7 +2003,7 @@ function dispatch(camp, S, call) {
   for (const id of ids) { const h = camp.heroes[id]; if (h.portalReady && !h.portalUsed) { h.portalUsed = true; h.portalReady = false; powerEv(camp, S, { hero: id, power: h.powers.find(p => POWERS[p].portalAfterHeal), kind: 'travel', callUid: call.uid, text: `portal travel ×${CONFIG.portalTravelMult}, does not change the %` }); } }
   call.stage = 'travel'; call.stageT = 0; call.team = ids.slice(); call.teamSlots = call.assigned.slice(); call.dispatchedAt = S.t;
   call.locked = JSON.parse(JSON.stringify(info));
-  for (const id of ids) { const h = camp.heroes[id]; if (h.visionReady) { h.visionReady = false; const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) powerEv(camp, S, { hero: id, power: vp, kind: 'preview', callUid: call.uid, text: 'Life Trade Visions: requirements revealed' }); }
+  for (const id of ids) { const h = camp.heroes[id]; if (visionWasReady[id]) { h.visionReady = false; const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) powerEv(camp, S, { hero: id, power: vp, kind: 'preview', callUid: call.uid, text: 'Life Trade Visions: requirements revealed' }); }
     const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: 'requirements revealed' });
     const tm = travelMultForHero(h); if (tm !== 1) { const tp = h.powers.find(p => POWERS[p].travelMult || POWERS[p].flies); if (tp) powerEv(camp, S, { hero: id, power: tp, kind: 'travel', callUid: call.uid, text: 'travel ×' + tm.toFixed(2) + ', does not change the %' }); }
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) powerEv(camp, S, { hero: id, power: so, kind: 'solo', callUid: call.uid, text: 'solo run ×' + soloMultFor(h) }); }
