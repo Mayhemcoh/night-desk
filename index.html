@@ -764,7 +764,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
       <button id="btnSpeed" class="ib" aria-label="Speed">1×</button>
       <button id="btnTools" class="ib" aria-label="Tools">🧰</button>
     </header>
-    <div id="finale" class="hidden"><div class="fb"><small>🏙 CITY</small><div class="bar"><i id="cityBar"></i></div><b id="cityVal">100</b></div><div class="fb"><small>☠ NIGHT MAYOR</small><div class="bar boss"><i id="bossBar"></i></div><b id="bossVal">5/5</b></div></div>
+    <div id="finale" class="hidden"><div class="fb"><small>🏙 CITY</small><div class="bar"><i id="cityBar"></i></div><b id="cityVal">100</b></div><div class="fb"><small id="bossLbl">☠ NIGHT MAYOR</small><div class="bar boss"><i id="bossBar"></i></div><b id="bossVal">5/5</b></div></div>
     <div id="finBanner" class="hidden"></div>
     <div id="main">
       <div id="mapwrap"><canvas id="map"></canvas><div id="radio"></div><div id="toasts" role="status"></div><div id="dbg" class="hidden"></div><div id="pausedTag" class="hidden">PAUSED</div></div>
@@ -787,7 +787,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.12.1';
+<script>window.ND_VERSION='nd-v1.13.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -823,7 +823,7 @@ const CONFIG = {
   injuryOnFail: { easy: 0, normal: 0.2, hard: 0.5 },
   injuryRiskyCompeting: 0.35,
   // v1.8 mission set
-  deckJitter: 0.2, followUpDelay: 3, bossRespawn: 20, finaleCityHit: 8, finaleCityFollowUp: 4, sabotageTimer: 12, routeMult: 0.85, routeMax: 3,
+  deckJitter: 0.2, followUpDelay: 3, bossRespawn: 20, rogueFirstAt: 20, finaleCityHit: 8, finaleCityFollowUp: 4, sabotageTimer: 12, routeMult: 0.85, routeMax: 3,
   // v1.11.0: internal used-mission bag (not player-visible); sample deck sizes keep Dispatch pacing after pool expansion
   missionBagReset: 0.9,
   deckTarget: [9, 13, 23, 28, 28, 16, 13, 30],
@@ -1134,10 +1134,23 @@ const LEGACY_CALLS = [
   T(23, 'Stuck Elevator Full of Lawyers', 'Twelve lawyers trapped between floors, already drafting lawsuits. Needs [[patience|END]] and [[charm|PRS]].', [1, 4, 2, 5, 3], 1, 'easy', 9, { tags: ['rescue'] }),
   T(24, 'Meteor Fragment Heist', 'A glowing meteor chunk is being stolen from a lab truck by a crew with jetpacks. Needs [[force|CMB]], [[toughness|END]], [[speed|AGI]] and [[planning|WIT]].', [7, 6, 6, 2, 5], 4, 'hard', 15, { tags: ['fight'], minShift: 5 }),
   T(25, 'Wedding Crashed by an Ex-Villain', 'Somebody\'s ex showed up to a wedding in full villain gear. Needs [[tact|PRS]] and maybe a little [[persuasion of the physical kind|CMB]].', [4, 2, 2, 6, 2], 2, 'normal', 11, { tags: ['talk'], disruption: 'wedding', minShift: 3 }),
-  T(26, 'Mayor\'s Photo-op vs. Orphanage Leak', 'Two calls, one team. The mayor wants a hero at a photo-op, and the orphanage roof is leaking. Pick one.', [2, 3, 2, 5, 2], 2, 'normal', 10, { type: 'competing', minShift: 3,
+  T(26, 'Mayor\'s Photo-op vs. Orphanage Leak', 'Two calls, one team. The mayor wants a hero at a photo-op, and the orphanage roof is leaking. Pick one.', [2, 3, 2, 5, 2], 2, 'normal', 10, { type: 'competing', minShift: 3, retired: true /* v1.13.0: split into linked pair L26 (261/262) */,
     options: [{ label: 'Mayor\'s photo-op', desc: '200% XP to the named hero (if sent).', heroMult: 2 /* '200% XP' read as x2 of the share; x3 is the other possible reading */, req: [1, 2, 2, 6, 3] }, { label: 'Orphanage leak', desc: 'Team gets +50 XP.', teamXP: 50, req: [2, 5, 3, 2, 3] }] }),
-  T(27, 'Cordon the Block vs. Storm the Lab', 'A rogue lab is brewing something unstable. Play it safe, or go in hard for the glory.', [4, 4, 4, 2, 4], 2, 'normal', 12, { type: 'competing', minShift: 3,
+  T(27, 'Cordon the Block vs. Storm the Lab', 'A rogue lab is brewing something unstable. Play it safe, or go in hard for the glory.', [4, 4, 4, 2, 4], 2, 'normal', 12, { type: 'competing', minShift: 3, retired: true /* v1.13.0: split into linked pair L27 (271/272) */,
     options: [{ label: 'Cordon the block (safe)', desc: 'Easy and safe. Normal XP.', req: [3, 3, 3, 3, 2], difficulty: 'easy' }, { label: 'Storm the lab (risky)', desc: 'Injury risk even on success. Team XP +100.', teamXP: 100, risky: true, req: [6, 5, 4, 1, 5] }] }),
+  // v1.13.0 Classic random calls: linked pairs (two pins, one problem). Each pair = ONE mission-bag unit ('pair:<group>'); dispatching one declines the other.
+  T(261, 'Mayor\'s Photo-op', 'The mayor wants a hero smiling beside a ribbon at City Hall, right now. Needs [[charm|PRS]], [[quick wits|WIT]] and a little [[poise|AGI]]. The named hero earns 200% XP.', [1, 2, 2, 6, 3], 2, 'normal', 10, { competingGroup: 'L26', competingReward: '200% XP to the named hero', compReward: { heroMult: 2 }, minShift: 3 }),
+  T(262, 'Orphanage Roof Leak', 'Rain is pouring through the orphanage roof onto the bunks. Needs [[stamina|END]] for the bucket line and [[sure footing|AGI]] on wet tiles. Team gets +50 XP.', [2, 5, 3, 2, 3], 2, 'normal', 10, { competingGroup: 'L26', competingReward: 'Team +50 XP', compReward: { teamXP: 50 }, minShift: 3 }),
+  T(271, 'Rogue Lab: Cordon the Block', 'A rogue lab is brewing something unstable. Seal the streets and [[keep the crowd calm|PRS]]. Easy and safe, normal XP.', [3, 3, 3, 3, 2], 2, 'easy', 10, { competingGroup: 'L27', minShift: 3 }),
+  T(272, 'Rogue Lab: Storm the Lab', 'Go in hard: [[break the doors|CMB]], [[breathe the fumes|END]] and [[shut the reactor down|WIT]]. Injury risk even on success. Team gets +100 XP.', [6, 5, 4, 1, 5], 2, 'normal', 12, { competingGroup: 'L27', competingReward: 'Team +100 XP (risky)', compReward: { teamXP: 100, risky: true, label: 'Storm the Lab' }, minShift: 3 }),
+  T(301, 'Runaway Tram: Stop It Cold', 'A tram lost its brakes on Hill St. Plant your feet in front of it: needs [[raw strength|CMB]] and [[a body that can take it|END]].', [6, 5, 3, 1, 2], 2, 'normal', 11, { competingGroup: 'L30', minShift: 2 }),
+  T(302, 'Runaway Tram: Clear the Track', 'Same tram, other plan: get everyone off the rails before it arrives. Needs [[speed|AGI]] and a [[loud, calm voice|PRS]]. Team gets +50 XP.', [1, 2, 6, 4, 2], 2, 'normal', 11, { competingGroup: 'L30', competingReward: 'Team +50 XP', compReward: { teamXP: 50 }, minShift: 2 }),
+  T(311, 'Museum Gala: Guard the Gem', 'A jewel thief is working the gala. Stay by the display case: needs [[presence|PRS]] and the [[patience|END]] to stand there all night.', [3, 4, 2, 5, 3], 2, 'normal', 11, { competingGroup: 'L31', minShift: 3 }),
+  T(312, 'Museum Gala: Chase the Thief', 'The thief bolted through the skylight. Needs [[rooftop speed|AGI]] and a [[tackle|CMB]] at the end. The named hero earns 200% XP.', [3, 3, 7, 1, 3], 2, 'normal', 11, { competingGroup: 'L31', competingReward: '200% XP to the named hero', compReward: { heroMult: 2 }, minShift: 3 }),
+  T(321, 'Cracked Dam: Patch the Wall', 'The reservoir wall is weeping. Hold the concrete in place: needs [[strength|CMB]], [[endurance|END]] and some [[engineering sense|WIT]].', [5, 6, 2, 1, 3], 3, 'normal', 13, { competingGroup: 'L32', minShift: 4 }),
+  T(322, 'Cracked Dam: Evacuate the Valley', 'Or skip the wall and get the valley out. Needs [[a voice people trust|PRS]], [[stamina|END]] and [[fast feet|AGI]]. Team gets +60 XP.', [1, 4, 4, 6, 3], 3, 'normal', 13, { competingGroup: 'L32', competingReward: 'Team +60 XP', compReward: { teamXP: 60 }, minShift: 4 }),
+  T(331, 'Blimp Adrift: Hack the Autopilot', 'An ad blimp is drifting toward the stadium lights. Talk to its brain: needs [[serious hacking|WIT]] and a [[steady climb|AGI]] to reach the gondola.', [1, 2, 4, 2, 8], 3, 'hard', 14, { competingGroup: 'L33', minShift: 5 }),
+  T(332, 'Blimp Adrift: Tow It Down', 'Grab the tow lines and haul it down by hand. Needs [[huge strength|CMB]] and [[endurance|END]]. Injury risk even on success. Team gets +100 XP.', [7, 6, 4, 1, 1], 3, 'hard', 14, { competingGroup: 'L33', competingReward: 'Team +100 XP (risky)', compReward: { teamXP: 100, risky: true, label: 'Tow It Down' }, minShift: 5 }),
   T(28, 'Knuckles Wants the Docks Job', 'Smugglers at the docks. Knuckles says it is his old crew and he wants to handle it. [[Muscle|CMB]], [[grit|END]], and someone who [[knows people|PRS]].', [5, 4, 2, 4, 2], 2, 'normal', 11, { type: 'request', requestHero: 'knuckles', requiresHero: 'knuckles', minShift: 6 }),
   T(29, 'Ledger Smells Fraud', 'Ledger spotted a charity that only donates to itself. She wants this one. Needs [[forensic brains|WIT]], a [[cool head|PRS]] and some [[legwork|AGI]].', [1, 2, 2, 4, 8], 2, 'normal', 12, { type: 'request', requestHero: 'ledger', requiresHero: 'ledger', minShift: 5 }),
   T(30, "Foghorn's Old Crew at the Ferry", 'His old pirate crew is "borrowing" the night ferry. Foghorn wants to talk them down, loudly. Needs [[muscle|CMB]], [[sea legs|END]] and a [[booming voice|PRS]].', [5, 4, 2, 5, 2], 2, 'normal', 12, { type: 'request', requestHero: 'foghorn', requiresHero: 'foghorn', minShift: 6 }),
@@ -1202,6 +1215,30 @@ const LEGACY_CALLS = [
   T(88, 'Cathedral Bell Rope Snarl', 'The bell ropes snarled with a tourist inside the coil. Needs [[careful strength|CMB]] and [[calm talk|PRS]].', [6, 3, 3, 5, 2], 2, 'normal', 12, { tags: ['rescue'], minShift: 3 }),
   T(89, 'Port Container Code Scramble', 'Container codes reshuffled; a hazardous one is unmarked. Needs [[logistics|WIT]] and [[hazard care|END]].', [2, 6, 2, 2, 8], 3, 'hard', 14, { tags: ['hazard', 'mystery'], minShift: 5 }),
   T(90, 'Late-Night Bakery Flour Cloud', 'A vent belched flour over a lit street — explosion risk. Needs [[spark control|WIT]] and [[evac|PRS]].', [2, 3, 3, 6, 6], 2, 'hard', 13, { tags: ['hazard', 'fire'], minShift: 4 }),
+];
+
+
+/* ================= v1.13.0 ROGUE HERO BOSS (Classic random calls ON, Shift 8 only) ================= */
+// TUNABLE: rogue boss HP scales with the rogue's END (Endurance) stat.  HP = clamp(BASE + round(END * PER_END), MIN, MAX)
+// Defaults: END 1-2 -> 4 HP, END 3-4 -> 5 HP (same as the Night Mayor), END 5-6 -> 6 HP.
+const ROGUE_BOSS_HP_BASE = 3, ROGUE_BOSS_HP_PER_END = 0.5, ROGUE_BOSS_HP_MIN = 3, ROGUE_BOSS_HP_MAX = 8;
+function rogueBossHP(endStat) { return Math.max(ROGUE_BOSS_HP_MIN, Math.min(ROGUE_BOSS_HP_MAX, ROGUE_BOSS_HP_BASE + Math.round((endStat || 0) * ROGUE_BOSS_HP_PER_END))); }
+// boss call requirement per stat = BASE + rogue stat * PER_STAT (+ TOP_BONUS on the rogue's best stat)
+const ROGUE_REQ_BASE = 6, ROGUE_REQ_PER_STAT = 1, ROGUE_REQ_TOP_BONUS = 2;
+const ROGUE_APPROACH = ['Out-muscle Them', 'Outlast the Siege', 'Cut Off the Escape', 'Talk Them Down', 'Out-think the Plan'];
+const ROGUE_MOTIVES = [
+  'Got passed over for the Night Desk roster and has been stewing about it ever since.',
+  'Corporate cut their hazard pay to zero. They decided to send the city an invoice.',
+  'Caught a leftover Night Mayor broadcast on an old radio. Their eyes have not been right since.',
+  'Believes the agency is covering up a disaster and wants to drag it into the light.',
+  'An old crime family called in a debt, and tonight is the payment.',
+  'Wants revenge for a mission that went wrong years ago, on a desk just like yours.',
+  'Thinks heroes made the city worse and plans to prove it one block at a time.',
+  'Their power is overloading and they blame the Desk for every bad call.',
+  'Was framed for a crime they did not commit and has given up on the system.',
+  'A villain promised them a cure. The price was one night of chaos.',
+  'Just wants to prove, once and for all, that they were always the best.',
+  'Is protecting someone the agency is hunting, and will not let you reach them.',
 ];
 
 const CALLS = LEGACY_CALLS; // v1.8: legacy random-draw templates (old saves, 'Classic random calls' setting)
@@ -1567,12 +1604,14 @@ function newCampaign(seed, opts) {
     conflictWins: {}, conflictNeutral: {}, pendingWild: 0, trainingDone: [], phase: 'briefing', history: [], blackoutDone: false, layoutIdx: 0, missionSet: opts.missionSet || 'v1.8',
     missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag() };
   for (const id of pool) c.heroes[id] = makeHero(heroDef(id));
+  ensureRogueBoss(c); // v1.13.0: seeded + saved now, revealed only on Shift 8 (Classic random calls)
   return c;
 }
 function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i)); return ids; }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV112(migrateV110(migrateV18(c))); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV113(migrateV112(migrateV110(migrateV18(c)))); }
+function migrateV113(c) { if (!c.rogue && (c.shiftIdx || 0) <= CONFIG.campaignShifts - 1 && c.seed !== undefined) ensureRogueBoss(c); return c; } // v1.13.0: pre-v1.13 saves get a seeded rogue (same seed = same rogue)
 function migrateV110(c) { // v1.10 powers rework: retired ids map to their replacements; Mk II (old Signatures) keep their ids; no crash on unknown ids
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.powers)) h.powers = d.power ? [d.power] : [];
     h.powers = h.powers.map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]); h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
@@ -1669,6 +1708,7 @@ function startShift(camp) {
   if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); return S; }
   if (plan.blackout) { const off = [0, 2, 3, 5]; [15, 75, 140, 205].forEach((t, i) => S.hackQueue.push({ t, district: off[i] })); }
   else (plan.hacks || []).forEach(t => S.hackQueue.push({ t }));
+  if (plan.finale) setupRogueFinale(camp, S);
   return S;
 }
 function shiftClock(S) { const mins = CONFIG.startHour * 60 + Math.floor(S.t / (S.seconds || CONFIG.shiftSeconds) * CONFIG.shiftHours * 60); const h = Math.floor(mins / 60) % 24, m = mins % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
@@ -1691,14 +1731,15 @@ function spawnCall(camp, S, tpl, extra) {
   const diff = tpl.difficulty;
   if (S.spawned) { if (S.deckMode && S.spawned[tpl.id] && !extra.respawn) { S.dupErrors = (S.dupErrors || 0) + 1; console.error('[ND] no-repeat rule violated: template ' + tpl.id + ' spawned twice in shift ' + (S.idx + 1)); } S.spawned[tpl.id] = (S.spawned[tpl.id] || 0) + 1; }
   // v1.11.0: Classic ON bag marks on spawn (misses still consume); skip respawns / follow-ups / deck mode (deck marks at build)
-  if (!S.deckMode && !extra.respawn && !extra.followUp && tpl.type !== 'hack') {
+  if (!S.deckMode && !extra.respawn && !extra.followUp && tpl.type !== 'hack' && !tpl.competingGroup) {
     const bag = ensureMissionBag(camp); missionBagMark(bag, 'legacy', null, [String(tpl.id)]);
     if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
   }
   const c = { uid: S.uid++, templateId: tpl.id, tpl, pos, district, spawnedAt: S.t, expiresAt: S.t + (tpl.training && tpl.training.noExpiry ? 1e9 : tpl.type === 'hack' ? (S.plan.blackout ? CONFIG.blackoutHackExpiry : CONFIG.hackExpiry) : expiryFor(S, diff)),
     assigned: Array(tpl.slots).fill(null), stage: 'pending', result: null, difficulty: diff, req: tpl.req.slice(), slots: tpl.slots, option: null,
-    namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && S.plan.blackout };
+    namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && !extra.pairHalf && S.plan.blackout };
   if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller'); c.namedHero = r[Math.floor(rng() * r.length)]; }
+  if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
   if (tpl.type === 'request') c.requestHero = tpl.requestHero;
   else if (tpl.mission) setupMission(camp, S, c, extra);
   else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); c.requestHero = cand[Math.floor(rng() * cand.length)]; }
@@ -1711,20 +1752,57 @@ function afList(tpl) { const a = tpl.autoFailHero; return !a ? [] : Array.isArra
 function afFor(tpl, id) { return afList(tpl).find(x => x.heroId === id); }
 function templateAllowed(t, roster) { // hero-gated content silently skips heroes not in this campaign
   if (t.requiresHero && !roster.includes(t.requiresHero)) return false; if (t.type === 'request' && t.requestHero && !roster.includes(t.requestHero)) return false; return true; }
-function pickTemplate(camp, S, rng) { // v1.11.0: Classic ON hard prefer-unused bag (legacy compartment)
-  const dw = S.plan.diff; const pool = CALLS.filter(t => t.type !== 'hack' && t.minShift <= S.idx + 1 && templateAllowed(t, S.roster || []) && !S.calls.some(c => c.tpl === t && c.stage === 'pending'));
+function legacyUnits(camp, S, free) { // v1.13.0: singles + linked pairs (one unit each); retired single-pin T26/T27 never drawn
+  const roster = S.roster || []; const ok = t => t.type !== 'hack' && !t.retired && t.minShift <= S.idx + 1 && templateAllowed(t, roster) && !S.calls.some(c => c.tpl === t && c.stage === 'pending');
+  const units = [], groups = {};
+  for (const t of CALLS) { if (!t || !ok(t)) continue; if (t.competingGroup) (groups[t.competingGroup] = groups[t.competingGroup] || []).push(t); else units.push({ kind: 'single', key: String(t.id), tpls: [t] }); }
+  if (free === undefined || free >= 2) for (const g in groups) { const ts = groups[g]; if (ts.length !== 2 || ts.some(t => S.usedTemplates[t.id] || (S.spawned && S.spawned[t.id]))) continue; units.push({ kind: 'pair', key: 'pair:' + g, tpls: ts }); }
+  return units; }
+function pickLegacyUnit(camp, S, rng, free) { // v1.11.0 bag (legacy compartment) + v1.13.0 pair units
+  const dw = S.plan.diff; const pool = legacyUnits(camp, S, free);
   if (!pool.length) return null;
-  const bag = ensureMissionBag(camp); const eligibleKeys = pool.map(t => String(t.id));
+  const bag = ensureMissionBag(camp); const eligibleKeys = pool.map(u => u.key);
   missionBagMaybeReset(bag, 'legacy', null, eligibleKeys);
   const used = missionBagGet(bag, 'legacy', null);
-  let prefer = pool.filter(t => !used.has(String(t.id)));
+  let prefer = pool.filter(u => !used.has(u.key));
   if (!prefer.length) prefer = pool; // starve avoidance (under 90% but hero gates emptied unused)
-  const w = prefer.map(t => (t.difficulty === 'easy' ? dw[0] : t.difficulty === 'normal' ? dw[1] : dw[2]) * (t.type === 'competing' ? 0.5 : t.type === 'request' ? 0.6 : 1) / (1 + (S.usedTemplates[t.id] || 0) * 0.7));
+  const w = prefer.map(u => { const t = u.tpls[0]; return (t.difficulty === 'easy' ? dw[0] : t.difficulty === 'normal' ? dw[1] : dw[2]) * (u.kind === 'pair' || t.type === 'competing' ? 0.5 : t.type === 'request' ? 0.6 : 1) / (1 + (S.usedTemplates[t.id] || 0) * 0.7); });
   let sum = w.reduce((a, b) => a + b, 0), r = rng() * sum;
   let pick = prefer[prefer.length - 1];
   for (let i = 0; i < prefer.length; i++) { r -= w[i]; if (r <= 0) { pick = prefer[i]; break; } }
   return pick;
 }
+function pickTemplate(camp, S, rng) { const u = pickLegacyUnit(camp, S, rng); return u ? u.tpls[0] : null; } // compat (tests)
+function linkPair(made) { made[0].pairUid = made[1].uid; made[1].pairUid = made[0].uid; const exp = Math.max(made[0].expiresAt, made[1].expiresAt); made.forEach(c => c.expiresAt = exp); Bus.emit('pairSpawned', made); }
+function spawnLegacyUnit(camp, S, u) {
+  if (u.kind !== 'pair') return [spawnCall(camp, S, u.tpls[0])];
+  const district = S.online[Math.floor(S.spawnRng() * S.online.length)];
+  const made = u.tpls.map(t => spawnCall(camp, S, t, { district, pairHalf: true }));
+  const bag = ensureMissionBag(camp); missionBagMark(bag, 'legacy', null, [u.key]); if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
+  linkPair(made); return made; }
+/* ---------- v1.13.0 Rogue Hero boss (Classic random calls, Shift 8). Classic OFF keeps the Night Mayor deck finale untouched. ---------- */
+function rogueEligible(camp) { const ex = new Set([].concat(camp.pool || [], camp.roster || [], Object.keys(camp.heroes || {}), ['comptroller'])); return POOL_IDS().filter(id => !ex.has(id)); }
+function ensureRogueBoss(camp, o) { o = o || {};
+  const r = camp.rogue; if (r && !o.force && (r.fallback || (heroDef(r.id) && !(camp.heroes && camp.heroes[r.id])))) return r;
+  const el = o.eligible || rogueEligible(camp); const rng = mulberry32(((camp.seed >>> 0) ^ 0x40c0e) >>> 0);
+  if (!el.length) { if (typeof console !== 'undefined') console.warn('[ND] no eligible rogue hero: Night Mayor fallback'); return (camp.rogue = { v: 1, fallback: true }); }
+  const id = el[Math.floor(rng() * el.length)]; const motive = ROGUE_MOTIVES[Math.floor(rng() * ROGUE_MOTIVES.length)];
+  return (camp.rogue = { v: 1, id, motive, fallback: false }); }
+function buildRogueBossTemplates(camp, r) { const d = heroDef(r.id), st = d.stats; const order = [0, 1, 2, 3, 4].sort((a, b) => st[b] - st[a] || a - b);
+  const mk = (k, bonusAt, name) => T('rogue_' + k, d.codename + ': ' + name, `${d.codename} has gone rogue. ${r.motive} Every win knocks 1 off their resolve; fails and misses cost the City.`,
+    st.map((v, i) => ROGUE_REQ_BASE + v * ROGUE_REQ_PER_STAT + (i === bonusAt ? ROGUE_REQ_TOP_BONUS : bonusAt < 0 ? 1 : 0)), 4, 'hard', 18, { type: 'boss', boss: { damage: 1, repeatsUntilBossDown: true }, rogue: r.id, tags: ['boss'] });
+  return [mk(1, order[0], ROGUE_APPROACH[order[0]]), mk(2, order[1], ROGUE_APPROACH[order[1]]), mk(3, -1, 'Final Stand')]; }
+function setupRogueFinale(camp, S) { const r = ensureRogueBoss(camp); let tpls, hp;
+  if (r.fallback) { tpls = ((typeof MISSIONS_BY_SHIFT !== 'undefined' && MISSIONS_BY_SHIFT[S.idx]) || []).filter(t => t.boss); hp = 5; }
+  else { tpls = buildRogueBossTemplates(camp, r); hp = rogueBossHP(heroDef(r.id).stats[1]); }
+  if (!tpls.length) return;
+  camp.finale = { city: 100, bossHP: hp, bossMax: hp, bossId: r.fallback ? null : r.id, rogue: !r.fallback }; S.finale = camp.finale; S.bossTpls = tpls; S.legacyFinale = true;
+  S.followQ.push({ t: CONFIG.rogueFirstAt, id: tpls[0].id, respawn: true, first: true }); }
+function bossName(S) { const F = S && S.finale; if (F && F.rogue && F.bossId) { const d = heroDef(F.bossId); if (d) return d.codename; } return 'Night Mayor'; }
+function tickLegacyFinale(camp, S) { if (!S.finale || S.finale.won) return;
+  for (const f of S.followQ) { if (f.done || S.t < f.t) continue; if (pendingCalls(S).length >= CONFIG.maxPending) break; f.done = true;
+    const tpl = (S.bossTpls || []).find(t => t.id === f.id) || MISSION_BY_ID[f.id]; const c = spawnCall(camp, S, tpl, { district: f.district, respawn: true }); Bus.emit(f.first ? 'rogueArrives' : 'bossRespawn', c); } }
+function legacyFinaleReviewed(camp, S, call, R) { const t = call.tpl; if (!R.success) missionFailed(camp, S, call, 'fail'); else if (t.boss) { bossDamage(camp, S, call, t.boss.damage || 1); if (S.finale && S.finale.bossHP > 0) queueBoss(S, call); } }
 function pendingCalls(S) { return S.calls.filter(c => c.stage === 'pending'); }
 
 /* ---------- Stats & chance ---------- */
@@ -2022,17 +2100,18 @@ function tick(camp, S, dt) {
   if (S.deckMode) tickDeck(camp, S, dt);
   // spawn
   else if (S.t >= S.nextSpawn && S.t < CONFIG.spawnStopAt) {
-    if (pendingCalls(S).length < CONFIG.maxPending) { const tpl = pickTemplate(camp, S, S.spawnRng); if (tpl) spawnCall(camp, S, tpl); }
+    if (pendingCalls(S).length < CONFIG.maxPending && !(S.finale && S.finale.won)) { const u = pickLegacyUnit(camp, S, S.spawnRng, CONFIG.maxPending - pendingCalls(S).length); if (u) spawnLegacyUnit(camp, S, u); }
     let iv = Math.max(CONFIG.spawnMin, CONFIG.spawnBase + CONFIG.spawnPerShift * S.idx); if (S.plan.dense) iv *= CONFIG.denseShiftSpawnMult;
     S.nextSpawn = S.t + iv * (1 + (S.spawnRng() * 2 - 1) * CONFIG.spawnJitter);
   }
+  if (!S.deckMode && S.legacyFinale) tickLegacyFinale(camp, S);
   for (const c of S.calls) {
     if (c.stage === 'pending') {
       if (!c.tpl.noExpiry && c.expiresAt - S.t <= CONFIG.extendExpiryAt && c.expiresAt > S.t && !c.extended) { const ex = camp.roster.map(id => camp.heroes[id]).find(h => h && hasPower(h, 'extendExpiry') && !h.extendUsed && h.state !== 'downed');
         if (ex) { ex.extendUsed = true; c.extended = true; c.expiresAt += CONFIG.extendExpirySeconds; if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.expiresAt = c.expiresAt; o.extended = true; } } powerEv(camp, S, { hero: ex.id, power: ex.powers.find(p => POWERS[p].extendExpiry), kind: 'time', callUid: c.uid, text: `+${CONFIG.extendExpirySeconds} s on "${c.tpl.title}" (once per shift), does not change the %` }); } }
       if (S.t >= c.expiresAt) { c.stage = 'closed'; c.result = 'missed'; S.stats.missed++; if (c.requestHero) refuseRequest(camp, c);
         if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; } } // a linked pair is ONE miss
-        Bus.emit('missed', c); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); }
+        Bus.emit('missed', c); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale) missionFailed(camp, S, c, 'missed'); }
       continue;
     }
     if (c.stage === 'travel' || c.stage === 'work') {
@@ -2211,7 +2290,7 @@ function applyReview(camp, S, call, R) {
     if (call.perfect) { S.stats.perfect++; out.perfect = call.perfect; }
   } else S.stats.fail++;
   // injuries
-  const opt = call.tpl.type === 'competing' ? call.tpl.options[call.option] : null;
+  const opt = call.tpl.type === 'competing' ? call.tpl.options[call.option] : (call.tpl.compReward && call.tpl.compReward.risky ? call.tpl.compReward : null);
   const p = R.success ? (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0) : (CONFIG.injuryOnFail[call.difficulty] + (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0));
   for (const h of team) { const shields = team.filter(o => o !== h && (powerProp(o, 'injuryShield') || 0) > 0); const shield = team.reduce((m, o) => o !== h ? Math.max(m, powerProp(o, 'injuryShield') || 0) : m, 0);
     if (p > 0) { const roll = rollFor(S, call, 'inj')(), hit = roll < p * (1 - shield); // DESIGN: same single roll as v1.5; the extra checks below only read it
@@ -2233,7 +2312,7 @@ function applyReview(camp, S, call, R) {
   for (const [a, b] of SYNERGY_PAIRS) if (call.team.includes(a) && call.team.includes(b)) { camp.heroes[a].pairCount[b] = (camp.heroes[a].pairCount[b] || 0) + 1; camp.heroes[b].pairCount[a] = (camp.heroes[b].pairCount[a] || 0) + 1; }
   for (const [a, b] of R.info.conPairs) { const k = pairKey(a, b); if (R.success) { camp.conflictWins[k] = (camp.conflictWins[k] || 0) + 1; if (camp.conflictWins[k] >= CONFIG.conflictNeutralWins) { camp.conflictNeutral[k] = true; out.conflictResolved = CONFLICT_RESOLVE[k]; } } else camp.conflictWins[k] = 0; }
   for (const h of team) { if (h.state === 'awaitingReview') afterReview(camp, h, call, S); }
-  if (call.tpl.mission) missionReviewed(camp, S, call, R, out);
+  if (call.tpl.mission) missionReviewed(camp, S, call, R, out); else if (S.legacyFinale) legacyFinaleReviewed(camp, S, call, R);
   Bus.emit('reviewed', { call, R, out });
   return out;
 }
@@ -2261,6 +2340,7 @@ function finishHack(camp, S, call, win) {
   if (win) { S.stats.hacks++; if (call.restoreDistrict !== undefined && !S.online.includes(call.restoreDistrict)) { S.online.push(call.restoreDistrict); Bus.emit('districtOnline', call.restoreDistrict); } }
   else S.stats.fail++;
   if (call.tpl.mission) { if (win && call.tpl.hack && /Night Mayor/.test(call.tpl.title) && S.finale) bossDamage(camp, S, call, 1); if (!win) missionFailed(camp, S, call, 'fail'); }
+  else if (S.legacyFinale && !win) missionFailed(camp, S, call, 'fail');
   Bus.emit('hackDone', { call, win });
 }
 
@@ -2529,7 +2609,7 @@ function tickDeck(camp, S, dt) {
   for (const e of S.deck) { if (e.done) continue; if (S.t < e.t) break; if (open() >= CONFIG.maxPending && !e.hack) break; // maxPending delays, never drops
     e.done = true; e.at = S.t; if (e.tpls.every(t => t.boss && S.spawned[t.id])) { S.expected--; continue; } // already re-spawned as the boss pin
     const made = e.tpls.map(t => spawnCall(camp, S, t, t.hack && t.hack.restoresDistrict !== undefined ? { district: t.hack.restoresDistrict } : {}));
-    if (made.length === 2) { made[0].pairUid = made[1].uid; made[1].pairUid = made[0].uid; const exp = Math.max(made[0].expiresAt, made[1].expiresAt); made.forEach(c => c.expiresAt = exp); Bus.emit('pairSpawned', made); } }
+    if (made.length === 2) linkPair(made); }
   for (const f of S.followQ) { if (f.done || S.t < f.t) continue; if (open() >= CONFIG.maxPending) break; f.done = true; const c = spawnCall(camp, S, MISSION_BY_ID[f.id], { district: f.district, respawn: f.respawn }); c.followUp = !f.respawn; S.expected++; Bus.emit(f.respawn ? 'bossRespawn' : 'followUp', c); }
   // training pins have no expiry: removed once every other call is closed
   if (S.deck.every(e => e.done) && S.followQ.every(f => f.done)) { const others = S.calls.filter(c => c.stage !== 'closed' && !c.reviewed && !(c.tpl.training && c.stage === 'pending'));
@@ -2551,7 +2631,7 @@ function missionFailed(camp, S, c, how) { // fail or miss: follow-up, finale Cit
     if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } }
   if (t.boss && S.finale && S.finale.bossHP > 0) queueBoss(S, c);
 }
-function queueBoss(S, c) { if (S.followQ.some(f => f.respawn && !f.done) || S.calls.some(x => x !== c && x.tpl.boss && x.stage !== 'closed' && !x.reviewed)) return; const bosses = MISSIONS_BY_SHIFT[S.idx].filter(t => t.boss); const next = bosses[(bosses.indexOf(c.tpl) + 1) % bosses.length] || c.tpl;
+function queueBoss(S, c) { if (S.followQ.some(f => f.respawn && !f.done) || S.calls.some(x => x !== c && x.tpl.boss && x.stage !== 'closed' && !x.reviewed)) return; const bosses = S.bossTpls || MISSIONS_BY_SHIFT[S.idx].filter(t => t.boss); const next = bosses[(bosses.indexOf(c.tpl) + 1) % bosses.length] || c.tpl;
   S.followQ.push({ t: S.t + CONFIG.bossRespawn, id: next.id, district: c.district, respawn: true }); }
 function bossDamage(camp, S, c, n) { if (!S.finale || S.finale.bossHP <= 0) return; S.finale.bossHP = Math.max(0, S.finale.bossHP - n); Bus.emit('bossHit', { call: c, hp: S.finale.bossHP });
   if (S.finale.bossHP === 0) { S.finale.won = true; for (const x of S.calls) if (x.stage === 'pending') { x.stage = 'closed'; x.result = 'dropped'; } S.followQ.forEach(f => f.done = true); Bus.emit('bossDown', S.finale); } }
@@ -2834,6 +2914,7 @@ function drawMap(t) {
     if (frac !== null) { g.strokeStyle = urgent ? T.disrupt : col; g.lineWidth = 4; g.beginPath(); g.arc(x, y, r + 3, -Math.PI / 2, -Math.PI / 2 + 6.283 * clamp(frac, 0, 1)); g.stroke(); }
     g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 10; g.beginPath(); g.arc(x, y, r - 2, 0, 7); g.fill(); g.shadowBlur = 0;
     g.fillStyle = T.icon; g.font = `800 ${Math.round(r * 0.95)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon, x, y + 1);
+    if (!S.deckMode && cl.pairUid && cl.stage === 'pending') { const bx = x + r * 0.8, by = y - r * 0.8, br = Math.max(8, r * 0.52); g.fillStyle = T.back; g.beginPath(); g.arc(bx, by, br + 2, 0, 7); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill(); g.fillStyle = T.icon; g.font = `900 ${Math.round(br * 1.25)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(cl.uid < cl.pairUid ? 'A' : 'B', bx, by + 1); } // v1.13.0 Classic random calls: A/B badge (pin colour + pin icon colour = same contrast as the pin icon, every theme)
     if (label) { g.font = '800 11px ui-monospace,monospace'; const tw = g.measureText(label).width + 10; g.fillStyle = T.review; g.fillRect(x - tw / 2, y - r - 22, tw, 16); g.fillStyle = '#000'; g.fillText(label, x, y - r - 13); }
     else if (cl.stage === 'pending' && rosterPreviewMeta(UI.camp)) { const tags = (tpl.tags || []).slice(0, 2).join('/') || (tpl.type || 'call'); const meta = `👥${cl.slots} · ${tags}`; g.font = '700 9px ui-monospace,monospace'; const tw = g.measureText(meta).width + 8; g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(x - tw / 2, y + r + 2, tw, 13); g.fillStyle = '#5eead4'; g.fillText(meta, x, y + r + 9); }
     if (cl.willDisrupt === false && tpl.disruption && S.idx >= 2 && cl.stage === 'pending') { }
@@ -2887,7 +2968,7 @@ function updateQueue() {
 }
 function callIcon(cl) { const tpl = cl.tpl; return tpl.boss ? '☠' : tpl.type === 'hack' ? '⌘' : cl.pairUid || tpl.type === 'competing' ? '⇄' : tpl.training ? '🎓' : tpl.story ? '📖' : cl.requestHero ? '🙋' : cl.autoHero ? '🔒' : tpl.sabotage ? '🗡' : cl.followUp ? '↪' : '!'; }
 function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return;
-  $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; $('bossBar').style.width = (100 * F.bossHP / 5) + '%'; $('bossVal').textContent = F.bossHP + '/5'; }
+  $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; const BM = F.bossMax || 5; $('bossBar').style.width = (100 * F.bossHP / BM) + '%'; $('bossVal').textContent = F.bossHP + '/' + BM; const bl = $('bossLbl'); if (bl) bl.textContent = F.rogue ? '☠ ' + bossName(S).toUpperCase() : '☠ NIGHT MAYOR'; }
 function finBanner(text, lost) { const b = $('finBanner'); if (!b) return; b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); setTimeout(() => b.classList.add('hidden'), 4200); }
 function updateTop() { const S = UI.S, camp = UI.camp; updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts; $('scoreLbl').textContent = shiftScore(S);
   $('rankName').textContent = 'Rank ' + camp.rank + ' · ' + CONFIG.rankNames[camp.rank - 1]; const lo = CONFIG.rankThresholds[camp.rank - 1], hi = CONFIG.rankThresholds[camp.rank]; const pts = camp.rankPts + S.stats.success; $('rankBar').style.width = hi ? (100 * clamp((pts - lo) / (hi - lo), 0, 1)) + '%' : '100%';
@@ -2956,7 +3037,7 @@ function openBriefing(c) {
       const est = info.forced ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info }).perHero : {};
       let notes = '';
       if (tpl.type === 'competing') notes += `<div class="opts" style="margin-bottom:6px">${tpl.options.map((o, i) => `<button class="opt ${c.option === i ? 'on' : ''}" data-opt="${i}"><span>${c.option === i ? '◉' : '○'}</span><span><b>${esc(o.label)}</b><br><small>${esc(o.desc.replace('the named hero', camp.heroes[c.namedHero].codename))}</small></span></button>`).join('')}</div>`;
-      if (tpl.type === 'competing' && c.option !== null && c.option !== undefined && tpl.options[c.option] && tpl.options[c.option].risky) notes += `<div class="note warn risky-inj" role="status">⚠ Risky option: each hero has a ${Math.round(CONFIG.injuryRiskyCompeting * 100)}% chance of injury even if this call succeeds.</div>`;
+      if (((tpl.type === 'competing' && c.option !== null && c.option !== undefined && tpl.options[c.option] && tpl.options[c.option].risky) || (!tpl.mission && tpl.compReward && tpl.compReward.risky))) notes += `<div class="note warn risky-inj" role="status">⚠ Risky option: each hero has a ${Math.round(CONFIG.injuryRiskyCompeting * 100)}% chance of injury even if this call succeeds.</div>`;
       if (tpl.goals && tpl.goals.length) notes = `<div class="goals"><b>GOALS</b>${tpl.goals.map((g, i) => `<div class="goal">${i + 1}. ${esc(g)}</div>`).join('')}</div>` + notes;
       if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); notes += `<div class="note pair">⇄ Option ${pairLetter(c)} of 2 · linked with <b>${esc(o ? o.tpl.title : '?')}</b>. Dispatching either one declines the other. Both expire together in ${Math.ceil(rem)}s.${tpl.competingReward ? ` Reward: <b>${esc(tpl.competingReward)}</b>` : ''}${c.namedHero ? ` (named hero: ${esc(camp.heroes[c.namedHero].codename)})` : ''}</div>`; }
       if (c.requestHero) { const rh = camp.heroes[c.requestHero]; notes += `<div class="note req">🙋 <b>${esc(rh.codename)}</b> asks to take this call.${c.requestReason ? ' ' + esc(c.requestReason) : ''} Grant it for +1 morale; refusing twice sulks them for a shift.</div>`; }
@@ -3073,7 +3154,7 @@ function openReview(c) {
       { const why = outcomeReason(camp, S, c, R); html += `<div class="note outcome-reason ${why.kind}${R.forced ? ' warn forced-note' : why.kind === 'instant-success' || why.kind === 'guaranteed' ? ' good' : ''}" role="status"><b>${why.kind === 'instant-fail' ? '⛔' : why.kind === 'instant-success' ? '⚡' : why.kind === 'rolled' ? '🎲' : '✔'} ${esc(why.head)}</b>${why.lines.map(l => `<div class="why">${esc(l)}</div>`).join('')}</div>`; } // v1.9.2: why this result
       if (applied.injured.length) { html += applied.injured.map(id => injBannerHTML(camp, id, applied.downed.includes(id), S)).join('');
         const dn = applied.downed.length; setTimeout(() => { if (dn) Sfx.down(); else Sfx.hurt(); }, 120); haptic(dn ? [80, 60, 120] : 60); injFlash(m.sheet); }
-      { const opt = c.tpl.type === 'competing' && c.option !== null && c.option !== undefined ? c.tpl.options[c.option] : null;
+      { const opt = c.tpl.type === 'competing' && c.option !== null && c.option !== undefined ? c.tpl.options[c.option] : (!c.tpl.mission && c.tpl.compReward && c.tpl.compReward.risky ? c.tpl.compReward : null);
         if (R.success && opt && opt.risky && (applied.injured.length || applied.downed.length)) {
           html += `<div class="note warn risky-inj" role="status">⚠ ${esc(opt.label)} is a risky option: each hero had a ${Math.round(CONFIG.injuryRiskyCompeting * 100)}% chance to be injured even though the call succeeded.</div>`; } }
       for (const e of (S.injuryLog || []).filter(e => e.callUid === c.uid && (e.kind === 'shielded' || e.kind === 'immune'))) { const hh = camp.heroes[e.id]; html += e.kind === 'shielded' ? `<div class="note good">🛡 ${esc(hh.codename)} was shielded by ${esc(camp.heroes[e.by].codename)}.</div>` : `<div class="note good">🪨 ${esc(hh.codename)} is immune (${esc(POWERS[e.by] ? POWERS[e.by].name : 'immune')}).</div>`; }
@@ -3086,7 +3167,7 @@ function openReview(c) {
       if (applied.route) html += `<div class="note good">🎓 ${esc(camp.heroes[applied.route].codename)} learned the rooftop routes: travel ×${CONFIG.routeMult} for good.</div>`;
       if (applied.trainNote) html += `<div class="note">🎓 ${esc(applied.trainNote)}</div>`;
       if (applied.trainingOffer) html += `<div class="note good">🎓 ${esc(camp.heroes[applied.trainingOffer.hero].codename)} is ready to learn a power: choose after CONTINUE.</div>`;
-      if (c.tpl.boss && S.finale) html += `<div class="note">☠ Night Mayor signal: ${S.finale.bossHP}/5</div>`;
+      if (c.tpl.boss && S.finale) html += S.finale.rogue ? `<div class="note">☠ ${esc(bossName(S))}'s resolve: ${S.finale.bossHP}/${S.finale.bossMax}${S.finale.won ? ' · DOWN' : ''}</div>` : `<div class="note">☠ Night Mayor signal: ${S.finale.bossHP}/5</div>`;
       if (applied.conflictResolved) html += `<div class="note good">🤝 ${esc(applied.conflictResolved)}</div>`;
       for (const [a, b] of R.info.conPairs) if (!applied.conflictResolved) { const qs = CONFLICT_QUIPS[pairKey(a, b)]; html += `<div class="quip">${esc(qs[c.uid % qs.length])}</div>`; }
       const qh = c.team[c.uid % c.team.length]; const def = heroDef(qh); html += `<div class="quip"><b style="color:${camp.heroes[qh].color}">${esc(camp.heroes[qh].codename)}:</b> "${ok ? esc(['Nailed it.', 'Another one for the scrapbook.', 'Did you see that? Tell me you saw that.'][c.uid % 3]) : esc(['That... could have gone better.', 'In my defense, I was not prepared.', 'We do NOT talk about this one.'][c.uid % 3])}"</div>`;
@@ -3594,7 +3675,7 @@ function showBrief() { if (UI.camp && UI.camp.revertNote) setTimeout(() => showR
   const comp = idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow;
   showScreen(`<div class="logo" style="font-size:34px;margin-top:2vh">SHIFT ${idx + 1}<span>/${CONFIG.campaignShifts}</span></div>
    <div class="card"><h3>Briefing</h3><p class="txt">${esc(shiftBlurb(camp, idx))}</p>${comp ? `<div class="note req">🦅 Corporate is nervous about your numbers. <b>The Comptroller</b> joins tonight as a safety net (fixed stats, no XP).</div>` : ''}
-   ${camp.missionSet === 'v1.8' && (missionBlurbs()[idx] || []).length ? `<div class="note good mblurb"><b>📘 New tonight</b>${missionBlurbs()[idx].map(b => `<div>${esc(b)}</div>`).join('')}</div>` : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'v1.8' ? '<div class="note warn">☠ FINALE: protect the City bar and take the Night Mayor\'s signal from 5 to 0.</div>' : ''}
+   ${camp.missionSet === 'v1.8' && (missionBlurbs()[idx] || []).length ? `<div class="note good mblurb"><b>📘 New tonight</b>${missionBlurbs()[idx].map(b => `<div>${esc(b)}</div>`).join('')}</div>` : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'v1.8' ? '<div class="note warn">☠ FINALE: protect the City bar and take the Night Mayor\'s signal from 5 to 0.</div>' : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'legacy' ? rogueIntroHTML(camp) : ''}
    <div class="tglrow"><span>🎲 Classic random calls</span><button class="tgl ${camp.missionSet === 'legacy' ? 'on' : ''}" data-a="classic"></button></div>
    <div class="note">Agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}${toolUnlocked(camp, 'medkit') ? ' · 🩹 Med Kit' : ''}${toolUnlocked(camp, 'jump') ? ' · ⚡ Jump Start' : ''}</div></div>
    <div class="card"><h3>Tonight's roster</h3><div class="grid2">${ids.map(id => { const hh = camp.heroes[id]; return `<div class="mini" style="border-color:${hh.color}66"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small><small>${hh.powers.map(p => POWERS[p].name).join(', ')}${hh.nextMorale ? (hh.nextMorale > 0 ? ' · 😊' : ' · 😠') : ''}</small></div></div>`; }).join('')}</div></div>
@@ -3686,7 +3767,7 @@ function showEnd() {
   const camp = UI.camp; camp.phase = 'end'; saveCamp(); const t = camp.totals; const gp = camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / Math.max(1, camp.grades.length); const fg = gp >= 3.5 ? 'S' : gp >= 2.5 ? 'A' : gp >= 1.5 ? 'B' : gp >= 0.5 ? 'C' : 'D';
   if (fg === 'S') FX.confetti();
   showScreen(`<div class="logo" style="font-size:32px;margin-top:2vh">CAMPAIGN COMPLETE</div><div class="card"><div class="grade ${fg}">${fg}</div><p class="tag">Final agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}</p>
-   <table class="sum"><tr><td>Total score</td><td>${t.score}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Injuries</td><td>${t.injuries || 0}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries}</td></tr><tr><td>XP</td><td>${t.xp}</td></tr><tr><td>Shift grades</td><td>${camp.grades.join(' ')}</td></tr></table></div>
+   <table class="sum"><tr><td>Total score</td><td>${t.score}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Injuries</td><td>${t.injuries || 0}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries}</td></tr><tr><td>XP</td><td>${t.xp}</td></tr><tr><td>Shift grades</td><td>${camp.grades.join(' ')}</td></tr></table>${camp.finale && camp.finale.rogue && camp.finale.bossId && heroDef(camp.finale.bossId) ? `<p class="txt rogue-end">☠ Shift 8 rogue: <b>${esc(heroDef(camp.finale.bossId).codename)}</b> ${camp.finale.won ? 'stood down.' : 'got away.'} ${esc((camp.rogue && camp.rogue.motive) || '')}</p>` : ''}</div>
    <div class="email">From: R. Halvorsen\nSubject: Review period complete\n\n${fg === 'S' || fg === 'A' ? 'The board voted to keep the agency open. They also voted to put your photo in the lobby. It is slightly crooked. That is on purpose.' : fg === 'B' ? 'The agency survives another quarter. That is a win in this economy.' : 'We are... still open? Somehow? I will take it. Please read the manual next time.'}</div>
    <button class="btn pri" data-a="new">NEW CAMPAIGN</button><button class="btn ghost" data-a="title">TITLE</button>`, s => { s.querySelector('[data-a=new]').onclick = () => { UI.camp = newCampaign(0); saveCamp(); routeCamp(); }; s.querySelector('[data-a=title]').onclick = showTitle; });
 }
@@ -3703,10 +3784,11 @@ Bus.on('spawn', c => { if (!UI.S || UI.sim || !c.tpl.mission) return; mechTutori
 Bus.on('pairSpawned', p => { if (UI.sim) return; radio(null, `⇄ Two calls at once: "${p[0].tpl.title}" or "${p[1].tpl.title}". You can only take one.`); });
 Bus.on('declined', d => { if (UI.sim) return; radioLog(null, `⇄ "${d.call.tpl.title}" declined: the team went to "${d.by.tpl.title}" instead (not a miss).`); });
 Bus.on('followUp', c => { if (UI.sim) return; Sfx.alarm(); radio(null, `↪ Follow-up in ${DISTRICTS[c.district].name}: ${c.tpl.title}. That last one came back to bite us.`); toast('↪ Follow-up: ' + esc(c.tpl.title)); });
-Bus.on('bossRespawn', c => { if (UI.sim) return; radio(null, `☠ The Night Mayor's signal is back: ${c.tpl.title}.`); });
+Bus.on('bossRespawn', c => { if (UI.sim) return; if (UI.S && UI.S.finale && UI.S.finale.rogue) { radio(null, `☠ ${bossName(UI.S)} is back: ${c.tpl.title}.`); return; } radio(null, `☠ The Night Mayor's signal is back: ${c.tpl.title}.`); });
+Bus.on('rogueArrives', c => { if (UI.sim) return; Sfx.alarm(); if (UI.S && UI.S.finale && UI.S.finale.rogue) radio(null, `☠ ${bossName(UI.S)} has gone rogue: ${c.tpl.title}! Win the ☠ calls to wear down their resolve (${UI.S.finale.bossHP}).`); }); // fallback Night Mayor pins announce via the 'spawn' handler
 Bus.on('cityHit', d => { if (UI.sim) return; radioLog(null, `🏙 City −${d.dmg} (${d.call.tpl.title}). City at ${d.city}.`, 'bad'); const f = $('finale'); if (f) { f.classList.remove('hit'); void f.offsetWidth; f.classList.add('hit'); } });
-Bus.on('bossHit', d => { if (UI.sim) return; Sfx.chime(); radio(null, `☠ Hit! Night Mayor signal down to ${d.hp}/5.`); });
-Bus.on('bossDown', () => { if (UI.sim) return; Sfx.fanfare(); FX.burst(); finBanner('☠ NIGHT MAYOR OFF THE AIR!<br><small>Victory. The shift ends once the open calls are done.</small>'); radio(null, 'The Night Mayor is off the air. Wrap up the open calls and we are done.'); });
+Bus.on('bossHit', d => { if (UI.sim) return; Sfx.chime(); if (UI.S && UI.S.finale && UI.S.finale.rogue) { radio(null, `☠ Hit! ${bossName(UI.S)}'s resolve down to ${d.hp}/${UI.S.finale.bossMax}.`); return; } radio(null, `☠ Hit! Night Mayor signal down to ${d.hp}/5.`); });
+Bus.on('bossDown', () => { if (UI.sim) return; Sfx.fanfare(); FX.burst(); if (UI.S && UI.S.finale && UI.S.finale.rogue) { const n = esc(bossName(UI.S)); finBanner(`☠ ${n.toUpperCase()} STANDS DOWN!<br><small>Victory. The shift ends once the open calls are done.</small>`); radio(null, `${n} stands down. Wrap up the open calls and we are done.`); return; } finBanner('☠ NIGHT MAYOR OFF THE AIR!<br><small>Victory. The shift ends once the open calls are done.</small>'); radio(null, 'The Night Mayor is off the air. Wrap up the open calls and we are done.'); });
 Bus.on('cityLost', () => { if (UI.sim) return; Sfx.thud(); shake(); finBanner('🏙 CITY LOST<br><small>Keep going: the grade is capped at C.</small>', true); radio(null, 'We lost the city tonight. Keep working, but this one is going in the record.'); });
 Bus.on('sabotage', sb => { if (UI.sim) return; Sfx.alarm(); radio(sb.by, `🗡 Sorry, ${UI.camp.heroes[sb.hero].codename}. Nothing personal.`); radioLog(null, `🗡 Sabotage on "${sb.call.tpl.title}": ${UI.camp.heroes[sb.hero].codename} was pulled off the call. The team was recomputed without them.`, 'bad'); if (!UI.auto) setTimeout(() => openSabotage(sb), 50); });
 Bus.on('sabotageDone', sb => { if (UI.sim) return; if (sb.result.timeout) radioLog(sb.hero, '🗡 No answer in time: hurt escaping the sabotage (+1 injury).', 'bad'); });
@@ -3830,6 +3912,11 @@ function init() {
   showTitle(); requestAnimationFrame(frame);
 }
 window.addEventListener('load', init);
+
+/* v1.13.0: Shift-8 rogue reveal (Classic random calls only; never shown before Shift 8) */
+function rogueIntroHTML(camp) { const r = ensureRogueBoss(camp); if (r.fallback || !heroDef(r.id)) return '<div class="note warn">☠ FINALE: no rogue hero was available tonight, so the Night Mayor stepped in. Protect the City bar and take his signal from 5 to 0.</div>';
+  const d = heroDef(r.id), hp = rogueBossHP(d.stats[1]);
+  return `<div class="note warn rogue-intro" style="border-left:6px solid ${d.color}"><div class="rogue-h"><span class="e" aria-hidden="true">${d.emoji}</span> <b>☠ ROGUE HERO: ${esc(d.codename)}</b></div><div>${esc(r.motive)}</div><div><small>FINALE: protect the City bar (fails and misses cost ${CONFIG.finaleCityHit}). Win the ☠ ${esc(d.codename)} calls to take their resolve from ${hp} to 0 (resolve = ${ROGUE_BOSS_HP_BASE} + END ${d.stats[1]} × ${ROGUE_BOSS_HP_PER_END}, rounded).</small></div></div>`; }
 
 /* ---------- v1.9.0 Looks: visual only. Stored apart from the save (nightdesk.look.v1). ---------- */
 const LOOK_KEY = 'nightdesk.look.v1';
