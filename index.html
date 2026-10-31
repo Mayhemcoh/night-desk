@@ -457,6 +457,17 @@ html.reduce-fx .hero-overlay,html.reduce-fx .hero-overlay .sheet{animation:none!
 .chip.used,.chip:disabled{opacity:1;filter:grayscale(.85);border-style:dashed}.chip.used .n,.chip.used small,.chip:disabled .n,.chip:disabled small{color:var(--muted-txt)!important}
 html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;color:var(--btn-dis-txt)!important;border:1px dashed var(--btn-dis-line)!important;box-shadow:none!important;text-shadow:none!important}
 .btn.pri{background:linear-gradient(#d61f7f,#a3155f)}
+/* v1.14.0 Zenith / Drizzle / Solstice */
+.hc .newrib{position:absolute;top:2px;right:3px;font:700 8px/1 ui-monospace,monospace;letter-spacing:.5px;padding:2px 3px;border-radius:4px;background:#ffd23f;color:#1a1300;z-index:2;pointer-events:none}
+.hc .xtra{position:absolute;top:20px;right:3px;font-size:12px;line-height:1;pointer-events:none}
+.slot .voltag{font-size:9.5px;line-height:1.15;margin:2px 0;padding:2px 3px;border-radius:5px;background:#0e7490;color:#ecfeff;font-weight:600}
+.slot.vol{border-style:dashed}
+.cx-sec{margin:14px 0 2px}
+.card.arrive .por{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;font-size:24px;flex:none}
+.card.arrive .btn.small{margin-top:6px}
+.card.arrive .tropts{margin-top:6px}
+.hc.injured .newrib,.hc.downed .newrib{display:none}
+@media (orientation:landscape){.hc .newrib{font-size:7px;padding:1px 2px;right:1px;letter-spacing:0}}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -787,7 +798,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.13.0';
+<script>window.ND_VERSION='nd-v1.14.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -868,6 +879,12 @@ const CONFIG = {
   wildcardOnFinalShift: false,       // reference: the final shift's promotion gives no stat point
   comptrollerAvgBelow: 1.6,          // avg grade points before shift 8
   comptrollerStats: [8, 7, 6, 6, 6],
+  // v1.14.0 Zenith / Drizzle / Solstice (arrive on their own; never draftable)
+  extraJoinShiftIdx: 5,                       // Shift 6 (0-based 5)
+  extraJoinLevel: { rule: 'teamMedian', min: 4, max: 7 },
+  zenith: { restGood: 2, restGloom: 45, restGloomPrescription: 20 },
+  drizzle: { skipsBeforeVolunteer: 3, boost: 1, superBoost: 3, mk2SecondBoost: 1, healCount: 2 },
+  solstice: { bossFails: 2, campaignFails: 5, level: 10, stats: [8, 8, 7, 6, 7] },
   dotDuration: 2.2,
   trainingAfterShifts: [2, 4, 6],
   campaignShifts: 8,
@@ -881,7 +898,7 @@ const CONFIG = {
     { joins: 0, hacks: [110, 250], diff: [2, 5, 1], expected: 21, blurb: 'Things get messy. Missions can now be DISRUPTED mid-job ✋ and some calls come as competing choices ⇄. Answer the radio fast.' },
     { joins: 2, hacks: [180], diff: [2, 5, 2], expected: 23, blurb: 'Two new hires: {joiners}. HR also flagged some "workplace frictions". Mind the ⚡ conflict icons, or work them through.' },
     { joins: 0, hacks: [], blackout: true, diff: [2, 5, 2], expected: 20, blurb: 'BLACKOUT. Four districts are dark. Clear the ⌘ grid hacks to bring them back online, one by one.' },
-    { joins: 0, hacks: [140], requests: true, diff: [1, 5, 3], expected: 23, blurb: 'The heroes have opinions now. Some will ASK for a call. Say yes and they glow; say no twice and they sulk into next shift.' },
+    { joins: 0, hacks: [140], requests: true, diff: [1, 5, 3], expected: 23, blurb: 'The heroes have opinions now. Some will ASK for a call. Say yes and they glow; say no twice and they sulk into next shift.{extras}' },
     { joins: 0, hacks: [90, 230], requests: true, dense: true, diff: [1, 5, 3], expected: 26, blurb: 'Full moon, payday, and a citywide sale on fireworks. Calls will be dense. Hard calls stay capped unless a pair has real synergy.' },
     { joins: 0, hacks: [120, 260], requests: true, finale: true, seconds: 450, diff: [1, 4, 5], expected: 25, blurb: 'Final shift of the review period. Corporate is watching. The big ones are coming in tonight.' },
   ],
@@ -956,9 +973,18 @@ const HERO_DEFS = [
 ];
 const COMPTROLLER = { id: 'comptroller', name: '???', codename: 'The Comptroller', color: '#fde68a', emoji: '🦅', stats: CONFIG.comptrollerStats, bio: 'Corporate safety net. Very expensive. Gains no XP. Do not ask about the invoice.', power: 'audited', train: [], synergy: null, noXP: true,
   quips: ['This intervention will be billed.', 'Stand aside. I am fiscally responsible for this.', 'Efficiency is my superpower. Also flight.'] };
+/* v1.14.0: heroes who arrive on their own. NOT in HERO_DEFS, so Hero Selection, Random Heroes, pickRoster, fillSelection, aiPickSelection and the rogue boss never see them. */
+const EXTRA_HEROES = [
+  { id: 'zenith', name: 'Hal Brandt', codename: 'Zenith', color: '#60a5fa', emoji: '🦸', stats: [4, 3, 3, 1, 1], bio: 'The city\'s former Greatest Hero and cereal-box mascot. Unstoppable on a good night. There are not many good nights.', power: 'moodswing', train: ['prescription', 'peptalk'], synergy: ['drizzle', 'solstice'], joinShiftIdx: 5, extra: true,
+    quips: ['Zenith is here. Try to contain your excitement.', 'I used to be on cereal boxes, you know.', 'Fine. FINE. I will save it.'] },
+  { id: 'drizzle', name: 'Herbie Lally', codename: 'Drizzle', color: '#22d3ee', emoji: '💧', stats: [2, 3, 3, 1, 3], bio: 'Night-shift janitor who sweats tap water. Would very much like to be picked. Please.', power: 'eagermop', train: ['supersoaker', 'holywater'], synergy: ['zenith'], joinShiftIdx: 5, extra: true,
+    quips: ['Me? Really? Okay okay okay.', 'I brought a mop. Just in case.', 'Sorry about the puddle.'] },
+  { id: 'solstice', name: 'Celeste Arden', codename: 'Solstice', color: '#fbbf24', emoji: '☀️', stats: CONFIG.solstice.stats.slice(), bio: 'Branch director, brand-deal superstar. Only suits up when the night goes wrong.', power: 'radiantlight', train: [], synergy: ['zenith'], noXP: true, guest: true, maxLevel: true, extra: true,
+    quips: ['Stay in my light.', 'Smile, we are on camera.', 'Downtown sends its regards.'] },
+];
 const CAMPAIGN_MODES = { selection: { icon: '🧩', label: 'Hero Selection', desc: 'Pick exactly 8 of the 25 yourself.' }, random: { icon: '🎲', label: 'Random Heroes', desc: 'A seeded draft of 8, balanced for coverage. Reroll freely.' }, classic: { icon: '🏛', label: 'Original 8', desc: 'The original crew from earlier versions.' } };
 const LEGACY_POOL = ['brightwire', 'mirrorlark', 'slab', 'hush', 'knuckles', 'velvethex', 'echo', 'pasdechat']; // v1.2 roster in join order
-const SYNERGY_PAIRS = [['tidewall', 'matron'], ['quickstep', 'hotwire'], ['ledger', 'brasstack'], ['marquee', 'murmur'], ['ironmonger', 'foghorn'], ['copperhead', 'snare'], ['gravemoss', 'halogen'], ['kitefall', 'sundial'], ['brightwire', 'mirrorlark'], ['slab', 'hush'], ['velvethex', 'echo'], ['knuckles', 'pasdechat']];
+const SYNERGY_PAIRS = [['tidewall', 'matron'], ['quickstep', 'hotwire'], ['ledger', 'brasstack'], ['marquee', 'murmur'], ['ironmonger', 'foghorn'], ['copperhead', 'snare'], ['gravemoss', 'halogen'], ['kitefall', 'sundial'], ['brightwire', 'mirrorlark'], ['slab', 'hush'], ['velvethex', 'echo'], ['knuckles', 'pasdechat'], ['zenith', 'drizzle'], ['zenith', 'solstice']];
 const CONFLICT_PAIRS = [['ledger', 'marquee'], ['hotwire', 'matron'], ['foghorn', 'hush'], ['slab', 'velvethex'], ['brightwire', 'hush']];
 const CONFLICT_QUIPS = {
   'ledger|marquee': ['Marquee: "Could you audit my applause less loudly?"', 'Ledger: "Your fog machine is not tax-deductible."'],
@@ -979,7 +1005,7 @@ const CONFLICT_RESOLVE = {
 // hooks: onCompute(c) mutates c.st; onResult(c); travelMult; xpBoost; flags: illusion, heal, immune, noDown, retry, preview
 const SLAB_SLOTS = [0, 1, 3, 2];
 const SIGNATURES = { overclock: 'overclock2', doubletake: 'doubletake2', settlingin: 'settlingin2', soloact: 'soloact2', borrowedtime: 'borrowedtime2', shiftchange: 'shiftchange2', thickskull: 'thickskull2', positions: 'positions2',
-  breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', gambit: 'gambit2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2' };
+  breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', gambit: 'gambit2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2', moodswing: 'moodswing2', eagermop: 'eagermop2' };
 const POWERS = {
   overclock: { name: 'Overclock', desc: '+1 Might and Agility for every success this shift. Resets on a failure. Flybae: she flies to calls (travel ×0.65).', flies: true, onCompute(c) { const s = c.hero.streak || 0; c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
   comet: { name: 'Comet', desc: 'While Overclock has 1+ stacks, travel and work time ×0.6. A failure with 2+ stacks Downs her.', travelMult: 0.6, workMult: 0.6, travelNeedsStreak: 1, burnout: 2, burnoutDown: true },
@@ -1093,6 +1119,16 @@ const POWERS = {
   shanty: { name: 'Sea Shanty', desc: 'Team XP +15% on calls he joins.', xpBoost: 0.15 },
   anchor: { name: 'Anchor', desc: 'Ignores injury debuffs.', ignoreInjury: true },
   bellow2: { name: 'Bellow ✦', signature: true, desc: 'MK II aura: teammates get +1 Presence and +1 Might (doesn\'t stack with the same aura), and he gets +1 Might.', aura: [1, 0, 0, 1, 0], onCompute(c) { c.st[0] += 1; } },
+  // ---- v1.14.0 Zenith / Drizzle / Solstice (desc text is the contract) ----
+  moodswing: { name: 'Mood Swing', kind: 'rest', desc: 'Rest is always 2 s. If any call fails or is missed while he is on shift, his next rest is 45 s instead. Flies to calls (travel ×0.65).', flies: true, restFlat: 'zenith' },
+  prescription: { name: 'Prescription', kind: 'rest', desc: 'Bad-mood rest is 20 s instead of 45 s. Otherwise still 2 s. Still flies.', gloomRest: 20 },
+  peptalk: { name: 'Pep Talk', kind: 'rest', desc: 'If a call he is on succeeds, his teammates\' rest is ×0.5.', teamRestOnSuccess: 0.5 },
+  moodswing2: { name: 'Mood Swing ✦', kind: 'rest', signature: true, desc: 'MK II: no more bad moods. Rest is always 2 s. Still flies.', flies: true, restFlat: 'zenith', noGloom: true },
+  eagermop: { name: 'Eager Mop', kind: 'stat', desc: 'Counts missions you send without him. After 3, he volunteers: he puts himself in an empty slot on each new call until you send him. While volunteering he gets +1 to his highest stat on that call (shown in the %). You can take him off. The count resets only when you send him.', volunteer: true, volunteerBoost: 1, onCompute(c) { drizzleBoost(c); } },
+  supersoaker: { name: 'Super Soaker', kind: 'stat', desc: 'Eager Mop volunteer bonus is +3 to his highest stat instead of +1.', volunteerBoost: 3 },
+  holywater: { name: 'Holy Water', kind: 'stat', desc: 'Stops volunteering. Heals up to 2 injured teammates on calls he is sent on, and gets +1 to his highest stat on every call.', heal: true, healCount: 2, noVolunteer: true, alwaysBoost: 1 },
+  eagermop2: { name: 'Eager Mop ✦', kind: 'stat', signature: true, desc: 'MK II: his bonus also adds +1 to his second-highest stat.', volunteer: true, volunteerBoost: 1, secondBoost: 1, onCompute(c) { drizzleBoost(c); } },
+  radiantlight: { name: 'Radiant Light', kind: 'injury', desc: 'Flies (travel ×0.65). Every hero sent on a call with her, including her, gets a Radiant shield that blocks their next injury, then is used up (one at a time; lasts until used or the shift ends). Never changes the %.', flies: true, radiant: true },
   audited: { name: 'Audited', desc: 'Fixed stats. Gains no XP. Never injured.', immune: true, noDown: true },
 };
 /* v1.10: every power declares where it acts: stat (pentagon -> coverage -> %), cap (acts on the roll itself: re-roll), time (travel/work/expiry),
@@ -1564,11 +1600,14 @@ const Bus = { h: {}, on(n, f) { (this.h[n] = this.h[n] || []).push(f); }, emit(n
 function makeHero(def) {
   return { id: def.id, name: def.name, codename: def.codename, color: def.color, emoji: def.emoji, bio: def.bio,
     stats: def.stats.slice(), baseTotal: def.stats.reduce((a, b) => a + b, 0), xp: 0, xpPointsEarned: 0, unspentPoints: 0, wildPoints: 0, rank: 1,
-    state: 'available', injuries: 0, morale: 0, nextMorale: 0, stateTimer: 0, stateDur: 0, powers: [def.power], synergyPartner: def.synergy,
+    state: 'available', injuries: 0, morale: 0, nextMorale: 0, stateTimer: 0, stateDur: 0, powers: [def.power], synergyPartner: [].concat(def.synergy || [])[0] || null, synergyPartners: [].concat(def.synergy || []),
     pairCount: {}, flags: { requestedRefused: 0, granted: 0 }, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, noXP: !!def.noXP, callUid: null, temp: !!def.noXP,
     level: 1, trainedChoice: null, signature: false, revealed: {}, burnt: false, extendUsed: false, xpLog: [], pendingLevelUps: 0, xpOffset: def.xpOffset || 0, formToggled: false, routeTrained: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false, lifeTradeChoice: 3 };
 }
-function heroDef(id) { return id === 'comptroller' ? COMPTROLLER : HERO_DEFS.find(h => h.id === id); }
+function makeHeroV114(def) { const h = makeHero(def); if (def.maxLevel) { h.xpPointsEarned = CONFIG.xpMaxPoints; h.level = CONFIG.solstice.level; h.noXP = true; h.temp = true; h.revealed[def.power] = true; h.rank = 1 + h.xpPointsEarned; } return h; }
+function heroDef(id) { return id === 'comptroller' ? COMPTROLLER : HERO_DEFS.find(h => h.id === id) || EXTRA_HEROES.find(h => h.id === id); }
+const EXTRA_IDS = () => EXTRA_HEROES.map(d => d.id);
+function isExtraHero(id) { const d = id && heroDef(id); return !!(d && d.extra); }
 
 /* ---------- v1.3 roster pool: 8 of 25 per campaign ---------- */
 const POOL_IDS = () => HERO_DEFS.map(d => d.id);
@@ -1595,22 +1634,81 @@ function pickRoster(seed) { // pure + deterministic
 function shiftJoiners(camp, idx) { const pool = camp.pool || LEGACY_POOL; let a = 0; for (let i = 0; i < idx; i++) a += CONFIG.shifts[i].joins || 0; return pool.slice(a, a + (CONFIG.shifts[idx].joins || 0)); }
 function shiftBlurb(camp, idx) { const j = shiftJoiners(camp, idx).map(id => heroDef(id)); const names = j.map(d => d.codename);
   const list = names.length <= 1 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
-  return CONFIG.shifts[idx].blurb.replace('{joiners}', list).replace('{joinQuip}', j.length === 1 && j[0].joinQuip ? j[0].joinQuip : ''); }
+  return CONFIG.shifts[idx].blurb.replace('{joiners}', list).replace('{joinQuip}', j.length === 1 && j[0].joinQuip ? j[0].joinQuip : '').replace('{extras}', idx === CONFIG.extraJoinShiftIdx && !camp.v113Finale ? ' Two heroes from the Downtown dispatch branch, Zenith and Drizzle, have joined your team.' : ''); }
 function newCampaign(seed, opts) {
   seed = (seed >>> 0) || ((Math.random() * 1e9) >>> 0); opts = opts || {};
   const pool = opts.mode === 'selection' ? validatePool(opts.pool) : opts.pool ? validatePool(opts.pool) : opts.mode === 'classic' ? LEGACY_POOL.slice() : pickRoster(seed);
   const rm = opts.mode === 'selection' ? 'selection' : opts.pool ? (opts.pool.join() === LEGACY_POOL.join() ? 'classic' : 'custom') : opts.mode === 'classic' ? 'classic' : 'random';
   const c = { v: 5, mode: rm === 'custom' ? 'selection' : rm, wildQueue: [], pool, rosterMode: rm, wildGiven: 0, seenLevelUp: {}, levelQueue: [], seed, shiftIdx: 0, heroes: {}, roster: [], totals: { success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0, score: 0 }, grades: [], rankPts: 0, rank: 1,
     conflictWins: {}, conflictNeutral: {}, pendingWild: 0, trainingDone: [], phase: 'briefing', history: [], blackoutDone: false, layoutIdx: 0, missionSet: opts.missionSet || 'v1.8',
-    missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag() };
+    missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag(), rulesVersion: 'nd-v1.14.0', heroFails: 0, drizzle: { skips: 0, volunteering: false }, solstice: { joined: false } };
   for (const id of pool) c.heroes[id] = makeHero(heroDef(id));
   ensureRogueBoss(c); // v1.13.0: seeded + saved now, revealed only on Shift 8 (Classic random calls)
   return c;
 }
-function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i)); return ids; }
+function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i));
+  if (!camp.v113Finale) for (const d of EXTRA_HEROES) if (d.joinShiftIdx !== undefined && idx >= d.joinShiftIdx) ids.push(d.id); // v1.14.0: Zenith + Drizzle join at Shift 6 (all modes, all mission sets); Solstice only via solsticeJoin
+  return ids; }
+/* ---------- v1.14.0 extra heroes: Zenith, Drizzle (Shift 6) and Solstice (finale trigger) ---------- */
+function extrasDue(camp) { return !camp.v113Finale && camp.shiftIdx >= CONFIG.extraJoinShiftIdx && camp.shiftIdx < CONFIG.campaignShifts; }
+function ensureExtraHeroes(camp) { if (!extrasDue(camp)) return false; let made = false;
+  for (const d of EXTRA_HEROES) if (d.joinShiftIdx !== undefined && camp.shiftIdx >= d.joinShiftIdx && !camp.heroes[d.id]) { camp.heroes[d.id] = makeHeroV114(d); made = true; }
+  if (!camp.drizzle) camp.drizzle = { skips: 0, volunteering: false }; if (!camp.solstice) camp.solstice = { joined: false };
+  if (camp.heroFails === undefined) camp.heroFails = 0; return made; }
+function medianLevel(camp) { const lv = (camp.pool || []).map(id => camp.heroes[id]).filter(h => h && !h.noXP).map(heroLevel).sort((a, b) => a - b); if (!lv.length) return 1;
+  const n = lv.length; return n % 2 ? lv[(n - 1) / 2] : Math.round((lv[n / 2 - 1] + lv[n / 2]) / 2); } // even count: mean of the two middle levels, .5 rounds up
+function extraJoinLevel(camp) { const r = CONFIG.extraJoinLevel; return clamp(medianLevel(camp), r.min, r.max); }
+function extraJoinXP(camp, h) { const L = extraJoinLevel(camp); if (L <= heroLevel(h)) return 0; return Math.max(0, xpTableNext(L - 2, h) - h.xp); }
+/* Arrival (2b): grants the median-level XP as BANKED points (normal level-up queue, the player allocates), reveals the base power. Idempotent. */
+function extraOnboardBegin(camp) { if (!extrasDue(camp)) return []; ensureExtraHeroes(camp); const ids = [];
+  for (const d of EXTRA_HEROES) { if (d.joinShiftIdx === undefined || camp.shiftIdx < d.joinShiftIdx) continue; const h = camp.heroes[d.id]; if (!h || h.joinXPGiven) continue;
+    h.joinXPGiven = true; h.joinLevel = extraJoinLevel(camp); h.revealed = h.revealed || {}; h.revealed[d.power] = true;
+    addXP(camp, h, extraJoinXP(camp, h), null, { call: 'Hired with experience (Downtown branch)', reason: 'late hire' }); ids.push(d.id); }
+  camp.extraOnboard = camp.extraOnboard || { step: 'levels' }; if (ids.length && typeof Bus !== 'undefined') Bus.emit('extraJoined', { ids }); return ids; }
+function extraOnboardPending(camp) { if (!extrasDue(camp)) return null; const ids = EXTRA_HEROES.filter(d => d.joinShiftIdx !== undefined && camp.shiftIdx >= d.joinShiftIdx).map(d => d.id);
+  const hs = ids.map(id => camp.heroes[id]); if (hs.some(h => !h || !h.joinXPGiven)) return 'intro';
+  if (hs.some(h => h.unspentPoints > 0)) return 'levels'; if (hs.some(h => canTrain(h))) return 'train'; return null; }
+function campaignFailCount(camp, S) { return (camp.heroFails || 0) + ((S && S.heroFails) || 0); } // fails + missed hero calls (boss calls included); hack-console fails/timeouts excluded
+function solsticeJoin(camp, S, reason) { if (camp.v113Finale || (camp.solstice && camp.solstice.joined) || camp.heroes.solstice) return false;
+  const h = camp.heroes.solstice = makeHeroV114(heroDef('solstice')); h.joined = CONFIG.campaignShifts; camp.solstice = Object.assign(camp.solstice || {}, { joined: true, reason, t: S ? S.t : 0 });
+  if (!camp.roster.includes('solstice')) camp.roster.push('solstice'); if (S && S.roster && !S.roster.includes('solstice')) S.roster.push('solstice');
+  Bus.emit('solsticeJoined', { reason, hero: h }); return true; }
+function noteCallFailed(camp, S, call, how) { if (!S || !call || call.tpl.type === 'hack' || call.noted) return; call.noted = true;
+  S.heroFails = (S.heroFails || 0) + 1; if (camp.v113Finale) return;
+  const z = camp.heroes.zenith; if (z && S.roster.includes('zenith') && !hasPower(z, 'noGloom')) z.gloom = true;
+  if (S.finale && call.tpl.boss) { S.finaleFails = S.finaleFails || { boss: 0 }; S.finaleFails.boss++; }
+  if (S.idx === CONFIG.campaignShifts - 1 && S.finale && !(camp.solstice && camp.solstice.joined)) {
+    if (S.finaleFails && S.finaleFails.boss >= CONFIG.solstice.bossFails) solsticeJoin(camp, S, 'boss');
+    else if (campaignFailCount(camp, S) >= CONFIG.solstice.campaignFails) solsticeJoin(camp, S, 'campaign'); } }
+/* Eager Mop / Holy Water stat boost (+boost to his highest base stat, ties -> lowest index; Mk II +secondBoost to the second-highest). Same effStats for the % and the roll. */
+function drizzleBoost(c) { const h = c.hero; const always = hasPower(h, 'alwaysBoost'); const vol = !!(c.call && c.call.volunteer === h.id && !hasPower(h, 'noVolunteer'));
+  if (!always && !vol) return; const ord = [0, 1, 2, 3, 4].sort((a, b) => h.stats[b] - h.stats[a] || a - b);
+  const boost = always ? (powerProp(h, 'alwaysBoost') || 1) : (h.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost);
+  c.st[ord[0]] += boost; if (h.powers.includes('eagermop2')) c.st[ord[1]] += CONFIG.drizzle.mk2SecondBoost;
+  c.markAs = always ? 'holywater' : h.powers.includes('supersoaker') ? 'supersoaker' : null; }
+function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.heroes.drizzle;
+  if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer) return false;
+  if (c.stage !== 'pending' || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
+  if (!canDispatchHero(camp, 'drizzle') || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
+  if (S.calls.some(x => x !== c && x.stage === 'pending' && x.assigned.includes('drizzle'))) return false;
+  return c.assigned.some((id, i) => !id && !(c.autoHero && i === 0)); }
+function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) return false; const i = c.assigned.findIndex((id, k) => !id && !(c.autoHero && k === 0)); if (i < 0) return false;
+  c.assigned[i] = 'drizzle'; c.volunteer = 'drizzle'; Bus.emit('volunteered', { call: c, hero: 'drizzle' }); return true; }
+function removeVolunteer(c, id) { if (c.volunteer && c.volunteer === id) { c.volunteer = null; c.volunteerRemoved = true; } }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV113(migrateV112(migrateV110(migrateV18(c)))); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c))))); }
+function migrateV114(c) { // v1.14.0: extra heroes + save rules (2c)
+  if (!c.rulesVersion) { // a v1.13.0 (or older) save
+    if ((c.shiftIdx || 0) === CONFIG.campaignShifts - 1 && c.phase !== 'end' && c.rollNonceFor === c.shiftIdx && c.rollNonce !== undefined) c.v113Finale = true; // in-progress Shift 8 (shift-start snapshot) keeps v1.13.0 rules until an explicit restart
+    if (c.heroFails === undefined) c.heroFails = ((c.totals && c.totals.fail) || 0) + ((c.totals && c.totals.missed) || 0); // pre-v1.14 saves did not split hack fails out: best available count
+  }
+  c.rulesVersion = c.rulesVersion || 'nd-v1.14.0';
+  if (c.heroFails === undefined) c.heroFails = 0; if (!c.drizzle) c.drizzle = { skips: 0, volunteering: false }; if (!c.solstice) c.solstice = { joined: false };
+  if ((c.shiftIdx || 0) >= CONFIG.extraJoinShiftIdx && !c.v113Finale && (c.shiftIdx || 0) < CONFIG.campaignShifts) ensureExtraHeroes(c); // unjoined; arrival flow at the next shift start
+  for (const id in c.heroes) { const h = c.heroes[id]; if (!h.synergyPartners) { const d = heroDef(id) || {}; h.synergyPartners = [].concat(d.synergy || []); } }
+  return c; }
+function restartFinaleNewRules(c) { if (!c.v113Finale) return false; delete c.v113Finale; c.rollNonce = undefined; c.rollNonceFor = undefined; ensureExtraHeroes(c); return true; }
 function migrateV113(c) { if (!c.rogue && (c.shiftIdx || 0) <= CONFIG.campaignShifts - 1 && c.seed !== undefined) ensureRogueBoss(c); return c; } // v1.13.0: pre-v1.13 saves get a seeded rogue (same seed = same rogue)
 function migrateV110(c) { // v1.10 powers rework: retired ids map to their replacements; Mk II (old Signatures) keep their ids; no crash on unknown ids
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.powers)) h.powers = d.power ? [d.power] : [];
@@ -1644,8 +1742,8 @@ function migrateV18(c) { // v1.8: optional fields only (save format stays v5)
 function migrateCampCore(c) { // returns a v2 campaign or throws on garbage
   if (!c || typeof c !== 'object' || !c.heroes || typeof c.heroes !== 'object' || typeof c.shiftIdx !== 'number') throw new Error('bad save');
   c.levelQueue = Array.isArray(c.levelQueue) ? c.levelQueue.filter(e => e && c.heroes[e.heroId]).map(e => ({ heroId: e.heroId, level: +e.level || 1 })) : [];
-  if (c.v === 5) { if (!Array.isArray(c.pool) || c.pool.length !== 8 || c.pool.some(id => !heroDef(id) || !c.heroes[id])) throw new Error('bad pool'); if (!Array.isArray(c.wildQueue)) throw new Error('bad wildQueue'); c.pendingWild = c.wildQueue.length; if (!CAMPAIGN_MODES[c.mode]) c.mode = inferMode(c); c.rosterMode = c.mode; return c; }
-  if (c.v === 3 || c.v === 4) { if (!Array.isArray(c.pool) || c.pool.length !== 8 || c.pool.some(id => !heroDef(id) || !c.heroes[id])) throw new Error('bad pool'); if (c.v === 4) { if (!Array.isArray(c.wildQueue)) throw new Error('bad wildQueue'); c.pendingWild = c.wildQueue.length; return toV5(c); } return toV5(toV4(c)); }
+  if (c.v === 5) { if (!Array.isArray(c.pool) || c.pool.length !== 8 || c.pool.some(id => !heroDef(id) || isExtraHero(id) || !c.heroes[id])) throw new Error('bad pool'); if (!Array.isArray(c.wildQueue)) throw new Error('bad wildQueue'); c.pendingWild = c.wildQueue.length; if (!CAMPAIGN_MODES[c.mode]) c.mode = inferMode(c); c.rosterMode = c.mode; return c; }
+  if (c.v === 3 || c.v === 4) { if (!Array.isArray(c.pool) || c.pool.length !== 8 || c.pool.some(id => !heroDef(id) || isExtraHero(id) || !c.heroes[id])) throw new Error('bad pool'); if (c.v === 4) { if (!Array.isArray(c.wildQueue)) throw new Error('bad wildQueue'); c.pendingWild = c.wildQueue.length; return toV5(c); } return toV5(toV4(c)); }
   if (c.v === 2) return toV5(toV4(toV3(c)));
   for (const id of LEGACY_POOL) if (!c.heroes[id]) c.heroes[id] = makeHero(heroDef(id));
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {}; if (!Array.isArray(h.stats) || h.stats.length !== 5) throw new Error('bad hero');
@@ -1661,7 +1759,7 @@ function toV3(c) { // v1.2 and older saves: keep the classic 8 in the legacy joi
 function inferMode(c) { // DESIGN: v1.4 saves carry rosterMode; classic roster wins, 'custom' (hand-made pool) maps to selection
   if (c.pool && c.pool.join() === LEGACY_POOL.join()) return 'classic'; if (c.rosterMode === 'random') return 'random'; if (c.rosterMode === 'custom' || c.rosterMode === 'selection') return 'selection'; return 'random'; }
 function toV5(c) { c.mode = inferMode(c); c.rosterMode = c.mode; c.v = 5; return c; }
-function validatePool(pool) { if (!Array.isArray(pool) || pool.length !== 8 || new Set(pool).size !== 8 || pool.some(id => !heroDef(id) || id === 'comptroller')) throw new Error('invalid pool: need 8 unique heroes'); return pool.slice(); }
+function validatePool(pool) { if (!Array.isArray(pool) || pool.length !== 8 || new Set(pool).size !== 8 || pool.some(id => !heroDef(id) || id === 'comptroller' || isExtraHero(id))) throw new Error('invalid pool: need 8 unique heroes'); return pool.slice(); }
 function aiPickSelection(seed, strategy, stat) { // pure + deterministic; returns 8 ids in join order
   const rng = mulberry32(((seed >>> 0) ^ 0x5e1ec7) >>> 0); const ids = POOL_IDS();
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
@@ -1692,11 +1790,12 @@ function toV4(c) { // v1.4: pending wildcards become pre-rolled queue entries (s
 /* ---------- Shift ---------- */
 function startShift(camp) {
   const idx = camp.shiftIdx, plan = CONFIG.shifts[idx];
+  if (extrasDue(camp)) extraOnboardBegin(camp); // v1.14.0: no-op once the arrival flow ran (UI); the sim grants it here or in aiBetweenShifts
   camp.roster = rosterForShift(camp, idx);
   const avg = camp.grades.length ? camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / camp.grades.length : 4;
   if (idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow) { camp.heroes.comptroller = makeHero(COMPTROLLER); camp.roster.push('comptroller'); camp.comptroller = true; }
-  for (const id of camp.roster) { const h = camp.heroes[id]; if (!h.joined) { h.joined = idx + 1; if (idx > 0 && !h.noXP) addXP(camp, h, CONFIG.lateJoinXPPerShift * idx, null, { call: 'Hired with experience', reason: 'late hire' }); }
-    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false }); h.revealed = h.revealed || {}; if (h.lifeTradeChoice === undefined) h.lifeTradeChoice = 3;
+  for (const id of camp.roster) { const h = camp.heroes[id]; if (!h.joined) { h.joined = idx + 1; if (idx > 0 && !h.noXP && !(heroDef(id) || {}).extra) addXP(camp, h, CONFIG.lateJoinXPPerShift * idx, null, { call: 'Hired with experience', reason: 'late hire' }); }
+    Object.assign(h, { state: 'available', injuries: 0, stateTimer: 0, stateDur: 0, streak: 0, streak2: 0, form: 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false, radiant: false, gloom: false }); h.revealed = h.revealed || {}; if (h.lifeTradeChoice === undefined) h.lifeTradeChoice = 3;
     h.morale = h.nextMorale || 0; h.nextMorale = 0; h.flags.requestedRefused = 0; h.flags.granted = 0; }
   const seed = (camp.seed + idx * 7919) >>> 0;
   const S = { idx, plan, t: 0, speed: 1, calls: [], uid: 1, spawnRng: mulberry32(seed), rollRng: mulberry32(seed ^ 0x9e3779b9), rollNonce: (camp.rollNonce !== undefined && camp.rollNonceFor === idx ? camp.rollNonce : 0) >>> 0, hackRng: mulberry32(seed ^ 0x51ed27), seed, roster: camp.roster.slice(),
@@ -1704,11 +1803,13 @@ function startShift(camp) {
     online: plan.blackout ? [1, 4] : [0, 1, 2, 3, 4, 5], hackQueue: [], over: false, log: [], usedTemplates: {} };
   S.deckMode = camp.missionSet === 'v1.8' && !!MISSIONS_BY_SHIFT[idx];
   S.seconds = S.deckMode && plan.seconds ? plan.seconds : CONFIG.shiftSeconds; S.spawnStopAt = CONFIG.spawnStopAt * S.seconds / CONFIG.shiftSeconds;
-  S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0;
-  if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); return S; }
+  S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0; S.heroFails = 0;
+  if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
+  if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); if (S.solsticeAtStart) solsticeJoin(camp, S, 'campaign'); return S; }
   if (plan.blackout) { const off = [0, 2, 3, 5]; [15, 75, 140, 205].forEach((t, i) => S.hackQueue.push({ t, district: off[i] })); }
   else (plan.hacks || []).forEach(t => S.hackQueue.push({ t }));
   if (plan.finale) setupRogueFinale(camp, S);
+  if (S.solsticeAtStart && S.finale) solsticeJoin(camp, S, 'campaign');
   return S;
 }
 function shiftClock(S) { const mins = CONFIG.startHour * 60 + Math.floor(S.t / (S.seconds || CONFIG.shiftSeconds) * CONFIG.shiftHours * 60); const h = Math.floor(mins / 60) % 24, m = mins % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
@@ -1738,14 +1839,14 @@ function spawnCall(camp, S, tpl, extra) {
   const c = { uid: S.uid++, templateId: tpl.id, tpl, pos, district, spawnedAt: S.t, expiresAt: S.t + (tpl.training && tpl.training.noExpiry ? 1e9 : tpl.type === 'hack' ? (S.plan.blackout ? CONFIG.blackoutHackExpiry : CONFIG.hackExpiry) : expiryFor(S, diff)),
     assigned: Array(tpl.slots).fill(null), stage: 'pending', result: null, difficulty: diff, req: tpl.req.slice(), slots: tpl.slots, option: null,
     namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && !extra.pairHalf && S.plan.blackout };
-  if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller'); c.namedHero = r[Math.floor(rng() * r.length)]; }
-  if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
+  if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; }
+  if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
   if (tpl.type === 'request') c.requestHero = tpl.requestHero;
   else if (tpl.mission) setupMission(camp, S, c, extra);
-  else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); c.requestHero = cand[Math.floor(rng() * cand.length)]; }
+  else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); c.requestHero = cand[Math.floor(rng() * cand.length)]; }
   if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && camp.heroes[tpl.autoHero].state === 'available' && rng() < 0.5) { c.autoHero = tpl.autoHero; c.assigned[0] = tpl.autoHero; }
   c.willDisrupt = tpl.mission ? !!(tpl.disruption && tpl.disruption.always) : !!(tpl.disruption && S.idx + 1 >= CONFIG.disruptionsFromShift && rng() < CONFIG.disruptionChance);
-  S.calls.push(c); Bus.emit('spawn', c);
+  S.calls.push(c); if (camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c); Bus.emit('spawn', c);
   return c;
 }
 function afList(tpl) { const a = tpl.autoFailHero; return !a ? [] : Array.isArray(a) ? a : [a]; }
@@ -1781,7 +1882,7 @@ function spawnLegacyUnit(camp, S, u) {
   const bag = ensureMissionBag(camp); missionBagMark(bag, 'legacy', null, [u.key]); if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
   linkPair(made); return made; }
 /* ---------- v1.13.0 Rogue Hero boss (Classic random calls, Shift 8). Classic OFF keeps the Night Mayor deck finale untouched. ---------- */
-function rogueEligible(camp) { const ex = new Set([].concat(camp.pool || [], camp.roster || [], Object.keys(camp.heroes || {}), ['comptroller'])); return POOL_IDS().filter(id => !ex.has(id)); }
+function rogueEligible(camp) { const ex = new Set([].concat(camp.pool || [], camp.roster || [], Object.keys(camp.heroes || {}), ['comptroller'], EXTRA_IDS())); return POOL_IDS().filter(id => !ex.has(id)); }
 function ensureRogueBoss(camp, o) { o = o || {};
   const r = camp.rogue; if (r && !o.force && (r.fallback || (heroDef(r.id) && !(camp.heroes && camp.heroes[r.id])))) return r;
   const el = o.eligible || rogueEligible(camp); const rng = mulberry32(((camp.seed >>> 0) ^ 0x40c0e) >>> 0);
@@ -1827,7 +1928,7 @@ function effStats(camp, h, slot, call, opts) {
   const c = { hero: h, slot, st, call, camp, req: opts.req || (call && call.req) || null };
   c.teamSize = opts.teamSize || 0;
   const slotsOk = !!(call && (call.slots || 0) >= CONFIG.slotBonusMinSlots); // v1.10 B11: slot bonuses need a 3+ slot call
-  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute && (!POWERS[p].slotBonus || slotsOk)) { const b = st.slice(); POWERS[p].onCompute(c); mark(p, 'stat', b); }
+  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute && (!POWERS[p].slotBonus || slotsOk)) { const b = st.slice(); c.markAs = null; POWERS[p].onCompute(c); mark(c.markAs || p, 'stat', b); }
   for (const p of h.powers) { const sm = POWERS[p] && POWERS[p].smallTeam; if (sm && c.teamSize && c.teamSize <= sm.max) { const b = st.slice(); sm.add.forEach((v, i) => st[i] += v); mark(p, 'stat', b); } }
   for (let i = 0; i < 5; i++) st[i] += h.buff[i] || 0;
   const injured = !opts.noInjury && h.injuries > 0 && !(opts.healed && opts.healed.includes(h.id));
@@ -2087,7 +2188,13 @@ function dispatch(camp, S, call) {
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) powerEv(camp, S, { hero: id, power: so, kind: 'solo', callUid: call.uid, text: 'solo run ×' + soloMultFor(h) }); }
   for (const id of ids) { const h = camp.heroes[id]; h.state = 'traveling'; h.callUid = call.uid; h.stateTimer = 0; h.stateDur = call.travel; }
   S.usedTemplates[call.tpl.id] = (S.usedTemplates[call.tpl.id] || 0) + 1;
+  // v1.14.0 Radiant Light: every hero sent with Solstice (and Solstice) gets one shield (one at a time). Does not change the %.
+  const rad = ids.find(id => hasPower(camp.heroes[id], 'radiant')); if (rad) { for (const id of ids) camp.heroes[id].radiant = true; powerEv(camp, S, { hero: rad, power: camp.heroes[rad].powers.find(p => POWERS[p].radiant), kind: 'injury', callUid: call.uid, text: 'Radiant shield on ' + ids.map(id => camp.heroes[id].codename).join(', ') + ' (blocks the next injury), does not change the %' }); }
+  // v1.14.0 Eager Mop counter: every player DISPATCH counts; sending him (also as a volunteer) resets it
+  if (camp.drizzle && camp.roster.includes('drizzle') && camp.heroes.drizzle && !camp.v113Finale) { const d = camp.drizzle, dz = camp.heroes.drizzle;
+    if (ids.includes('drizzle')) { d.skips = 0; d.volunteering = false; } else { d.skips++; if (d.skips >= CONFIG.drizzle.skipsBeforeVolunteer && !hasPower(dz, 'noVolunteer') && hasPower(dz, 'volunteer')) { if (!d.volunteering) Bus.emit('drizzleEager', { skips: d.skips }); d.volunteering = true; } } }
   Bus.emit('dispatch', { call, ids });
+  if (camp.drizzle && camp.drizzle.volunteering) for (const c of S.calls) if (c !== call && c.stage === 'pending') drizzleVolunteer(camp, S, c);
   return true;
 }
 function refuseRequest(camp, call) { const rh = camp.heroes[call.requestHero]; if (!rh || call.refused) return; call.refused = true; rh.flags.requestedRefused++; if (rh.flags.requestedRefused >= 2) { rh.nextMorale = -1; Bus.emit('radio', { hero: rh.id, text: 'Twice? Fine. FINE. I will remember this next shift. (-1 morale next shift)' }); } else Bus.emit('radio', { hero: rh.id, text: 'Oh. Okay. Someone else, then. Cool. Cool cool cool.' }); }
@@ -2111,7 +2218,7 @@ function tick(camp, S, dt) {
         if (ex) { ex.extendUsed = true; c.extended = true; c.expiresAt += CONFIG.extendExpirySeconds; if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.expiresAt = c.expiresAt; o.extended = true; } } powerEv(camp, S, { hero: ex.id, power: ex.powers.find(p => POWERS[p].extendExpiry), kind: 'time', callUid: c.uid, text: `+${CONFIG.extendExpirySeconds} s on "${c.tpl.title}" (once per shift), does not change the %` }); } }
       if (S.t >= c.expiresAt) { c.stage = 'closed'; c.result = 'missed'; S.stats.missed++; if (c.requestHero) refuseRequest(camp, c);
         if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; } } // a linked pair is ONE miss
-        Bus.emit('missed', c); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale) missionFailed(camp, S, c, 'missed'); }
+        Bus.emit('missed', c); noteCallFailed(camp, S, c, 'missed'); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale) missionFailed(camp, S, c, 'missed'); }
       continue;
     }
     if (c.stage === 'travel' || c.stage === 'work') {
@@ -2139,6 +2246,7 @@ function tick(camp, S, dt) {
 }
 function logInjury(S, e) { if (!S) return; S.injuryLog = S.injuryLog || []; e.t = Math.round(S.t || 0); S.injuryLog.push(e); }
 function applyInjury(camp, S, h, call, out) { // v1.6: factored from applyReview (same rules)
+  if (h.radiant) { h.radiant = false; logInjury(S, { id: h.id, kind: 'shielded', by: 'solstice', callUid: call && call.uid }); const sol = camp.heroes.solstice; if (sol && S) powerEv(camp, S, { hero: 'solstice', power: 'radiantlight', kind: 'injury', callUid: call && call.uid, text: 'Radiant Light blocked an injury on ' + h.codename }); return false; } // v1.14.0: no RNG use
   if (hasPower(h, 'noDown') && h.injuries >= 1) powerEv(camp, S, { hero: h.id, power: h.powers.find(p => POWERS[p].noDown), kind: 'noDown', callUid: call && call.uid, text: "can't be downed (stays at 1 injury)" });
   if (hasPower(h, 'noDown')) h.injuries = 1; else h.injuries++; if (S) S.stats.injuries++;
   const downed = h.injuries >= 2 && !hasPower(h, 'noDown'); if (out) { out.injured.push(h.id); if (downed) out.downed.push(h.id); }
@@ -2152,6 +2260,11 @@ function afterReview(camp, h, call, S) {
   if (h.injuries >= 2 && !hasPower(h, 'noDown')) { h.state = 'downed'; h.callUid = null; return; }
   h.state = 'resting'; h.stateTimer = 0; h.stateDur = (CONFIG.restBase + CONFIG.restPerDiff * DIFF_LVL[call.difficulty]) * ((restMultFor(h) || {}).mult || 1);
   const rp = restMultFor(h); if (rp && S) powerEv(camp, S, { hero: h.id, power: rp.power, kind: 'rest', callUid: call.uid, text: 'rest ×' + rp.mult + ', does not change the %' });
+  const zf = h.powers.find(p => POWERS[p] && POWERS[p].restFlat === 'zenith'); // v1.14.0 Mood Swing
+  if (zf) { const gl = h.gloom && !hasPower(h, 'noGloom'); h.stateDur = gl ? (hasPower(h, 'gloomRest') ? CONFIG.zenith.restGloomPrescription : CONFIG.zenith.restGloom) : CONFIG.zenith.restGood; h.gloom = false;
+    if (S) powerEv(camp, S, { hero: h.id, power: gl && hasPower(h, 'gloomRest') ? 'prescription' : zf, kind: 'rest', callUid: call.uid, text: gl ? 'bad mood: rest ' + h.stateDur + ' s' : 'rest ' + CONFIG.zenith.restGood + ' s' }); }
+  if (call.result === 'success' && (call.team || []).some(id => id !== h.id && camp.heroes[id] && hasPower(camp.heroes[id], 'teamRestOnSuccess'))) { const pid = call.team.find(id => id !== h.id && hasPower(camp.heroes[id], 'teamRestOnSuccess')); h.stateDur *= powerProp(camp.heroes[pid], 'teamRestOnSuccess');
+    if (S) powerEv(camp, S, { hero: pid, power: 'peptalk', kind: 'rest', callUid: call.uid, text: 'Pep Talk: ' + h.codename + ' rest ×0.5, does not change the %' }); }
 }
 function reviewable(c) { return (c.stage === 'return' || c.stage === 'review') && !c.reviewed; }
 
@@ -2288,7 +2401,7 @@ function applyReview(camp, S, call, R) {
     for (const h of team) { for (const p of h.powers) if (POWERS[p].xpBoost) powerEv(camp, S, { hero: h.id, power: p, kind: 'xp', callUid: call.uid, text: `+${Math.round(POWERS[p].xpBoost * 100)}% team XP` });
       const sx = h.powers.find(p => POWERS[p].soloXpBoost); if (sx && team.length === 1) powerEv(camp, S, { hero: h.id, power: sx, kind: 'xp', callUid: call.uid, text: `+${Math.round(POWERS[sx].soloXpBoost * 100)}% solo XP` }); }
     if (call.perfect) { S.stats.perfect++; out.perfect = call.perfect; }
-  } else S.stats.fail++;
+  } else { S.stats.fail++; noteCallFailed(camp, S, call, 'fail'); }
   // injuries
   const opt = call.tpl.type === 'competing' ? call.tpl.options[call.option] : (call.tpl.compReward && call.tpl.compReward.risky ? call.tpl.compReward : null);
   const p = R.success ? (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0) : (CONFIG.injuryOnFail[call.difficulty] + (opt && opt.risky ? CONFIG.injuryRiskyCompeting : 0));
@@ -2302,7 +2415,7 @@ function applyReview(camp, S, call, R) {
   // powers onResult, synergy counts, forms
   for (const h of team) { const prev = h.streak || 0; const cm = h.powers.find(pw => POWERS[pw] && POWERS[pw].burnout);
     if (cm && !R.success && prev >= POWERS[cm].burnout && !R.forced) { if (!hasPower(h, 'immune')) {
-      if (POWERS[cm].burnoutDown && !hasPower(h, 'noDown')) { h.injuries = Math.max(h.injuries, 1); applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (Downed)` }); }
+      if (POWERS[cm].burnoutDown && !hasPower(h, 'noDown')) { if (!h.radiant) h.injuries = Math.max(h.injuries, 1); applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (Downed)` }); }
       else { applyInjury(camp, S, h, call, out); powerEv(camp, S, { hero: h.id, power: cm, kind: 'injury', callUid: call.uid, text: `burned out after a ${prev}-stack streak (injured)` }); } } }
     for (const pw of h.powers) if (POWERS[pw].onResult) { const b0 = [h.streak || 0, h.streak2 || 0]; const bt = !!h.burnt; POWERS[pw].onResult({ hero: h, success: R.success, call, prev }); if (POWERS[pw].supernova && !!h.burnt !== bt) powerEv(camp, S, { hero: h.id, power: pw, kind: 'stat', callUid: call.uid, text: h.burnt ? 'collapsed: Might and Agility 1 on her next call' : 'recovered from the collapse' }); const b1 = [h.streak || 0, h.streak2 || 0];
       if (b1[0] !== b0[0] || b1[1] !== b0[1]) { const v = b1[0] !== b0[0] ? b1[0] : b1[1]; powerEv(camp, S, { hero: h.id, power: pw, kind: 'streak', callUid: call.uid, text: R.success ? `streak ${v} (+${v} on the next call)` : `streak dropped to ${v}` }); } }
@@ -2373,6 +2486,7 @@ function injuryReportFor(camp, S) { const by = {}; // per hero: what happened th
 function closeShift(camp, S) {
   const score = shiftScore(S), grade = gradeFor(S);
   for (const k of ['success', 'fail', 'missed', 'perfect', 'hacks', 'injuries']) camp.totals[k] += S.stats[k];
+  camp.heroFails = (camp.heroFails || 0) + (S.heroFails || 0); S.heroFails = 0; for (const id in camp.heroes) { camp.heroes[id].radiant = false; camp.heroes[id].gloom = false; }
   camp.totals.score += score; camp.grades.push(grade);
   const before = camp.rank; camp.rankPts += S.stats.success + CONFIG.gradeRankBonus[grade];
   while (camp.rank < CONFIG.rankThresholds.length && camp.rankPts >= CONFIG.rankThresholds[camp.rank]) camp.rank++;
@@ -2466,8 +2580,14 @@ function aiStep(camp, S, opts) {
   for (const id of camp.roster) { const h = camp.heroes[id]; if (h.state === 'downed' && toolUnlocked(camp, 'jump')) useTool(camp, S, 'jump', id); if (h.injuries && h.state === 'available' && toolUnlocked(camp, 'medkit')) useTool(camp, S, 'medkit', id); }
   return acts;
 }
+function aiOnboardExtras(camp) { // v1.14.0 sim/auto-play: the 2b arrival flow (median-level XP, spend every point, LV3 choice without a training slot)
+  if (!extrasDue(camp)) return; extraOnboardBegin(camp);
+  for (const d of EXTRA_HEROES) { const h = camp.heroes[d.id]; if (!h || !h.joinXPGiven) continue; while (h.unspentPoints > 0) { const ord = [0, 1, 2, 3, 4].filter(i => h.stats[i] < 10).sort((a, b) => h.stats[a] - h.stats[b]); if (!ord.length) break; allocate(camp, d.id, ord[0]); }
+    if (canTrain(h)) trainHero(camp, d.id, d.train[(d.id.length + camp.shiftIdx) % 2]); }
+  pruneLevelQueue(camp); camp.extraOnboard = { step: 'done' }; }
 function aiBetweenShifts(camp) {
   const rng = mulberry32(camp.seed ^ camp.shiftIdx);
+  aiOnboardExtras(camp);
   for (const id of camp.roster) { const h = camp.heroes[id]; if (!h || h.noXP) continue; while (h.unspentPoints > 0) { const ord = [0, 1, 2, 3, 4].filter(i => h.stats[i] < 10).sort((a, b) => h.stats[a] - h.stats[b]); if (!ord.length) break; allocate(camp, id, ord[0]); } }
   pruneLevelQueue(camp);
   while (camp.wildQueue && camp.wildQueue.length) { if (!aiAssignWild(camp)) break; }
@@ -2616,7 +2736,7 @@ function tickDeck(camp, S, dt) {
     if (!others.length) for (const c of S.calls) if (c.stage === 'pending' && c.tpl.training) { c.stage = 'closed'; c.result = 'dropped'; Bus.emit('trainingGone', c); } }
 }
 function setupMission(camp, S, c, extra) {
-  const t = c.tpl, roster = camp.roster.filter(id => id !== 'comptroller'), rng = S.spawnRng;
+  const t = c.tpl, roster = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'), rng = S.spawnRng;
   if (t.request) { const id = t.request.candidates.find(x => roster.includes(x)); if (id) { c.requestHero = id; c.requestReason = (t.request.reasons || {})[id] || ''; } }
   if (t.autoPick) { const id = t.autoPick.candidates.find(x => roster.includes(x)); if (id) { c.autoHero = id; c.assigned[0] = id; c.autoLine = (t.autoPick.lines || {})[id] || ''; } }
   if (t.story) { const av = roster.filter(id => canDispatchHero(camp, id)); const pool = av.length ? av : roster; const id = pool[Math.floor(rng() * pool.length)]; c.autoHero = id; c.assigned[0] = id; c.storyChoice = null; }
@@ -2698,7 +2818,7 @@ function isSynergyPair(a, b) { return SYNERGY_PAIRS.some(([x, y]) => (x === a &&
 function sabotageVictim(camp, S, call, ids) { if (ids.length < 2) return null;
   const cand = ids.filter(id => !ids.some(o => o !== id && isSynergyPair(id, o)) && id !== call.autoHero); if (!cand.length) return null;
   const r = mulberry32((S.seed ^ Math.imul(call.uid, 0x2c1b3c6d)) >>> 0); const hero = cand[Math.floor(r() * cand.length)];
-  const off = camp.roster.filter(id => !ids.includes(id) && id !== 'comptroller'); return { hero, by: off.length ? off[Math.floor(r() * off.length)] : null }; }
+  const off = camp.roster.filter(id => !ids.includes(id) && id !== 'comptroller' && id !== 'solstice'); return { hero, by: off.length ? off[Math.floor(r() * off.length)] : null }; }
 function startSabotage(camp, S, call, v) { const h = camp.heroes[v.hero]; h.state = 'sabotaged'; h.callUid = call.uid; h.stateTimer = 0; h.stateDur = CONFIG.sabotageTimer;
   const sb = { uid: call.uid, call, hero: v.hero, by: v.by, timer: CONFIG.sabotageTimer, resolved: false, checks: call.tpl.sabotage.checks.slice(0, 3) }; S.sabotages.push(sb); call.sabotaged = v.hero; Bus.emit('sabotage', sb); return sb; }
 function resolveSabotage(camp, S, sb, i) { if (sb.resolved) return null; const h = camp.heroes[sb.hero]; sb.resolved = true;
@@ -2927,7 +3047,7 @@ function mapHit(px, py) { if (!UI.S) return null; const R = pinRadius() + 10; le
 function buildRoster() {
   const r = $('roster'); r.innerHTML = '';
   UI.camp.roster.forEach((id, i) => { const hh = UI.camp.heroes[id]; const c = h('button', 'hc'); c.dataset.id = id;
-    c.innerHTML = `<span class="lv">LV 1</span><span class="badge" aria-hidden="true"></span><span class="pwr" aria-hidden="true">⚡</span><span class="injtag" aria-hidden="true"></span><span class="toolbtn hidden" role="button" tabindex="0"></span><div class="por" style="background:${hh.color}33;border:2px solid ${hh.color}">${hh.emoji}<div class="ring"></div><span class="spc hidden">★1</span></div><div class="nm">${esc(hh.codename)}</div><div class="xpb"><i></i></div><div class="stt"></div><div class="pips" aria-hidden="true"></div><div class="pb"><i></i></div>`;
+    c.innerHTML = `<span class="lv">LV 1</span><span class="badge" aria-hidden="true"></span><span class="pwr" aria-hidden="true">⚡</span><span class="injtag" aria-hidden="true"></span><span class="toolbtn hidden" role="button" tabindex="0"></span>${(isExtraHero(id) && (id === 'solstice' || UI.camp.shiftIdx === CONFIG.extraJoinShiftIdx)) ? '<span class="newrib" aria-hidden="true">NEW</span>' : ''}<span class="xtra" aria-hidden="true"></span><div class="por" style="background:${hh.color}33;border:2px solid ${hh.color}">${hh.emoji}<div class="ring"></div><span class="spc hidden">★1</span></div><div class="nm">${esc(hh.codename)}</div><div class="xpb"><i></i></div><div class="stt"></div><div class="pips" aria-hidden="true"></div><div class="pb"><i></i></div>`;
     c.onclick = e => { const tb = e.target.closest && e.target.closest('.toolbtn'); if (tb && !tb.classList.contains('hidden')) { e.stopPropagation(); confirmTool(id, tb.dataset.tool); return; } Sfx.click(); openHeroInfo(id); }; r.appendChild(c); });
 }
 function updateRoster() {
@@ -2945,7 +3065,8 @@ function updateRoster() {
       c.querySelector('.pips').innerHTML = v.injured && !v.downed && v.penalty ? v.cur.map((x, i) => `<i style="--c:${STAT_COLORS[STATS[i]]}" title="${STAT_NAMES[STATS[i]]} ${v.base[i]}→${x}">${x}</i>`).join('') : '';
       const tool = UI.S ? toolFor(UI.camp, UI.S, hh.id) : null, tb = c.querySelector('.toolbtn'); tb.classList.toggle('hidden', !tool); tb.dataset.tool = tool || ''; tb.textContent = tool === 'jump' ? '⚡' : tool === 'medkit' ? '🩹+' : ''; tb.setAttribute('aria-label', tool === 'jump' ? `Jump Start ${hh.codename}` : `Use Med Kit on ${hh.codename}`);
       c.setAttribute('aria-label', `${hh.codename}, ${v.downed ? 'downed, cannot be sent' : v.injured ? (v.penalty ? 'injured, all stats minus 1' : 'injured, no penalty') : 'healthy'}, ${stateLabel(hh)}`); c.setAttribute('aria-disabled', v.downed ? 'true' : 'false'); }
-    const lv = c.querySelector('.lv'); lv.textContent = hh.noXP ? 'FIXED' : isMaxed(hh) ? 'LV MAX' : 'LV ' + heroLevel(hh); lv.classList.toggle('max', isMaxed(hh) && !hh.noXP);
+    { const x = c.querySelector('.xtra'); if (x) { const t = (hh.radiant ? '☀️' : '') + (hh.id === 'drizzle' && UI.camp.drizzle && UI.camp.drizzle.volunteering ? '💧' : ''); x.textContent = t; x.title = (hh.radiant ? 'Radiant shield: blocks the next injury. ' : '') + (t.includes('💧') ? 'Volunteering' : ''); } }
+    const lv = c.querySelector('.lv'); lv.textContent = hh.id === 'solstice' ? 'LV MAX' : hh.noXP ? 'FIXED' : isMaxed(hh) ? 'LV MAX' : 'LV ' + heroLevel(hh); lv.classList.toggle('max', isMaxed(hh) && !hh.noXP);
     const xb = c.querySelector('.xpb i'); xb.style.width = (100 * xpFrac(hh)) + '%'; xb.parentNode.classList.toggle('max', isMaxed(hh)); xb.parentNode.style.visibility = hh.noXP ? 'hidden' : '';
     const sp = c.querySelector('.spc'); sp.classList.toggle('hidden', !hh.unspentPoints); sp.textContent = '★' + hh.unspentPoints;
     const ring = c.querySelector('.ring'); ring.style.background = hh.state === 'resting' ? `conic-gradient(#4cd97b ${360 * (1 - hh.stateTimer / hh.stateDur)}deg, transparent 0)` : 'none'; ring.style.mask = ring.style.webkitMask = 'radial-gradient(circle, transparent 60%, #000 62%)';
@@ -3022,9 +3143,14 @@ function carryOver(camp, from, to) { if (!from || !to || to.assigned.some(id => 
   const blocked = id => !canDispatchHero(camp, id) || (to.tpl.banned && to.tpl.banned[id]) || afList(to.tpl).some(x => x.heroId === id) || to.assigned.includes(id);
   for (const id of from.assigned) { if (!id) continue; if (blocked(id)) { res.skipped++; continue; } const i = to.assigned.findIndex((x, k) => !x && !(k === 0 && to.autoHero)); if (i < 0) { res.skipped++; continue; } to.assigned[i] = id; res.moved++; }
   return res; }
+function hotkeyLabel(i) { return i < 9 ? String(i + 1) : ['0', '-', '='][i - 9] || ''; } // v1.14.0: heroes 10-12 -> 0, -, =
+function hotkeyIndex(k) { if (/^[1-9]$/.test(k)) return +k - 1; const j = ['0', '-', '='].indexOf(k); return j < 0 ? -1 : 9 + j; }
+function volunteerBoostText(hh) { const ord = [0, 1, 2, 3, 4].sort((a, b) => hh.stats[b] - hh.stats[a] || a - b); const b = hh.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost;
+  return `+${b} ${STAT_NAMES[STATS[ord[0]]]}` + (hh.powers.includes('eagermop2') ? `, +1 ${STAT_NAMES[STATS[ord[1]]]}` : ''); }
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
   sanitizeAssigned(camp, c);
+  if (S && camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c); // v1.14.0: he may be back from rest now
   openModal('briefing', m => {
     m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render();
       if (co && (co.moved || co.skipped)) toast(`⇄ Brought ${co.moved} hero${co.moved === 1 ? '' : 'es'} over${co.skipped ? ` (${co.skipped} didn't fit)` : ''}.`, 2500); return true; };
@@ -3061,9 +3187,10 @@ function openBriefing(c) {
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
-        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div><div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
+        const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh)}) — tap to remove</div>` : '';
+        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]);
-        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${i + 1}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
+        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
@@ -3078,7 +3205,7 @@ function openBriefing(c) {
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { const hh = camp.heroes[info.healer]; if (hh) { hh.lifeTradeChoice = +b.dataset.lt; Sfx.click(); render(); } });
-      P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) c.assigned[i] = null; sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
+      P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
       P.B.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
       P.B.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
       P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
@@ -3291,18 +3418,23 @@ function heroCallHTML(camp, hh, call) { // mission-relevant highlights (only wha
   if (call.sabotaged === id) rows.push('🗡 Pulled off by sabotage.');
   const hopts = ((tpl.disruption || {}).heroOptions || []).filter(o => o.heroId === id); if (hopts.length) rows.push(`⭐ Has a special idea for this call's radio check${hopts.some(o => o.trapHint) ? ' <small>' + esc(hopts.find(o => o.trapHint).trapHint) + '</small>' : ''}.`);
   return `<div class="note hc-call"><b>On “${esc(tpl.title)}”</b>${rows.map(r => `<div>${r}</div>`).join('') || '<div>No special notes for this call.</div>'}</div>`; }
+function extraStateHTML(camp, hh) { const r = []; // v1.14.0
+  if (hh.id === 'zenith') r.push(hh.gloom && !hasPower(hh, 'noGloom') ? `😔 Bad mood: next rest ${hasPower(hh, 'gloomRest') ? CONFIG.zenith.restGloomPrescription : CONFIG.zenith.restGloom} s` : hasPower(hh, 'noGloom') ? '😎 No more bad moods: rest always 2 s' : '🙂 Good mood: next rest 2 s');
+  if (hh.id === 'drizzle' && camp.drizzle) r.push(hasPower(hh, 'noVolunteer') ? '💧 Holy Water: no more volunteering, +1 to his highest stat on every call' : camp.drizzle.volunteering ? '💧 Volunteering: he puts himself on each new call until you send him' : `💧 Sent without him: ${Math.min(camp.drizzle.skips, CONFIG.drizzle.skipsBeforeVolunteer)}/${CONFIG.drizzle.skipsBeforeVolunteer}`);
+  if (hh.radiant) r.push('☀️ Radiant shield: blocks the next injury');
+  return r.map(x => `<div class="note">${x}</div>`).join(''); }
 function heroInfoBuild(m, id, opts) {
   opts = opts || {}; const overlay = m.kind === 'herocard'; const closeIt = () => overlay ? m.close() : closeModal();
   const camp = UI.camp, hh = camp.heroes[id]; { const render = () => {
-    const st = effStats(camp, hh, 0, null); const syn = hh.synergyPartner && camp.pool && camp.pool.includes(hh.synergyPartner) ? camp.heroes[hh.synergyPartner] : null;
+    const st = effStats(camp, hh, 0, null); const synP = hh.synergyPartners || [].concat((heroDef(id) || {}).synergy || []); const synIn = x => !!(camp.heroes[x] && (camp.roster.includes(x) || (camp.pool && camp.pool.includes(x)) || x === 'zenith' || x === 'drizzle') && !(x === 'solstice' && !(camp.solstice && camp.solstice.joined)));
     const thr = hh.noXP ? '' : `<div class="thr">${Array.from({ length: CONFIG.xpMaxPoints }, (_, i) => `<span class="${hh.xpPointsEarned > i ? 'on' : ''}">LV${i + 2}:${xpTableNext(i, hh)}</span>`).join('')}</div>`;
     const canToggle = UI.S && hasPower(hh, 'manualToggle') && !hh.formToggled && ['available', 'resting', 'awaitingReview'].includes(hh.state);
     const log = (hh.xpLog || []).map(l => `<div style="font:11px ui-monospace,monospace;color:var(--dim)">S${l.shift} · +${l.amt} · ${esc(l.call)}${l.reason && l.reason !== 'base' ? ' (' + esc(l.reason) + ')' : ''}</div>`).join('') || '<small style="color:var(--dim)">No XP yet.</small>';
-    const P = sheetParts(m, `<span style="font-size:30px">${hh.emoji}</span><h2>${esc(hh.codename)} <small style="color:var(--dim);font-weight:400">${esc(hh.name)}</small></h2><span class="pill">LV ${hh.noXP ? '—' : isMaxed(hh) ? 'MAX' : heroLevel(hh)}</span><span class="pill">Rank ${hh.rank}</span>`,
+    const P = sheetParts(m, `<span style="font-size:30px">${hh.emoji}</span><h2>${esc(hh.codename)} <small style="color:var(--dim);font-weight:400">${esc(hh.name)}</small></h2><span class="pill">${id === 'solstice' ? 'LV MAX · Guest · no XP' : `LV ${hh.noXP ? '—' : isMaxed(hh) ? 'MAX' : heroLevel(hh)}`}</span><span class="pill">Rank ${hh.rank}</span>`,
       `<div class="bgrid"><div><p class="txt">${esc(hh.bio)}</p><div class="note">State: <b style="color:${STATE_COL[hh.state]}">${stateLabel(hh)}</b>${hh.morale ? ` · morale ${hh.morale > 0 ? '+1 😊' : '−1 😠'}` : ''}${hasPower(hh, 'swap') ? ` · ${hh.form === 'night' ? '🌙 Night form' : '☀ Day form'}` : ''}</div>
        ${overlay ? heroCallHTML(camp, hh, opts.call) : ''}${injStateCardHTML(camp, hh)}
        <div class="note"><div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:8px"><i style="width:${100 * xpFrac(hh)}%"></i></div><div style="font:12px ui-monospace,monospace;margin-top:3px">${xpText(hh)} · ★${hh.unspentPoints} unspent</div>${thr}</div>
-       ${hh.synergyPartner ? `<div class="note ${syn ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(hh.synergyPartner).codename)}${syn ? '' : ' <small>(not in this campaign)</small>'}</div>` : ''}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}</div>
+       ${synP.map(x => `<div class="note ${synIn(x) ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(x).codename)}${synIn(x) ? '' : ' <small>(not in this campaign)</small>'}</div>`).join('')}${extraStateHTML(camp, hh)}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}</div>
        <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow herostats">${st.map((v, i) => statChip(i, v, hh.stats[i], effReasons(camp, hh, i), UI.recentPick && UI.recentPick.id === id && UI.recentPick.stat === i && Date.now() - UI.recentPick.t < 2500)).join('')}</div>${st.some((v, i) => v !== hh.stats[i]) ? '<div class="note" style="font-size:11px">Big number = trained stat. (n now) = what it counts as right now.</div>' : ''}</div><h4 style="margin:8px 0 2px">Recent XP</h4>${log}</div></div>`,
       overlay ? `<button class="btn pri" data-a="close" aria-label="Close hero info">✕ BACK TO BRIEFING</button>` : `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${canRespec(hh) ? '<button class="btn" data-a="respec">♻ FOUND HIMSELF</button>' : (hasPower(hh, 'respecOncePerShift') && hh.respecUsed ? '<button class="btn" disabled>♻ USED THIS SHIFT</button>' : '')}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
     { const v = injuryView(camp, hh); drawRadar(P.B.querySelector('.rad'), { team: st, base: v.penalty ? v.base : null }); } P.F.querySelector('[data-a=close]').onclick = () => closeIt(); if (overlay) { const hx = h('button', 'hc-x', '✕'); hx.setAttribute('aria-label', 'Close'); hx.dataset.a = 'x'; hx.onclick = () => closeIt(); P.H.appendChild(hx); }
@@ -3389,6 +3521,10 @@ function helpHTML() { return `<ul class="help">
 <li>👥 Add heroes to the slots. Colored keywords hint at the stats needed: ${STATS.map(s => `<b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b>`).join(', ')}.</li>
 <li>⬢ Team stats add up per stat (capped at 10). Success chance = coverage<sup>1.5</sup>; hard calls cap at 85% unless a 🔗 synergy pair pushes it higher. ⚡ Conflict pairs cost 8%.</li>
 <li>★ When a mission ends, tap the REVIEW pin. Heroes from unreviewed calls cannot be sent again.</li>
+<li>🦸 Shift 6: Zenith and Drizzle join every campaign (team of 10).</li>
+<li>💧 Drizzle volunteers after 3 missions without him; take him off if you like.</li>
+<li>☀️ Finale: if 2 boss calls fail or you reach 5 failures, Solstice arrives (team of 11). Her light blocks one injury per hero.</li>
+<li>⌨ Hero hotkeys in a briefing: 1-9, then 0 = 10th, - = 11th, = = 12th hero.</li>
 <li>✋ Disruptions need a fast answer: each option checks one team stat against a hidden threshold. ⭐ hero options are usually perfect picks (but not always).</li>
 <li>🩹 Failed normal/hard calls can injure heroes (−1 all stats). A second injury downs them for the shift. Some competing "risky" options can injure even on success (~${Math.round(CONFIG.injuryRiskyCompeting * 100)}% per hero).</li>
 <li>⌘ Hack calls: you play a maze on the console. D-pad or swipe, ACT for nodes, HOLD at the exit.</li>
@@ -3431,30 +3567,35 @@ function openLevelUpChoice(onDone) {
 }
 
 /* v1.5: shared hero card + detail markup (Codex and Hero Selection) */
-function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div></button>`;
+function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${d.extra ? '<span class="pill" style="color:var(--yel-txt)">ARRIVES ON THEIR OWN</span>' : LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div></button>`;
   return o.extra || o.cls ? base.replace('<button class="cx-card"', `<button class="cx-card ${o.cls || ''}" ${o.attrs || ''}`).replace(/<\/button>$/, (o.extra || '') + '</button>') : base; }
-function heroDetailHTML(d, o) { o = o || {}; const syn = d.synergy ? heroDef(d.synergy) : null; const cons = CONFLICT_PAIRS.filter(p => p.includes(d.id)).map(p => heroDef(p[0] === d.id ? p[1] : p[0]));
+function heroDetailHTML(d, o) { o = o || {}; const syns = [].concat(d.synergy || []).map(heroDef).filter(Boolean); const cons = CONFLICT_PAIRS.filter(p => p.includes(d.id)).map(p => heroDef(p[0] === d.id ? p[1] : p[0]));
   const link = o.link || (h => `<span class="pill">${h.emoji} ${esc(h.codename)}</span>${o.inCrew && o.inCrew(h.id) ? ' <span class="pill" style="color:var(--yel-txt)">in your 8</span>' : ''}`);
   return `<div class="bgrid"><div><div class="radarbox"><canvas class="rad"></canvas></div>
            ${d.stats.map((v, k) => `<div class="cx-bar"><span style="color:${STAT_COLORS[STATS[k]]}">${STAT_NAMES[STATS[k]]}</span><i><b style="width:${v * 10}%;background:${STAT_COLORS[STATS[k]]}"></b></i><em>${v}</em><small>${esc(STAT_DESC[STATS[k]])}</small></div>`).join('')}</div>
          <div><p class="txt">${esc(d.bio)}</p><div class="quip">"${esc(d.quips[0])}"</div>
-           <div class="cx-badges">${LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div>
+           <div class="cx-badges">${d.extra ? '<span class="pill" style="color:var(--yel-txt)">ARRIVES ON THEIR OWN</span>' : LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div>
            <h4 style="margin:8px 0 2px">Powers</h4>${codexPowerHTML(d)}
-           <div class="note good">🔗 Synergy: ${syn ? link(syn) : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
+           ${d.extra ? `<div class="note warn">${esc(extraArrivalText(d))}</div>` : ''}<div class="note good">🔗 Synergy: ${syns.length ? syns.map(link).join(' ') : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
 /* ---------- v1.3 Hero Codex ---------- */
 function codexPowerHTML(d) { const sig = SIGNATURES[d.power]; const row = (p, tag) => `<div class="pw"><b>${esc(POWERS[p].name)}</b> <span class="pill">${tag}</span><small>${esc(POWERS[p].desc)}</small></div>`;
-  return row(d.power, 'BASE') + `<div class="cx-sub">LV ${CONFIG.trainLevel} + power revealed: choose one</div><div class="tropts">${d.train.map(p => row(p, 'TRAIN')).join('')}</div>` + (sig ? row(sig, 'LV ' + CONFIG.signatureLevel + ' MK II (optional, trained heroes)') : ''); }
+  if (!d.train || !d.train.length) return row(d.power, d.maxLevel ? 'LV MAX · NO TRAINING' : 'BASE');
+  return row(d.power, 'BASE') + `<div class="cx-sub">LV ${CONFIG.trainLevel} + power revealed: choose one${d.extra ? ' (chosen on arrival)' : ''}</div><div class="tropts">${d.train.map(p => row(p, 'TRAIN')).join('')}</div>` + (sig ? row(sig, 'LV ' + CONFIG.signatureLevel + ' MK II (optional, trained heroes)') : ''); }
+function extraArrivalText(d) { return d.id === 'solstice' ? 'Arrives on her own in the Shift 8 finale if 2 boss calls fail or the campaign reaches 5 failures (fails + missed hero calls). Joins at LV MAX (stats 8/8/7/6/7) as a guest: no XP, no training. Never in Hero Selection or Random Heroes.'
+  : 'Arrives on his own before Shift 6 in every campaign (Zenith and Drizzle together), at your crew\'s median level (LV 4-7). You still pick 8; he is extra. Never in Hero Selection or Random Heroes.'; }
 function inCampaign(id) { const c = UI.camp || loadCampPeek(); return !!(c && c.pool && c.pool.includes(id)); }
 function loadCampPeek() { if (UI._peek !== undefined) return UI._peek; try { const r = Store.get(SAVE_KEY); UI._peek = r ? JSON.parse(r) : null; if (UI._peek && !UI._peek.pool) UI._peek.pool = LEGACY_POOL; } catch (e) { UI._peek = null; } return UI._peek; }
 function openCodex(startId) {
   UI._peek = undefined; let sort = -1, detail = startId || null;
   openModal('codex', m => {
-    const order = () => { const l = HERO_DEFS.slice(); if (sort >= 0) l.sort((a, b) => b.stats[sort] - a.stats[sort] || a.codename.localeCompare(b.codename)); return l; };
+    const order = () => { const l = HERO_DEFS.slice(); if (sort >= 0) l.sort((a, b) => b.stats[sort] - a.stats[sort] || a.codename.localeCompare(b.codename)); return l.concat(EXTRA_HEROES); }; // v1.14.0: the three arrive-on-their-own heroes after the draftable ones
     const grid = () => { const l = order();
       const P = sheetParts(m, `<h2>🦸 Hero Codex</h2><span class="pill">${HERO_DEFS.length} heroes</span>`,
         `<div class="cx-chips">${['ALL', ...STATS].map((s, i) => `<button class="cx-chip ${sort === i - 1 ? 'on' : ''}" data-sort="${i - 1}" ${i ? `style="--c:${STAT_COLORS[s]}"` : ''}>${i ? STAT_NAMES[s] : 'All'}</button>`).join('')}</div>
          <p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 8px">Each campaign drafts 8 of these ${HERO_DEFS.length}. Every hero starts with 12 stat points. Tap a card for powers and details.</p>
-         <div class="cx-grid">${l.map(d => heroCardHTML(d)).join('')}</div>`,
+         <div class="cx-grid">${l.filter(d => !d.extra).map(d => heroCardHTML(d)).join('')}</div>
+         <h3 class="cx-sec">Arrives on their own — NOT draftable</h3><p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 8px">Never in Hero Selection or Random Heroes; you still pick 8. Zenith and Drizzle join every campaign before Shift 6. Solstice arrives in the Shift 8 finale only if 2 boss calls fail or you reach 5 failures.</p>
+         <div class="cx-grid">${l.filter(d => d.extra).map(d => heroCardHTML(d)).join('')}</div>`,
         `<button class="btn pri" data-a="close">CLOSE</button>`);
       P.F.querySelector('[data-a=close]').onclick = () => closeModal();
       P.B.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { sort = +b.dataset.sort; Sfx.click(); grid(); });
@@ -3669,7 +3810,29 @@ function openSelDetail(id) {
     m.esc = () => { closeModal(); renderHeroSelect(); }; m.render = render; render(); });
 }
 function routeCamp() { const c = UI.camp; if (c.phase === 'end' || c.shiftIdx >= CONFIG.campaignShifts) showEnd(); else if (c.phase === 'levelup') showLevelUp(); else if (c.phase === 'training') showTraining(); else showBrief(); }
+/* v1.14.0 (2b): Downtown-branch arrival before Shift 6 (or the next shift of a migrated save). START SHIFT stays locked until every point is spent and both LV3 choices are made. */
+function showArrival() { const camp = UI.camp; camp.phase = 'briefing'; ensureExtraHeroes(camp); const step = extraOnboardPending(camp); camp.extraOnboard = Object.assign(camp.extraOnboard || {}, { step: step || 'done' }); saveCamp();
+  if (!step) { showBrief(); return; }
+  const ids = EXTRA_HEROES.filter(d => d.joinShiftIdx !== undefined && camp.shiftIdx >= d.joinShiftIdx).map(d => d.id); const L = extraJoinLevel(camp);
+  const card = id => { const hh = camp.heroes[id], d = heroDef(id); const tr = canTrain(hh);
+    return `<div class="card arrive" style="border-color:${hh.color}"><div class="mini" style="border:0;padding:0"><span class="e por" style="background:${hh.color}33;border:2px solid ${hh.color}">${hh.emoji}</span><div><b>${esc(hh.codename)}</b> <small>${esc(hh.name)}</small> ${hh.joinXPGiven ? `<span class="pill">arrived at LV ${heroLevel(hh)}</span>` : ''}<small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small></div></div>
+      <p class="txt" style="font-size:13px">${esc(d.bio)}</p><div class="pw"><b>${esc(POWERS[d.power].name)}</b> <span class="pill">BASE</span><small>${esc(POWERS[d.power].desc)}</small></div>
+      ${step !== 'intro' && hh.unspentPoints ? `<button class="btn pri small" data-sp="${id}">★${hh.unspentPoints} SPEND POINTS</button>` : ''}
+      ${step !== 'intro' && !hh.unspentPoints && tr ? `<div class="cx-sub">LV ${CONFIG.trainLevel} power: pick 1 of 2 (permanent, does not use a training slot)</div><div class="tropts">${d.train.map(p => `<button class="tropt" data-h="${id}" data-p="${p}"><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div>` : ''}
+      ${hh.trainedChoice ? `<div class="note good">🎓 ${esc(POWERS[hh.trainedChoice].name)}</div>` : ''}</div>`; };
+  const html = `<div class="logo" style="font-size:28px;margin-top:2vh">NEW HIRES</div><div class="card"><p class="txt">Two heroes from the Downtown dispatch branch have decided to come help your team.</p>
+     ${step === 'intro' ? `<p class="txt" style="font-size:13px;color:var(--dim)">They join at your crew's median level (LV ${L}). You still have your 8; these two are extra (team of 10 from Shift ${CONFIG.extraJoinShiftIdx + 1}).</p>` : step === 'levels' ? '<div class="note warn">★ Spend every new point before the shift starts.</div>' : '<div class="note warn">🎓 Pick each new hire\'s LV 3 power.</div>'}</div>
+     ${ids.map(card).join('')}
+     ${step === 'intro' ? '<button class="btn pri" data-a="meet">WELCOME THEM</button>' : '<button class="btn pri" disabled>START SHIFT (finish the steps above)</button>'}<button class="btn ghost" data-a="title">TITLE</button>`;
+  showScreen(html, s => {
+    const mb = s.querySelector('[data-a=meet]'); if (mb) mb.onclick = () => { Sfx.init(); Sfx.fanfare(); extraOnboardBegin(camp); saveCamp(); showArrival(); };
+    s.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => openAllocate(b.dataset.sp, null));
+    s.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { const id = b.dataset.h, p = b.dataset.p; const other = heroDef(id).train.find(x => x !== p);
+      confirmBox('Confirm power', `Give <b>${esc(camp.heroes[id].codename)}</b> <b>${esc(POWERS[p].name)}</b>?<br><br>This is permanent: <b>${esc(POWERS[other].name)}</b> will be locked out forever.`, 'CONFIRM', () => { if (trainHero(camp, id, p)) { Sfx.fanfare(); saveCamp(); } showArrival(); }); });
+    s.querySelector('[data-a=title]').onclick = showTitle; });
+  UI.devRender = () => { pruneLevelQueue(camp); saveCamp(); showArrival(); }; }
 function showBrief() { if (UI.camp && UI.camp.revertNote) setTimeout(() => showRevertNote(UI.camp), 50);
+  if (UI.camp && extraOnboardPending(UI.camp)) { showArrival(); return; }
   const camp = UI.camp, idx = camp.shiftIdx, plan = CONFIG.shifts[idx]; camp.phase = 'briefing'; saveCamp();
   const ids = rosterForShift(camp, idx); const avg = camp.grades.length ? camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / camp.grades.length : 4;
   const comp = idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow;
@@ -3679,8 +3842,10 @@ function showBrief() { if (UI.camp && UI.camp.revertNote) setTimeout(() => showR
    <div class="tglrow"><span>🎲 Classic random calls</span><button class="tgl ${camp.missionSet === 'legacy' ? 'on' : ''}" data-a="classic"></button></div>
    <div class="note">Agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}${toolUnlocked(camp, 'medkit') ? ' · 🩹 Med Kit' : ''}${toolUnlocked(camp, 'jump') ? ' · ⚡ Jump Start' : ''}</div></div>
    <div class="card"><h3>Tonight's roster</h3><div class="grid2">${ids.map(id => { const hh = camp.heroes[id]; return `<div class="mini" style="border-color:${hh.color}66"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small><small>${hh.powers.map(p => POWERS[p].name).join(', ')}${hh.nextMorale ? (hh.nextMorale > 0 ? ' · 😊' : ' · 😠') : ''}</small></div></div>`; }).join('')}</div></div>
-   <button class="btn pri" data-a="go">START SHIFT</button><button class="btn ghost" data-a="title">TITLE</button>`, s => {
-    s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); beginShift(); }; s.querySelector('[data-a=classic]').onclick = () => { camp.missionSet = camp.missionSet === 'legacy' ? 'v1.8' : 'legacy'; UI.settings.classicCalls = camp.missionSet === 'legacy'; saveSettings(); saveCamp(); showBrief(); }; s.querySelector('[data-a=title]').onclick = showTitle; });
+   ${idx === CONFIG.extraJoinShiftIdx && !camp.v113Finale && camp.heroes.zenith ? `<div class="card newhires"><h3>Two new hires: Zenith and Drizzle</h3><div class="grid2">${['zenith', 'drizzle'].map(id => { const hh = camp.heroes[id]; return `<div class="mini" style="border-color:${hh.color}66"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b> <span class="pill">arrived at LV ${hh.joinLevel || heroLevel(hh)}</span><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small><small>${hh.powers.map(p => POWERS[p].name).join(', ')}</small></div></div>`; }).join('')}</div></div>` : ''}
+   ${camp.v113Finale ? `<div class="note warn">This save was in the middle of the Shift 8 finale from v1.13.0. Resume it with the old rules (no Zenith, Drizzle or Solstice), or restart Shift 8 with the new rules.</div><button class="btn pri" data-a="go">Resume Finale (v1.13.0 rules)</button><button class="btn" data-a="newrules">Restart Shift 8 (new rules)</button>` : '<button class="btn pri" data-a="go">START SHIFT</button>'}<button class="btn ghost" data-a="title">TITLE</button>`, s => {
+    s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); beginShift(); };
+    const nr = s.querySelector('[data-a=newrules]'); if (nr) nr.onclick = () => confirmBox('Restart Shift 8 (new rules)', 'Shift 8 restarts from 20:00 with v1.14.0 rules: Zenith and Drizzle join first (spend their points), and Solstice can arrive. You cannot go back to the v1.13.0 rules for this finale.', 'RESTART', () => { restartFinaleNewRules(camp); saveCamp(); showBrief(); }); s.querySelector('[data-a=classic]').onclick = () => { camp.missionSet = camp.missionSet === 'legacy' ? 'v1.8' : 'legacy'; UI.settings.classicCalls = camp.missionSet === 'legacy'; saveSettings(); saveCamp(); showBrief(); }; s.querySelector('[data-a=title]').onclick = showTitle; });
 }
 function beginShift() {
   const rn = UI.camp.revertNote; delete UI.camp.revertNote; UI.shiftPicks = {}; UI.replay = UI.camp.pickMemory || {}; delete UI.camp.pickMemory; UI.earnedMem = {}; UI.bankedAtStart = {}; for (const id in UI.camp.heroes) UI.bankedAtStart[id] = UI.camp.heroes[id].unspentPoints || 0;
@@ -3728,7 +3893,7 @@ function showSummary() {
 function confirmBox(title, text, okLabel, onOk, cancelLabel) { openModal('confirm', m => { const P = sheetParts(m, `<h2>${title}</h2>`, `<p class="txt">${text}</p>`, `<button class="btn ghost" data-a="no">${cancelLabel || 'BACK'}</button><button class="btn pri" data-a="yes">${okLabel}</button>`); P.F.querySelector('[data-a=no]').onclick = () => closeModal(); P.F.querySelector('[data-a=yes]').onclick = () => { closeModal(); onOk(); }; }); }
 function showLevelUp() {
   const camp = UI.camp; camp.phase = 'levelup'; saveCamp(); camp.wildQueue = camp.wildQueue || [];
-  const ids = rosterForShift(camp, Math.min(camp.shiftIdx, CONFIG.campaignShifts - 1)).filter(id => camp.heroes[id] && !camp.heroes[id].noXP);
+  const ids = rosterForShift(camp, Math.min(camp.shiftIdx, CONFIG.campaignShifts - 1)).filter(id => camp.heroes[id] && !camp.heroes[id].noXP && (!isExtraHero(id) || camp.heroes[id].joinXPGiven));
   const render = (msg) => {
     const y = $('screen').scrollTop;
     let html = `<div class="logo" style="font-size:28px;margin-top:2vh">TEAM DEVELOPMENT</div>`;
@@ -3808,6 +3973,10 @@ Bus.on('injured', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.hero
 Bus.on('healed', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; injToast(d.id + 'h', `💚 ${esc(hh.codename)} healed${d.source === 'medkit' ? ' (Med Kit)' : d.by ? ' by ' + esc(UI.camp.heroes[d.by].codename) : ''}`); });
 Bus.on('revived', d => { if (UI.sim || !UI.camp) return; injToast(d.id + 'r', `⚡ ${esc(UI.camp.heroes[d.id].codename)} is back in action`); });
 Bus.on('power', e => { if (UI.sim || !UI.camp || !UI.S) return; pulsePower(e.hero); radioLog(e.hero, '⚡ ' + POWERS[e.power].name + ' activated ' + e.text, 'pfx-log'); });
+Bus.on('solsticeJoined', d => { if (UI.sim || !UI.camp) return; Sfx.fanfare(); FX.burst(); finBanner('☀️ SOLSTICE ARRIVES<br><small>Team of ' + UI.camp.roster.length + '. Her light blocks one injury per hero.</small>');
+  radio('solstice', "Torrance — I mean, Night Desk — I'm here. Stay in my light."); toast('☀️ Solstice joined: ' + (d.reason === 'boss' ? '2 boss calls failed' : '5 failures this campaign')); if (UI.S) { buildRoster(); updateRoster(); } });
+Bus.on('volunteered', d => { if (UI.sim || !UI.S) return; radioLog('drizzle', `💧 Drizzle volunteered for "${d.call.tpl.title}". Tap his slot in the briefing to take him off.`); });
+Bus.on('drizzleEager', () => { if (UI.sim || !UI.S) return; radio('drizzle', 'Three missions without me? I will just... put myself on the next one. If that is okay. It is okay.'); });
 Bus.on('shiftOver', () => { if (UI.sim) return; UI.shiftOverPending = true; });
 
 /* ---------- main loop ---------- */
@@ -3859,7 +4028,7 @@ function initInput() {
     if (k === 'Escape') { if (m) closeModal(); return; }
     if (k === ' ') { e.preventDefault(); if (m && m.kind === 'pause') closeModal(); else if (!m) { UI.userPaused = !UI.userPaused; } return; }
     if ((k === 's' || k === 'S' || k === 'ArrowLeft' || k === 'ArrowRight') && m && m.kind === 'briefing' && m.switchPair) { e.preventDefault(); m.switchPair(); return; } // v1.9.3
-    if (/^[1-9]$/.test(k) && m && m.keyHero) { m.keyHero(+k - 1); return; }
+    if (hotkeyIndex(k) >= 0 && m && m.keyHero) { m.keyHero(hotkeyIndex(k)); return; }
     if (k === 'Enter' && m && m.enter) { m.enter(); }
   });
   document.addEventListener('keyup', e => { if (UI.hack && e.key === ' ') UI.hack.game.holding = false; });
