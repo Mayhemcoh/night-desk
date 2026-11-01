@@ -468,6 +468,10 @@ html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;col
 .card.arrive .tropts{margin-top:6px}
 .hc.injured .newrib,.hc.downed .newrib{display:none}
 @media (orientation:landscape){.hc .newrib{font-size:7px;padding:1px 2px;right:1px;letter-spacing:0}}
+/* v1.14.1 training-blocked hero chips */
+.chip.noreq{opacity:1;filter:grayscale(.85);border-style:dashed;cursor:not-allowed}
+.chip.noreq .n,.chip.noreq small.tbr{color:var(--muted-txt)!important}
+.chip.noreq small.tbr{text-transform:none;font-weight:700}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -798,7 +802,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.14.0';
+<script>window.ND_VERSION='nd-v1.14.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2158,6 +2162,7 @@ function workTimeFor(camp, call, ids) {
 function dispatch(camp, S, call) {
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
   if (!ids.every(id => canDispatchHero(camp, id))) return false;
+  if (call.tpl.training && ids.some(id => trainingBlock(camp, call, id))) return false; // v1.14.1
   if (call.tpl.sabotage && call.tpl.sabotage.forced) { const v = sabotageVictim(camp, S, call, ids); const fullD = v ? successChance(camp, S, call, call.assigned, { atDispatch: true, noSabotage: true }).display : null; if (v) { call.assigned = call.assigned.map(id => id === v.hero ? null : id); ids = call.assigned.filter(Boolean); startSabotage(camp, S, call, v); call.sabotageInfo = { hero: v.hero, by: v.by, fullTeamDisplay: fullD}; } }
   if (call.pairUid) declinePartner(camp, S, call);
   if (call.tpl.type === 'competing' && (call.option === null || call.option === undefined)) call.option = 0;
@@ -2350,6 +2355,15 @@ function grantSignature(h) { const def = heroDef(h.id); if (!def) return; const 
    explicit choice that upgrades the base power; it never adds a re-roll or a second roll. */
 function baseRevealed(h) { const d = heroDef(h.id) || {}; return !!(h.revealed && (h.revealed[d.power] || h.revealed[SIGNATURES[d.power]])); }
 function canTrain(h) { const d = heroDef(h.id) || {}; return !!(h && !h.noXP && d.train && d.train.length && !h.trainedChoice && heroLevel(h) >= CONFIG.trainLevel && baseRevealed(h)); }
+// v1.14.1: who may be ASSIGNED to a training call. null = OK, else a short reason key (never wastes a drill).
+function trainingBlock(camp, call, id) { const t = call && call.tpl && call.tpl.training; if (!t) return null; const h = camp.heroes[id], d = heroDef(id) || {};
+  if (!h) return 'none'; if (h.noXP) return 'no-train';
+  if (t.kind === 'route') { if (h.routeTrained) return 'route-known'; if (Object.values(camp.heroes).filter(x => x.routeTrained).length >= CONFIG.routeMax) return 'route-full'; return null; }
+  if (!d.train || !d.train.length) return 'no-train'; if (h.trainedChoice) return 'trained'; if (heroLevel(h) < CONFIG.trainLevel) return 'level'; if (!baseRevealed(h)) return 'reveal'; return null; }
+const TRAINING_BLOCK_TEXT = { level: () => `needs LV ${CONFIG.trainLevel}`, trained: () => 'already trained', reveal: () => 'reveal power first', 'no-train': () => 'cannot train', 'route-known': () => 'already knows routes', 'route-full': () => 'route slots full', none: () => '' };
+function trainingBlockText(camp, call, id) { const k = trainingBlock(camp, call, id); return k ? TRAINING_BLOCK_TEXT[k]() : ''; }
+function canAssignTo(camp, call, id) { return canDispatchHero(camp, id) && !trainingBlock(camp, call, id); }
+function trainingNobodyEligible(camp, call) { return !!(call && call.tpl && call.tpl.training) && !camp.roster.some(id => !trainingBlock(camp, call, id)); }
 function canUpgradeMk2(h) { const d = heroDef(h.id) || {}; const sig = SIGNATURES[d.power]; return !!(h && !h.noXP && sig && h.trainedChoice && !h.signature && heroLevel(h) >= CONFIG.signatureLevel && h.powers.includes(d.power)); }
 function upgradeMk2(camp, id) { const h = camp.heroes[id]; if (!h || !canUpgradeMk2(h)) return false; const d = heroDef(id); const sig = SIGNATURES[d.power]; if (POWERS[sig].retry) return false; h.powers[h.powers.indexOf(d.power)] = sig; h.signature = true; if (h.revealed) h.revealed[sig] = true; Bus.emit('mk2', { hero: h, power: sig }); return true; }
 function trainHero(camp, id, power) { const h = camp.heroes[id]; const def = heroDef(id); if (!h || !def || !canTrain(h) || !def.train.includes(power)) return false; h.trainedChoice = power; h.powers.push(power); return true; }
@@ -2840,9 +2854,7 @@ function aiDisruptAlways(camp, S, c, opts) { let guard = 0;
     const info = computeCall(camp, S, c, c.teamSlots || c.team); const best = ch.opts.map(o => ({ o, m: info.team[o.stat] - o.threshold })).sort((a, b) => b.m - a.m)[0];
     if ((!best || best.m < 0) && ch.hackOpt && opts.hacks !== false) { resolveDisruption(camp, S, c, 'hk'); resolveDisruptionHack(camp, S, c, (opts.hackRng || S.hackRng)() < hwr); continue; }
     if (!best) break; resolveDisruption(camp, S, c, best.o.key); } }
-function aiTrainingTeam(camp, S, c) { const k = c.tpl.training.kind, av = camp.roster.filter(id => canDispatchHero(camp, id) && !camp.heroes[id].noXP);
-  if (k === 'route') { if (Object.values(camp.heroes).filter(h => h.routeTrained).length >= CONFIG.routeMax) return null; return av.find(id => !camp.heroes[id].routeTrained) || null; }
-  return av.find(id => { const h = camp.heroes[id], d = heroDef(id) || {}; return canTrain(h); }) || null; }
+function aiTrainingTeam(camp, S, c) { const av = camp.roster.filter(id => canDispatchHero(camp, id)); return av.find(id => !trainingBlock(camp, c, id)) || null; } // v1.14.1: same rule as the UI
 
 /* ================= AUDIO (WebAudio synth only) ================= */
 const Sfx = {
@@ -3138,9 +3150,9 @@ function openCall(c) {
 /* v1.9.3: linked-pair switch helpers (UI only: never touch odds, dice, expiry or stage) */
 function pairPartner(S, c) { if (!c || !c.pairUid) return null; const o = S.calls.find(x => x.uid === c.pairUid); return o && o.stage === 'pending' ? o : null; }
 function pairLetter(c) { return c.uid < c.pairUid ? 'A' : 'B'; }
-function sanitizeAssigned(camp, c) { c.assigned = c.assigned.map(id => (id && (id === c.autoHero || canDispatchHero(camp, id))) ? id : null); }
+function sanitizeAssigned(camp, c) { c.assigned = c.assigned.map(id => (id && (id === c.autoHero || canAssignTo(camp, c, id))) ? id : null); }
 function carryOver(camp, from, to) { if (!from || !to || to.assigned.some(id => id && id !== to.autoHero)) return null; const res = { moved: 0, skipped: 0 };
-  const blocked = id => !canDispatchHero(camp, id) || (to.tpl.banned && to.tpl.banned[id]) || afList(to.tpl).some(x => x.heroId === id) || to.assigned.includes(id);
+  const blocked = id => !canAssignTo(camp, to, id) || (to.tpl.banned && to.tpl.banned[id]) || afList(to.tpl).some(x => x.heroId === id) || to.assigned.includes(id);
   for (const id of from.assigned) { if (!id) continue; if (blocked(id)) { res.skipped++; continue; } const i = to.assigned.findIndex((x, k) => !x && !(k === 0 && to.autoHero)); if (i < 0) { res.skipped++; continue; } to.assigned[i] = id; res.moved++; }
   return res; }
 function hotkeyLabel(i) { return i < 9 ? String(i + 1) : ['0', '-', '='][i - 9] || ''; } // v1.14.0: heroes 10-12 -> 0, -, =
@@ -3169,7 +3181,7 @@ function openBriefing(c) {
       if (c.requestHero) { const rh = camp.heroes[c.requestHero]; notes += `<div class="note req">🙋 <b>${esc(rh.codename)}</b> asks to take this call.${c.requestReason ? ' ' + esc(c.requestReason) : ''} Grant it for +1 morale; refusing twice sulks them for a shift.</div>`; }
       if (c.autoHero && !tpl.story) notes += `<div class="note">🔒 <b>${esc(camp.heroes[c.autoHero].codename)}</b> already grabbed this call and will not budge.${c.autoLine ? ' ' + esc(c.autoLine) : ''}</div>`;
       if (tpl.story) notes += `<div class="note story">📖 <b>${esc(camp.heroes[c.autoHero].codename)}</b> picked this one up. How should it play out? (Both succeed.)<div class="opts">${tpl.story.choices.map((o, i) => `<button class="opt ${(c.storyChoice || 0) === i ? 'on' : ''}" data-story="${i}"><span>${(c.storyChoice || 0) === i ? '◉' : '○'}</span><span>${esc(o.label)}${o.morale ? ' <small>(+1 morale)</small>' : ''}</span></button>`).join('')}</div></div>`;
-      if (tpl.training) notes += `<div class="note train">🎓 ${tpl.training.kind === 'route' ? `ROUTE drill: the hero you send travels 15% faster for good (${Object.values(camp.heroes).filter(x => x.routeTrained).length}/${CONFIG.routeMax} used).` : `POWER drill: a LV ${CONFIG.trainLevel}+ hero picks a power right after review; others get base XP only.`} No expiry.</div>`;
+      if (tpl.training) notes += `<div class="note train">🎓 ${tpl.training.kind === 'route' ? `ROUTE drill: the hero you send travels 15% faster for good (${Object.values(camp.heroes).filter(x => x.routeTrained).length}/${CONFIG.routeMax} used).` : `POWER drill: only a hero at LV ${CONFIG.trainLevel}+ (counted when sent), with a revealed power and no trained power yet, can be sent. They pick 1 of 2 powers right after review.`}${tpl.training.kind === 'route' ? ' Heroes who already know the routes can\'t be sent.' : ''} No expiry.</div>`; if (tpl.training && trainingNobodyEligible(camp, c)) notes += `<div class="note">🎓 No hero can use this drill yet. It stays open and closes on its own with no penalty.</div>`;
       if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
       if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
@@ -3189,17 +3201,17 @@ function openBriefing(c) {
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP') : ''}</div></div>`; }).join('');
-      const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]);
-        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''}" data-hero="${id}" ${ok && !used ? '' : 'disabled'} ${hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span><small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small></button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
+      const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
+        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
-      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${Math.ceil(rem)}s${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
+      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}<div class="slots">${slots}</div>${chanceBox}<div class="links">${links}</div></div>
          <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}
          <div style="margin-top:8px;font-size:12px;color:var(--dim)">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div></div>`,
-        `<button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canDispatchHero(camp, id)) ? '' : 'disabled'}>DISPATCH</button>`);
+        `<button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button>`);
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
@@ -3215,7 +3227,7 @@ function openBriefing(c) {
       P.F.querySelector('[data-a=go]').onclick = () => doDispatch();
       m.keyHero = i => { const id = camp.roster[i]; if (id) assign(id, null); }; m.enter = () => doDispatch();
     };
-    const assign = (id, slotIdx) => { if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
+    const assign = (id, slotIdx) => { if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; } if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
     const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean) || c.stage !== 'pending') return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
     render(); m.render = render;
   });
