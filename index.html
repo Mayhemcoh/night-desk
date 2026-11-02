@@ -485,6 +485,37 @@ html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;col
 .mus-row .mus-pv{min-width:52px;min-height:52px;font-size:16px}
 .mus-fixed{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:52px;padding:0 4px}
 ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35}
+/* v1.15.1: briefing = scroll area + locked dock (slots, roster, buttons). Layout only. */
+.sheet.bfix{height:100%;max-height:100%}
+.sheet.bfix .bscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.sheet.bfix .sh-b{overflow:visible;flex:none;min-height:auto}
+.sheet.bfix .sh-f{flex:none;flex-direction:column;gap:6px;padding:6px 10px calc(6px);position:relative;z-index:1;background:inherit}
+.sheet.bfix .bdock{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sheet.bfix .bdock .slots{margin:0;gap:6px}
+.sheet.bfix .bdock .slot{height:84px;min-height:0;overflow:hidden;justify-content:flex-start;padding-top:18px;box-sizing:border-box}
+.sheet.bfix .bdock .slot:not(.full){justify-content:center;padding-top:4px}
+.sheet.bfix .bdock .slot .e{font-size:24px}
+.sheet.bfix .bdock .slot .voltag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin:1px 0}
+.sheet.bfix .bhint{font-size:11px;line-height:14px;height:14px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet.bfix .bdock .tray{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:2px}
+.sheet.bfix .bdock .chipwrap{flex:0 0 78px;width:78px}
+.sheet.bfix .bdock .chip{height:64px;min-height:0;overflow:hidden}
+.sheet.bfix .bbtns{display:flex;gap:8px}.sheet.bfix .bbtns .btn{flex:1}
+@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot{height:74px}.sheet.bfix .bhint{display:none}.sheet.bfix .bdock .chip{height:58px}.sheet.bfix .bdock .chip .e{font-size:20px}}
+@media (orientation:landscape) and (max-height:520px){
+ .sheet.bfix .sh-f{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:4px 8px;padding:4px 8px}
+ .sheet.bfix .bdock{display:grid;grid-template-columns:minmax(150px,38%) minmax(0,1fr);gap:6px;align-items:stretch}
+ .sheet.bfix .bhint{display:none}
+ .sheet.bfix .bdock .slots{gap:4px}
+ .sheet.bfix .bdock .slot{height:58px;padding:14px 2px 2px;font-size:10px}
+ .sheet.bfix .bdock .slot:not(.full)>div{font-size:16px!important}
+ .sheet.bfix .bdock .slot .e{font-size:16px}.sheet.bfix .bdock .slot .xpest,.sheet.bfix .bdock .slot .voltag{display:none}
+ .sheet.bfix .bdock .chipwrap{flex-basis:70px;width:70px}.sheet.bfix .bdock .chip{height:58px}.sheet.bfix .bdock .chip .e{font-size:18px}.sheet.bfix .bdock .chip .n{max-width:66px}
+ .sheet.bfix .bbtns{gap:4px}.sheet.bfix .bbtns .btn{min-height:58px;padding:2px;font-size:11px}
+}
+.sheet.bfix .bdock .slot>*{flex-shrink:0}
+@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.full{padding-top:14px}.sheet.bfix .bdock .slot .e{font-size:18px}}
+@media (orientation:landscape) and (max-height:520px){.sheet.bfix .bdock .slot.full .e{display:none}.sheet.bfix .bdock .slot.full{padding-top:20px;justify-content:flex-start}}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -815,7 +846,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.15.0';
+<script>window.ND_VERSION='nd-v1.15.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3213,19 +3244,20 @@ function openBriefing(c) {
       const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
+      const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
-        `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}<div class="slots">${slots}</div>${chanceBox}<div class="links">${links}</div></div>
-         <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}
-         <div style="margin-top:8px;font-size:12px;color:var(--dim)">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div></div>`,
-        `<button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button>`);
+        `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}${chanceBox}<div class="links">${links}</div></div>
+         <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div></div>`,
+        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
+      { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { const hh = camp.heroes[info.healer]; if (hh) { hh.lifeTradeChoice = +b.dataset.lt; Sfx.click(); render(); } });
-      P.B.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
-      P.B.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
-      P.B.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
+      m.sheet.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
+      m.sheet.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
+      m.sheet.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
       P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
       P.H.querySelectorAll('.pair-ab [data-ab]:not([disabled])').forEach(b => b.onclick = () => { if (b.dataset.ab !== pairLetter(c)) m.switchPair(); });
       if (c.pairUid && pp) tutorial('pairswitch', '⇄ Tap Switch to compare the two options. The clock is paused while you look.');
