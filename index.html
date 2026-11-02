@@ -487,6 +487,7 @@ html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;col
 ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35}
 /* v1.15.1: briefing = scroll area + locked dock (slots, roster, buttons). Layout only. */
 .sheet.bfix{height:100%;max-height:100%}
+.bgrid.btop{grid-template-columns:1fr!important}.bgrid.btop>.bchart{min-width:0}.bgrid.btop>.binfo{min-width:0}/* v1.15.2: chart on top of briefing info */
 .sheet.bfix .bscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .sheet.bfix .sh-b{overflow:visible;flex:none;min-height:auto}
 .sheet.bfix .sh-f{flex:none;flex-direction:column;gap:6px;padding:6px 10px calc(6px);position:relative;z-index:1;background:inherit}
@@ -846,7 +847,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.15.1';
+<script>window.ND_VERSION='nd-v1.15.2';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3246,8 +3247,8 @@ function openBriefing(c) {
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
-        `<div class="bgrid"><div><p class="txt">${markup(tpl.text)}</p>${notes}${chanceBox}<div class="links">${links}</div></div>
-         <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div></div>`,
+        `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
+         <div class="binfo"><p class="txt">${markup(tpl.text)}</p>${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
         `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
       { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
