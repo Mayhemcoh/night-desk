@@ -847,7 +847,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.15.2';
+<script>window.ND_VERSION='nd-v1.15.3';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3002,8 +3002,20 @@ const FX = { parts: [], confetti() { const w = innerWidth; for (let i = 0; i < 1
     for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.a += dt * 5; g.fillStyle = p.c; g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.fillRect(-4, -2, 8, 4); g.restore(); } this.parts = this.parts.filter(p => p.y < c.height + 20); } };
 
 /* ---------- modal manager ---------- */
+/* v1.15.3 ghost-tap guard: a tap on a map pin opens a sheet on pointerup; the browser's follow-up click then lands on
+   whatever button is now under the finger. For TAP_GUARD_MS after a sheet appears (or a disruption round re-renders),
+   pointer-generated clicks inside the modal are dropped (only for sheets a map tap opened), and a click only counts if its pointerdown began inside the modal.
+   Keyboard (detail 0) and scripted (untrusted) clicks are never blocked. UI only: no rules, odds or outcomes touched. */
+const TAP_GUARD_MS = 400; const TapGuard = { t: -1e9, down: false, on: false, fromMap: false };
+function armTapGuard() { TapGuard.t = performance.now(); TapGuard.down = false; TapGuard.on = true; }
+function initTapGuard() { const wrap = $('modal'); if (wrap._tapGuard) return; wrap._tapGuard = true;
+  const live = () => !wrap.classList.contains('hidden');
+  document.addEventListener('pointerdown', e => { TapGuard.down = live() && wrap.contains(e.target); }, true);
+  const block = e => { if (!TapGuard.on || !live() || !wrap.contains(e.target) || !e.isTrusted || e.detail === 0) return;
+    if (performance.now() - TapGuard.t < TAP_GUARD_MS || !TapGuard.down) { e.stopImmediatePropagation(); e.preventDefault(); } };
+  document.addEventListener('click', block, true); }
 function openModal(kind, build) {
-  const wrap = $('modal'); wrap.classList.remove('hidden');
+  const wrap = $('modal'); initTapGuard(); if (TapGuard.fromMap) armTapGuard(); else TapGuard.on = false; wrap.classList.remove('hidden'); // only sheets opened by a map tap are guarded
   const sheet = h('div', 'sheet'); sheet.dataset.kind = kind; wrap.innerHTML = ''; wrap.appendChild(sheet);
   const m = { kind, sheet, onClose: null }; UI.modals = [m]; build(m); return m;
 }
@@ -4061,7 +4073,7 @@ function frame(now) {
 function initInput() {
   const map = $('map'); let down = null;
   map.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; Sfx.init(); });
-  map.addEventListener('pointerup', e => { if (!down) return; const r = map.getBoundingClientRect(); if (Math.hypot(e.clientX - down.x, e.clientY - down.y) < 20) { const c = mapHit(e.clientX - r.left, e.clientY - r.top); if (c) openCall(c); } down = null; });
+  map.addEventListener('pointerup', e => { if (!down) return; const r = map.getBoundingClientRect(); if (Math.hypot(e.clientX - down.x, e.clientY - down.y) < 20) { const c = mapHit(e.clientX - r.left, e.clientY - r.top); if (c) { TapGuard.fromMap = true; try { openCall(c); } finally { TapGuard.fromMap = false; } } } down = null; });
   $('btnPause').onclick = () => { Sfx.init(); openPause(); };
   $('btnSpeed').onclick = () => { if (!UI.S) return; const sp = CONFIG.speeds; UI.S.speed = sp[(sp.indexOf(UI.S.speed) + 1) % sp.length]; Sfx.click(); updateTop(); };
   $('btnTools').onclick = () => { Sfx.click(); openTools(); };

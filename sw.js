@@ -1,5 +1,5 @@
 // Night Desk service worker: cache-first, fully offline. Music lives in its own cache (nd-music-v1), kept across updates.
-const CACHE='nd-v1.15.2', MUSIC_CACHE='nd-music-v1';
+const CACHE='nd-v1.15.3', MUSIC_CACHE='nd-music-v1';
 const ASSETS=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./fonts/bangers.woff2','./fonts/inter.woff2','./fonts/rajdhani.woff2','./fonts/vt323.woff2'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==MUSIC_CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
