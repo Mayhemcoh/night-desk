@@ -173,7 +173,9 @@ input.seed{min-height:44px;border-radius:10px;border:1px solid var(--line);backg
 .dp.up{grid-column:2;grid-row:1}.dp.left{grid-column:1;grid-row:2}.dp.right{grid-column:3;grid-row:2}.dp.down{grid-column:2;grid-row:3}
 .hbtns{display:flex;flex-direction:column;gap:10px}
 .btn.act{min-width:110px;min-height:64px;font-size:18px}
-.btn.hold{min-width:110px;min-height:64px;font-size:18px;border-color:var(--grn);background:linear-gradient(#174a2a,#0d2a18)}
+.btn.hold{min-width:110px;min-height:58px;font-size:18px;border-color:var(--grn);background:linear-gradient(#174a2a,#0d2a18)}
+.btn.act{min-height:58px}.btn.map{min-width:110px;min-height:46px;font-size:16px;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.btn.map.press{filter:brightness(1.4)}
+.hbtns{gap:7px}
 @media (orientation:landscape){#hack{display:grid;grid-template-columns:200px 1fr 150px;grid-template-rows:auto auto 1fr;}
   .hhead{grid-column:1/4}.hmsg{grid-column:1/4}.hstage{grid-column:2;grid-row:3}
   .hctrl{display:contents}.dpad{grid-column:1;grid-row:3;align-self:center}.hbtns{grid-column:3;grid-row:3;align-self:center}}
@@ -840,14 +842,14 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
     <div class="hstage"><div id="hKey" class="hidden"></div><canvas id="hcv"></canvas><div id="hSeq" class="hidden"></div><div id="hPad" class="hidden"></div></div>
     <div class="hctrl">
       <div class="dpad"><button data-d="up" class="dp up">▲</button><button data-d="left" class="dp left">◀</button><button data-d="right" class="dp right">▶</button><button data-d="down" class="dp down">▼</button></div>
-      <div class="hbtns"><button id="hAct" class="btn act">ACT</button><button id="hHold" class="btn hold">HOLD</button></div>
+      <div class="hbtns"><button id="hAct" class="btn act">ACT</button><button id="hHold" class="btn hold">HOLD</button><button id="hMap" class="btn map" aria-label="Hold to see the whole map">⊞ MAP</button></div>
     </div>
   </div>
   <div id="lvlBanner" class="hidden"></div>
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.15.3';
+<script>window.ND_VERSION='nd-v1.16.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -937,7 +939,7 @@ const CONFIG = {
   dotDuration: 2.2,
   trainingAfterShifts: [2, 4, 6],
   campaignShifts: 8,
-  hack: { avInterval: 0.55, avZone: 4, holdTime: 0.5, keyShowAfter: 3, timeMin: 45, timeMax: 75 },
+  hack: { avInterval: 0.55, avZone: 4, holdTime: 0.5, keyShowAfter: 3, timeMin: 45, timeMax: 75, lives: 3 },
   autoReviewDelay: 0.6,              // auto-play helper review speed
   pendingMusicBoost: 3,              // music speeds up with this many pending
   // per-shift plan: heroes on roster, hacks scheduled (seconds), expected calls for grading
@@ -1496,7 +1498,8 @@ class HackGame {
     this.code = code; this.split = this.find('k').length > 0;
     this.seqs = {}; for (const n of ['B', 'N']) { const s = []; for (let i = 0; i < (layout.seq || 4); i++) s.push(['up', 'down', 'left', 'right'][Math.floor(rng() * 4)]); this.seqs[n] = s; }
     this.resets = 0; this.status = 'play'; this.msg = 'Reach the green hexagon.';
-    this.attempts = this.unlimited ? 0 : (layout.attempts || 0); // v1.8: attempts:1 = one try (unless unlimited)
+    // v1.16.0: every hack has 3 lives (CONFIG.hack.lives); being caught costs a life and sends you back to the section start. Unlimited setting = no limit.
+    this.attempts = this.unlimited ? 0 : (layout.lives || (typeof CONFIG !== 'undefined' && CONFIG.hack && CONFIG.hack.lives) || 3); this.lives = this.attempts; this.cp = null;
     this.invisible = !!layout.invisible; this.seen = new Set();
     this.zone = new Set(); if (layout.inverted) { const x0 = Math.floor(this.W / 3), x1 = Math.ceil(2 * this.W / 3); for (let y = 0; y < this.H; y++) for (let x = x0; x < x1; x++) if ('#SX'.indexOf(this.ch(x, y)) < 0) this.zone.add(x + ',' + y); }
     this.reset(true);
@@ -1504,13 +1507,20 @@ class HackGame {
   find(ch) { const out = []; this.rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === ch) out.push([x, y]); }); return out; }
   ch(x, y) { if (y < 0 || y >= this.H || x < 0 || x >= this.W) return '#'; return this.rows[y][x]; }
   reset(first) {
-    const s = this.find('S')[0]; this.px = s[0]; this.py = s[1];
-    this.charge = 0; this.used = {}; this.bulb = 0; this.tog = { B: false, N: false }; this.lockOpen = false;
-    this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 }));
+    const cp = !first && this.cp;
+    if (cp) { this.px = cp.px; this.py = cp.py; this.charge = cp.charge; this.used = Object.assign({}, cp.used); this.bulb = cp.bulb; this.tog = Object.assign({}, cp.tog); this.lockOpen = cp.lockOpen;
+      this.av = cp.av.map(a => ({ x: a.hx, y: a.hy, hx: a.hx, hy: a.hy, alive: a.alive, t: 0 })); }
+    else { const s = this.find('S')[0]; this.px = s[0]; this.py = s[1];
+      this.charge = 0; this.used = {}; this.bulb = 0; this.tog = { B: false, N: false }; this.lockOpen = false;
+      this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 })); }
     this.mode = null; this.input = []; this.keyShow = 0; this.keyText = ''; this.hold = 0; this.holding = false;
-    if (!first) { this.resets++; this.msg = 'Caught by the antivirus! Section reset.'; if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = 'Caught by the antivirus. No attempts left.'; } }
+    if (!first) { this.resets++; this.lives = this.attempts ? Math.max(0, this.attempts - this.resets) : 0;
+      this.msg = 'Caught! ' + (this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '') + 'Back to the section start.';
+      if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = 'Caught by the antivirus. No lives left.'; } }
     this.reveal();
   }
+  checkpoint() { // v1.16.0: 'P' tiles save the section start (position + puzzle state); antiviruses go home on a reset
+    this.cp = { px: this.px, py: this.py, charge: this.charge, used: Object.assign({}, this.used), bulb: this.bulb, tog: Object.assign({}, this.tog), lockOpen: this.lockOpen, av: this.av.map(a => ({ hx: a.hx, hy: a.hy, alive: a.alive })) }; }
   reveal() { if (!this.invisible) return; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!dx || !dy) this.seen.add((this.px + dx) + ',' + (this.py + dy)); }
   inZone(x, y) { return this.zone.has(x + ',' + y); }
   isHidden(x, y) { return this.invisible && !this.seen.has(x + ',' + y) && this.ch(x, y) !== 'X' && this.ch(x, y) !== 'S'; }
@@ -1544,6 +1554,7 @@ class HackGame {
     else if (c === 'B' || c === 'N') this.msg = 'Bridge node: press ACT to rewire.';
     else if (c === 'L') this.msg = this.lockOpen ? 'Lock open.' : 'Lock: press ACT and enter the code.';
     else if (c === 'X') this.msg = 'Exit! HOLD to upload (0.5s).';
+    else if (c === 'P' && !(this.cp && this.cp.px === this.px && this.cp.py === this.py)) { this.checkpoint(); this.msg = 'Checkpoint saved. Getting caught brings you back here.'; this.fx = 'charge'; }
   }
   onNode() { const c = this.ch(this.px, this.py); return 'BNLKkCUX'.includes(c) ? c : null; }
   act() {
@@ -1585,13 +1596,14 @@ class HackGame {
     const app = n === 'B' ? (this.tog.B ? 'b' : 'a') : (this.tog.N ? 'd' : 'c'); const dis = n === 'B' ? (this.tog.B ? 'a' : 'b') : (this.tog.N ? 'c' : 'd');
     return { appear: this.find(app), vanish: this.find(dis) };
   }
-  draw(ctx, w, h, t) {
+  draw(ctx, w, h, t, view) { // v1.16.0: view = {cs, ox, oy} from the scrolling camera (hackCamera); no view = fit the whole map
     const HT = (typeof hackTheme === 'function' && hackTheme()) || HACK_THEME_DEFAULT;
     ctx.fillStyle = HT.bg; ctx.fillRect(0, 0, w, h);
-    const cs = Math.floor(Math.min(w / this.W, h / this.H)); const ox = Math.floor((w - cs * this.W) / 2), oy = Math.floor((h - cs * this.H) / 2);
+    let cs, ox, oy; if (view) { cs = view.cs; ox = Math.round(view.ox); oy = Math.round(view.oy); } else { cs = Math.floor(Math.min(w / this.W, h / this.H)); ox = Math.floor((w - cs * this.W) / 2); oy = Math.floor((h - cs * this.H) / 2); }
     const P = (x, y) => [ox + x * cs, oy + y * cs];
     const pv = this.previewCells();
-    for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) {
+    const x0 = Math.max(0, Math.floor(-ox / cs)), x1 = Math.min(this.W - 1, Math.ceil((w - ox) / cs)), y0 = Math.max(0, Math.floor(-oy / cs)), y1 = Math.min(this.H - 1, Math.ceil((h - oy) / cs));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const c = this.ch(x, y); const [sx, sy] = P(x, y); const pass = this.passable(x, y);
       if (this.isHidden(x, y)) { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = '#0d1428'; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
       if (c === '#') { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = HT.wallLine; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
@@ -1608,6 +1620,7 @@ class HackGame {
       if (c === 'K' || c === 'k') icon('🔑', '#fff');
       if (c === 'L') icon(this.lockOpen ? '🔓' : '🔒', '#fff');
       if (c === 'B' || c === 'N') icon('⚒', c === 'B' ? '#7dd3fc' : '#f0abfc');
+      if (c === 'P') icon('⚑', this.cp && this.cp.px === x && this.cp.py === y ? '#22c55e' : '#9ab');
     }
     if (pv) { ctx.lineWidth = 2; ctx.setLineDash([4, 3]); for (const [x, y] of pv.appear) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#22c55e'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } for (const [x, y] of pv.vanish) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#ef4444'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } ctx.setLineDash([]); ctx.lineWidth = 1; }
     for (const a of this.av) { if (!a.alive) continue; const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * (CONFIG.hack.avZone + 0.5), 0, 7); ctx.stroke();
@@ -1637,7 +1650,23 @@ function hackPlan(game) { // BFS over (pos, charge, used charges, bulbs, bridges
     for (const [n, acts] of nx) { const k = key(n); if (!prev.has(k)) { prev.set(k, [key(s), acts]); q.push(n); } } }
   return null;
 }
-
+/* v1.16.0 scrolling camera (Dispatch-style): fixed play zoom, player always the target (no deadzone), the camera eases after each instant node step,
+   free scrolling in every direction, clamped at the map edges. Holding MAP eases to a fit-the-whole-map zoom; releasing eases back. */
+const HACKCAM = { ease: 12, zoomEase: 18, tilesAcross: 8.5, minCs: 32, maxCs: 60 };
+function hackPlayCs(w, h) { return Math.max(HACKCAM.minCs, Math.min(HACKCAM.maxCs, Math.floor(Math.min(w, h) / HACKCAM.tilesAcross))); }
+function hackCamClamp(c, mapTiles, viewTiles) { return mapTiles <= viewTiles ? mapTiles / 2 : Math.max(viewTiles / 2, Math.min(mapTiles - viewTiles / 2, c)); }
+function hackCamera(cam, g, w, h, dt, zoomHeld) { // cam = {cx, cy, z, init}; returns the view {cs, ox, oy, cx, cy, z, playCs, fitCs}
+  const fitCs = Math.max(4, Math.min(w / g.W, h / g.H)), playCs = Math.max(hackPlayCs(w, h), Math.floor(fitCs));
+  const tx = hackCamClamp(g.px + 0.5, g.W, w / playCs), ty = hackCamClamp(g.py + 0.5, g.H, h / playCs);
+  if (!cam.init) { cam.cx = tx; cam.cy = ty; cam.z = 0; cam.init = true; }
+  const k = 1 - Math.exp(-HACKCAM.ease * Math.max(0, dt)), kz = 1 - Math.exp(-HACKCAM.zoomEase * Math.max(0, dt));
+  cam.cx += (tx - cam.cx) * k; cam.cy += (ty - cam.cy) * k; if (Math.abs(tx - cam.cx) < 1e-3) cam.cx = tx; if (Math.abs(ty - cam.cy) < 1e-3) cam.cy = ty;
+  cam.z += ((zoomHeld ? 1 : 0) - cam.z) * kz; if (Math.abs((zoomHeld ? 1 : 0) - cam.z) < 5e-3) cam.z = zoomHeld ? 1 : 0;
+  const cs = playCs + (fitCs - playCs) * cam.z;
+  const rx = hackCamClamp(cam.cx + (g.W / 2 - cam.cx) * cam.z, g.W, w / cs), ry = hackCamClamp(cam.cy + (g.H / 2 - cam.cy) * cam.z, g.H, h / cs);
+  return { cs, ox: w / 2 - rx * cs, oy: h / 2 - ry * cs, cx: rx, cy: ry, z: cam.z, playCs, fitCs, tx, ty };
+}
+if (typeof module !== 'undefined') module.exports = { HackGame, genProceduralLayout, hackCamera, hackPlayCs };
 
 /* ================= ENGINE (DOM-free; runs in the browser and in runSimulation) ================= */
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -3385,14 +3414,14 @@ function openReview(c) {
 function openHackBrief(c) {
   openModal('hackbrief', m => { const P = sheetParts(m, `<span class="diff normal">⌘ HACK</span><h2>${esc(c.tpl.title)}</h2><span class="pill">⏱ ${Math.ceil(c.expiresAt - UI.S.t)}s</span>`,
     `<p class="txt">${esc(c.tpl.text)}</p>${c.restoreDistrict !== undefined ? `<div class="note good">Clearing this restores power to <b>${DISTRICTS[c.restoreDistrict].name}</b>.</div>` : ''}
-     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. Reach the green hexagon and <b>HOLD</b>.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
+     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
     `<button class="btn ghost" data-a="close">LATER</button><button class="btn pri" data-a="go">TAKE THE CONSOLE</button>`);
     P.F.querySelector('[data-a=close]').onclick = () => closeModal(); P.F.querySelector('[data-a=go]').onclick = () => { closeModal(); startHack(c); }; });
 }
 function startHack(c, layout, disrupt) {
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp) : hackLayoutFor(UI.camp, UI.S, disrupt ? null : c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (game.attempts ? ' · ' + game.attempts + ' try' : '') + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Time is paused on the map.');
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. Time is paused on the map.');
   if (L.invisible || L.inverted) tutorial('hackG', '👁 Invisible paths: floor tiles only show next to you. ⇅ Red zones invert your controls while you stand in them.');
   renderHackPanels();
 }
@@ -3411,8 +3440,9 @@ function renderHackPanels() {
 function hackFrame(dt) {
   const H = UI.hack; const g = H.game; g.update(dt); H.t += dt; hackFx();
   const cv = $('hcv'), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr); }
-  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t);
-  $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hCharge').textContent = (g.charge ? '⚡ CHARGED' : '') + (g.resets ? `  resets:${g.resets}` : '');
+  if (!H.cam) H.cam = { init: false }; H.view = hackCamera(H.cam, g, w, hh, dt, !!H.zoom);
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t, H.view);
+  $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hCharge').textContent = (g.charge ? '⚡ CHARGED  ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
   const k = $('hKey'); if (g.keyShow > 0) { k.classList.remove('hidden'); k.textContent = g.keyText; } else k.classList.add('hidden');
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
@@ -3422,6 +3452,8 @@ function initHackInput() {
   const hb = $('hHold'); const hs = e => { e.preventDefault(); if (UI.hack) UI.hack.game.holding = true; }; const he = () => { if (UI.hack) UI.hack.game.holding = false; };
   hb.addEventListener('pointerdown', hs); hb.addEventListener('pointerup', he); hb.addEventListener('pointerleave', he); hb.addEventListener('pointercancel', he);
   $('hQuit').onclick = () => endHack(false, true);
+  const mb = $('hMap'); const ms = e => { e.preventDefault(); mb.classList.add('press'); if (UI.hack) UI.hack.zoom = true; }; const me = () => { mb.classList.remove('press'); if (UI.hack) UI.hack.zoom = false; }; // v1.16.0: hold to see the whole map
+  mb.addEventListener('pointerdown', ms); mb.addEventListener('pointerup', me); mb.addEventListener('pointerleave', me); mb.addEventListener('pointercancel', me); mb.addEventListener('contextmenu', e => e.preventDefault());
   const cv = $('hcv'); let sw = null; cv.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => { if (!sw || sw.id !== e.pointerId) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; const th = 26; if (Math.abs(dx) > th || Math.abs(dy) > th) { hackStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } });
   const swEnd = () => { sw = null; }; cv.addEventListener('pointerup', swEnd); cv.addEventListener('pointercancel', swEnd);
@@ -4084,7 +4116,7 @@ function initInput() {
     const k = e.key;
     if (UI.heroCard) { if (k === 'Escape') { e.preventDefault(); closeHeroCard(); } return; } // v1.9.4: the hero card owns the keyboard while open
     if (UI.hack) { const g = UI.hack.game; const map = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
-      if (map[k]) { e.preventDefault(); hackStep(map[k]); } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
+      if (map[k]) { e.preventDefault(); hackStep(map[k]); } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if ((k === 'm' || k === 'M') && g.mode !== 'lock') { UI.hack.zoom = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
     if (k === 'd' || k === 'D') { UI.debug = !UI.debug; const m = UI.modals[0]; if (m && m.render) m.render(); return; }
     const wm = UI.modals[0]; if (wm && wm.kind === 'wildcard') { if (k === 'Enter' && wm.enter) { e.preventDefault(); wm.enter(); } return; }
     const cm = UI.modals[0]; if (cm && cm.kind === 'codex') { if (k === 'Escape') cm.esc(); else if (cm.go && (k === 'ArrowRight' || k === 'ArrowLeft')) cm.go(k === 'ArrowRight' ? 1 : -1); return; }
@@ -4097,7 +4129,7 @@ function initInput() {
     if (hotkeyIndex(k) >= 0 && m && m.keyHero) { m.keyHero(hotkeyIndex(k)); return; }
     if (k === 'Enter' && m && m.enter) { m.enter(); }
   });
-  document.addEventListener('keyup', e => { if (UI.hack && e.key === ' ') UI.hack.game.holding = false; });
+  document.addEventListener('keyup', e => { if (UI.hack && e.key === ' ') UI.hack.game.holding = false; if (UI.hack && (e.key === 'm' || e.key === 'M')) UI.hack.zoom = false; });
   // mobile hardening: no pinch zoom, no double-tap zoom, no context menu, no rubber-band
   document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); const sc = e.target.closest && e.target.closest('#queue,#roster,.sh-b,#screen'); if (!sc) e.preventDefault(); }, { passive: false });
   document.addEventListener('gesturestart', e => e.preventDefault());
