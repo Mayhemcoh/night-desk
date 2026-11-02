@@ -473,6 +473,19 @@ html body .btn.btn:disabled{opacity:1;background:var(--btn-dis-bg)!important;col
 .chip.noreq .n,.chip.noreq small.tbr{color:var(--muted-txt)!important}
 .chip.noreq small.tbr{text-transform:none;font-weight:700}
 
+/* v1.15.0 Music menu + Credits */
+.verrow{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+.mus-vol{display:flex;flex-direction:column;gap:6px;margin:4px 0 2px}.mus-vol label{font-weight:700}
+.mus-vol input[type=range]{width:100%;min-height:44px;accent-color:var(--cyan)}
+.mus-h{margin:14px 0 6px;font-size:14px;letter-spacing:1px}
+.mus-row{display:flex;gap:8px;align-items:stretch;margin:6px 0}
+.mus-row .mus-pick{flex:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;min-height:52px;letter-spacing:0}
+.mus-row .mus-pick small,.mus-fixed small{font-weight:500;font-size:12px}
+.mus-row .mus-pick.mus-on{outline:3px solid currentColor;outline-offset:-3px}
+.mus-row .mus-pv{min-width:52px;min-height:52px;font-size:16px}
+.mus-fixed{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:52px;padding:0 4px}
+ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -802,7 +815,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.14.1';
+<script>window.ND_VERSION='nd-v1.15.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2856,7 +2869,7 @@ function aiDisruptAlways(camp, S, c, opts) { let guard = 0;
     if (!best) break; resolveDisruption(camp, S, c, best.o.key); } }
 function aiTrainingTeam(camp, S, c) { const av = camp.roster.filter(id => canDispatchHero(camp, id)); return av.find(id => !trainingBlock(camp, c, id)) || null; } // v1.14.1: same rule as the UI
 
-/* ================= AUDIO (WebAudio synth only) ================= */
+/* ================= AUDIO (WebAudio synth SFX; music in music.js) ================= */
 const Sfx = {
   ctx: null, master: null, on: true, music: null, step: 0, nextNote: 0, tempo: 1,
   init() { if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = 0.5; this.master.connect(this.ctx.destination); },
@@ -2876,14 +2889,7 @@ const Sfx = {
   alarm() { this.tone(980, 0.08, 'sawtooth', 0.05); },
   tension(p) { this.tone(200 + p * 600, 0.05, 'sawtooth', 0.03); },
   fanfare() { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.4, 'triangle', 0.12, i * 0.12)); },
-  musicUpdate(pending, playing) {
-    if (!this.ctx || !this.on || !playing) return;
-    this.tempo = pending >= CONFIG.pendingMusicBoost ? 1.45 : 1; const now = this.ctx.currentTime; if (this.nextNote < now) this.nextNote = now + 0.05;
-    const bass = [55, 55, 65.4, 49, 55, 73.4, 65.4, 49];
-    while (this.nextNote < now + 0.2) { const i = this.step % 16; const n = bass[Math.floor(i / 2) % 8]; const when = this.nextNote - now;
-      if (i % 2 === 0) this.tone(n, 0.28 / this.tempo, 'triangle', 0.09, when); if (i % 4 === 2) this.noise(0.05, 0.025, 6000, when, 0.7); if (i % 8 === 4) this.tone(n * 4, 0.12, 'sine', 0.02, when);
-      this.nextNote += 0.22 / this.tempo; this.step++; }
-  },
+  musicUpdate() { }, // v1.15.0: synth bass loop retired; real music lives in music.js (Music)
 };
 
 /* ================= UI ================= */
@@ -3516,14 +3522,15 @@ function togRow(key, label, val) { return `<div class="tglrow"><span>${label}</s
 function openPause() {
   const S = UI.S; openModal('pause', m => { const render = () => {
     const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
-      `${togRow('sound', '🔊 Sound', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('classicCalls', '🎲 Classic random calls (legacy draw; applies from the next shift)', UI.camp.missionSet === 'legacy')}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('classicCalls', '🎲 Classic random calls (legacy draw; applies from the next shift)', UI.camp.missionSet === 'legacy')}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
-       <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button></div>
+       <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
     P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else if (k === 'classicCalls') { UI.settings.classicCalls = UI.camp.missionSet !== 'legacy'; UI.camp.missionSet = UI.settings.classicCalls ? 'legacy' : 'v1.8'; saveSettings(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
+    P.B.querySelector('[data-a=music]').onclick = () => openMusic(true);
     P.B.querySelector('[data-a=restart]').onclick = () => { if (confirm('Restart this shift from the beginning? Same calls, fresh dice.')) { closeModal(); restartShift(); } };
     P.B.querySelector('[data-a=quit]').onclick = () => { if (!confirm("Quit to title and lose this shift's progress? (Stat points you spent from points banked before the shift are kept.)")) return; closeModal(); UI.camp = JSON.parse(UI.snapshot); UI.S = null; showRevertNote(UI.camp); saveCamp(); showTitle(); };
     P.F.querySelector('[data-a=resume]').onclick = () => { closeModal(); UI.userPaused = false; }; }; render(); m.onClose = () => { UI.userPaused = false; }; });
@@ -3721,14 +3728,16 @@ function showTitle() {
    ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span></button>` : ''}
    <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
    <div class="card"><h3>Seed (optional)</h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
-   <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
-   <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
+   <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
+   <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
    ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
    <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>
-   <div class="tag ver" id="verLbl" style="font-size:12px">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</div>`, s => {
+   <div class="verrow"><div class="tag ver" id="verLbl" style="font-size:12px">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</div><button class="btn small ghost" data-a="credits">CREDITS</button></div>`, s => {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
     s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); const v = parseInt($('seedIn').value, 10); showNewCampaign(isNaN(v) ? ((Math.random() * 1e9) >>> 0) : v, false, !!save); };
     s.querySelector('[data-a=look]').onclick = () => { Sfx.init(); Sfx.click(); openLooks(); };
+    s.querySelector('[data-a=music]').onclick = () => { Sfx.init(); Sfx.click(); openMusic(); };
+    s.querySelector('[data-a=credits]').onclick = () => { Sfx.init(); Sfx.click(); openCredits(); };
     s.querySelector('[data-a=codex]').onclick = () => { Sfx.init(); Sfx.click(); openCodex(); };
     s.querySelector('[data-a=help]').onclick = () => openModal('help', m => { const P = sheetParts(m, '<h2>How to play</h2>', helpHTML(), '<button class="btn pri">GOT IT</button>'); P.F.querySelector('button').onclick = closeModal; });
     const ib = s.querySelector('[data-a=install]'); if (window._deferredInstall) { ib.classList.remove('hidden'); ib.onclick = async () => { window._deferredInstall.prompt(); window._deferredInstall = null; ib.classList.add('hidden'); }; }
@@ -4166,5 +4175,138 @@ function inkColor(hex, look) {
     const st = document.createElement('style'); st.id = 'nd-ink'; st.textContent = css; document.head.appendChild(st);
   } catch (e) { }
 })();
+
+/* ================= v1.15.0 MUSIC: per-look tracks, Music menu, Credits, offline download =================
+   Audio only: never reads or writes game state beyond looking at it (Classic OFF/ON gameplay unchanged). */
+const MUSIC_KEY = 'nightdesk.music.v1', MUSIC_CACHE = 'nd-music-v1';
+const MUSIC_LIB = {
+  current: { genre: 'Techno', cap: 1.12,
+    menu: { id: 'algate', name: 'Algate (dub techno)', artist: 'cinameng' },
+    gameplay: [{ id: 'kouzali', name: 'Kouzali', artist: 'cinameng' }, { id: 'messup', name: 'Technological Messup', artist: 'Centurion_of_war' }, { id: 'alphatron', name: 'AlphaTron', artist: 'DST' }],
+    finale: [{ id: 'hardwar', name: 'Hardwar', artist: 'cinameng' }, { id: 'hardbattle2', name: 'Hard Battle 2', artist: 'MintoDog' }, { id: 'trance', name: 'Trance Boss Battle', artist: 'MintoDog' }] },
+  comic: { genre: '90s rock', cap: 1.08,
+    menu: { id: 'gilmourish', name: 'Gilmourish', artist: 'OpenGameArt (CC0)' },
+    gameplay: [{ id: 'rocktheme3', name: 'Rock Theme 3', artist: 'Umplix' }, { id: 'rocksong', name: 'Rock Theme Song', artist: 'Umplix' }, { id: 'bravery', name: 'Bravery Run', artist: 'MintoDog', cap: 1.05 }],
+    finale: [{ id: 'goodasnu_intro', alt: 'goodasnu_heavy', name: 'Good as NU', artist: 'GTDStudio aka Palrom' }, { id: 'heatbattle', name: 'Heat Battle', artist: 'MintoDog' }, { id: 'punk', name: 'Fast Cheerful Punk Rock', artist: 'annandistance' }] },
+  neon: { genre: 'Noir detective', cap: 1.05,
+    menu: { id: 'velvet_solo', name: 'Velvet Sax (Solo)', artist: 'Bogart VGM' },
+    gameplay: [{ id: 'velvet_synth', alt: 'velvet_band', name: 'Velvet Sax', artist: 'Bogart VGM' }, { id: 'docks', name: 'Night on the Docks (Sax)', artist: 'Kevin MacLeod' }, { id: 'moil', name: 'Moil', artist: 'Ruskerdax' }],
+    finale: [{ id: 'coffeeblack', name: 'Coffee Black', artist: 'GrimFrenzy' }, { id: 'covertaffair', name: 'Covert Affair', artist: 'Kevin MacLeod' }, { id: 'nightvigil', name: 'Night Vigil', artist: 'Kevin MacLeod' }] },
+  crt: { genre: 'Chiptune', cap: 1.15,
+    menu: { id: 'juhani_title', name: 'Title Screen', artist: 'Juhani Junkala' },
+    gameplay: [{ id: 'juhani1', name: 'Level 1', artist: 'Juhani Junkala' }, { id: 'juhani2', name: 'Level 2', artist: 'Juhani Junkala' }, { id: 'juhani3', name: 'Level 3', artist: 'Juhani Junkala' }],
+    finale: [{ id: 'boss8bit', alt: 'boss8bit_climax', name: '8bit Action Boss Battle', artist: 'MintoDog' }, { id: 'chipbattle', name: 'Chiptune Battle Music', artist: 'pmiller' }, { id: 'bossloop', name: 'Boss Battle', artist: 'Pro Sensory' }] },
+  clean: { genre: 'Modern', cap: 1.10,
+    menu: { id: 'chill', name: 'Chill (Loopable)', artist: 'Pro Sensory' },
+    gameplay: [{ id: 'chilllofi', name: 'Chill lofi inspired', artist: 'omfgdude & qubodup' }, { id: 'lofihiphop', name: 'Lofi Hip Hop Loop', artist: 'omfgdude' }, { id: 'dimlylit', name: 'Dimly lit', artist: 'iamoneabe' }],
+    finale: [{ id: 'empacotatron', name: 'Empacotatron', artist: 'Fupi' }, { id: 'kuia', name: 'Kuia', artist: 'cinameng' }, { id: 'dubimprov', name: 'Dub Improv', artist: 'Sudocolon' }] },
+};
+const MUSIC_CREDITS_BY = [
+  '"Night on the Docks – Sax", "Night Vigil" and "Covert Affair" by Kevin MacLeod (incompetech.com). Licensed under Creative Commons: By Attribution 4.0 License, creativecommons.org/licenses/by/4.0/',
+  '"Good as NU" by GTDStudio aka Palrom, CC-BY 3.0, opengameart.org/content/good-as-nu',
+  '"Velvet Sax" (Solo, Band, Synthgaze) by Bogart VGM, CC-BY 4.0, opengameart.org',
+  '"Coffee Black" by GrimFrenzy, CC-BY 3.0, opengameart.org/content/coffee-black'];
+const MUSIC_CREDITS_CC0 = 'cinameng (James Gargette), Centurion_of_war, DST, MintoDog, Umplix, annandistance, Ruskerdax, Juhani Junkala, pmiller, Pro Sensory (Alex McCulloch), omfgdude, qubodup, iamoneabe, Fupi, Sudocolon, and the author of "Gilmourish". Music from OpenGameArt.org and Free Music Archive.';
+const musicUrl = (look, id) => 'music/' + look + '/' + id + '.m4a';
+function musicAllUrls(first) { const looks = Object.keys(MUSIC_LIB); if (first) looks.sort((a, b) => (b === first) - (a === first)); const out = [];
+  for (const l of looks) { const L = MUSIC_LIB[l]; for (const t of [L.menu, ...L.gameplay, ...L.finale]) { out.push(musicUrl(l, t.id)); if (t.alt) out.push(musicUrl(l, t.alt)); } } return out; }
+const Music = {
+  vol: 60, sel: {}, ctx: null, bus: null, filter: null, ch: [], cur: null, level: 0, want: 0, wantT: 0, finStage: 0, ducked: 1, pv: null, dl: { done: 0, total: 0, state: 'idle' }, _t: 0, unlocked: false,
+  load() { try { const v = JSON.parse(Store.get(MUSIC_KEY) || '{}'); if (typeof v.vol === 'number') this.vol = Math.max(0, Math.min(100, v.vol)); if (v.sel && typeof v.sel === 'object') this.sel = v.sel; } catch (e) { } },
+  save() { Store.set(MUSIC_KEY, JSON.stringify({ vol: this.vol, sel: this.sel })); },
+  look() { const l = (typeof LookState !== 'undefined' && LookState.look) || 'current'; return MUSIC_LIB[l] ? l : 'current'; },
+  pick(kind, look) { look = look || this.look(); const L = MUSIC_LIB[look], s = this.sel[look] || {}; const list = L[kind]; return list.find(t => t.id === s[kind]) || list[0]; },
+  choose(kind, id) { const l = this.look(); this.sel[l] = Object.assign({}, this.sel[l], { [kind]: id }); this.save(); },
+  reset() { delete this.sel[this.look()]; this.save(); },
+  available() { return !window.ND_STANDALONE && typeof Audio !== 'undefined'; },
+  unlock() { // first tap (iOS): create graph + play/pause elements inside the gesture
+    if (!this.available()) return; try { Sfx.init(); } catch (e) { } const ctx = Sfx.ctx; if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (!this.ctx) { this.ctx = ctx; this.bus = ctx.createGain(); this.bus.gain.value = 0; this.filter = ctx.createBiquadFilter(); this.filter.type = 'lowpass'; this.filter.frequency.value = 18000; this.filter.connect(this.bus); this.bus.connect(ctx.destination);
+      for (let i = 0; i < 2; i++) { const el = new Audio(); el.loop = true; el.preload = 'auto'; el.crossOrigin = 'anonymous'; try { el.preservesPitch = true; el.webkitPreservesPitch = true; } catch (e) { } const g = ctx.createGain(); g.gain.value = 0; let src = null; try { src = ctx.createMediaElementSource(el); src.connect(g); } catch (e) { } g.connect(this.filter); this.ch.push({ el, g, src, key: null }); }
+      const pe = new Audio(); pe.crossOrigin = 'anonymous'; const pg = ctx.createGain(); pg.gain.value = 0; try { ctx.createMediaElementSource(pe).connect(pg); } catch (e) { } pg.connect(ctx.destination); this.pv = { el: pe, g: pg, timer: null, on: false }; }
+    if (!this.unlocked) { this.unlocked = true; for (const c of this.ch.concat(this.pv ? [this.pv] : [])) { const p = c.el.play(); if (p && p.catch) p.catch(() => { }); c.el.pause(); } }
+  },
+  mode() { if (UI.screen !== 'game' || !UI.S) return 'menu'; const S = UI.S; if ((S.finale && !S.finale.won) || pendingCalls(S).some(c => c.tpl && c.tpl.boss)) return 'finale'; return 'play'; },
+  target() { const look = this.look(), mode = this.mode(); if (mode === 'menu') return { look, mode, t: MUSIC_LIB[look].menu, file: MUSIC_LIB[look].menu.id };
+    const t = this.pick(mode === 'finale' ? 'finale' : 'gameplay', look); const useAlt = t.alt && (mode === 'finale' ? this.finStage > 0 : this.level > 0); return { look, mode, t, file: useAlt ? t.alt : t.id }; },
+  tension(now) { // pending calls -> 0 calm (0-1), 1 busy (2-4), 2 swamped (5+); up after 1.5 s, down after 4 s
+    const S = UI.S; if (!S || UI.screen !== 'game') { this.level = 0; this.want = 0; this.finStage = 0; return; }
+    if (!isPaused()) { const n = pendingCalls(S).length; const w = n >= 5 ? 2 : n >= 2 ? 1 : 0; if (w !== this.want) { this.want = w; this.wantT = now; }
+      if (this.want !== this.level && now - this.wantT >= (this.want > this.level ? 1500 : 4000)) this.level += this.want > this.level ? 1 : -1;
+      const F = S.finale; this.finStage = F && typeof F.bossHP === 'number' && F.bossHP <= Math.ceil((F.bossMax || 5) / 2) ? 1 : 0; }
+  },
+  update(now) {
+    if (!this.ctx || !this.available()) return; if (now - this._t < 100) return; this._t = now; this.tension(now);
+    const ctx = this.ctx, T = ctx.currentTime; const hidden = document.hidden;
+    const pausedByUser = UI.screen === 'game' && (UI.userPaused || (UI.modals[0] && ['pause', 'music', 'looks', 'credits'].includes(UI.modals[0].kind)));
+    const previewing = this.pv && this.pv.on; const base = this.vol <= 0 ? 0 : Math.pow(this.vol / 100, 2) * 0.9;
+    const g = previewing ? 0 : base * (pausedByUser ? 0.3 : 1);
+    this.bus.gain.setTargetAtTime(g, T, 0.25);
+    if (this.vol <= 0 || hidden) { for (const c of this.ch) if (!c.el.paused) c.el.pause(); return; }
+    const tg = this.target(), key = tg.look + '/' + tg.file;
+    const L = MUSIC_LIB[tg.look], cap = (tg.t && tg.t.cap) || L.cap;
+    const rate = tg.mode === 'menu' ? 1 : tg.mode === 'finale' ? 1 + (cap - 1) * 0.5 * this.finStage : 1 + (cap - 1) * [0, 0.5, 1][this.level];
+    const freq = tg.mode === 'play' ? [3500, 9000, 18000][this.level] : 18000;
+    this.filter.frequency.setTargetAtTime(freq, T, 0.4);
+    let a = this.ch.find(c => c.key === key);
+    if (!a) { a = this.ch.find(c => c !== this.cur) || this.ch[0]; a.key = key; a.el.src = musicUrl(tg.look, tg.file); a.el.currentTime = 0; }
+    if (a !== this.cur) { for (const c of this.ch) c.g.gain.setTargetAtTime(c === a ? 1 : 0, T, 0.35); const old = this.cur; this.cur = a; if (old) setTimeout(() => { if (this.cur !== old) old.el.pause(); }, 1600); }
+    const lift = tg.mode === 'play' ? [1, 1.06, 1.12][this.level] : 1; a.g.gain.setTargetAtTime(lift, T, 0.35);
+    if (Math.abs(a.el.playbackRate - rate) > 0.001) a.el.playbackRate = rate;
+    if (a.el.paused) { const p = a.el.play(); if (p && p.catch) p.catch(() => { }); }
+  },
+  preview(look, id) { this.unlock(); if (!this.pv) return; const P = this.pv; clearTimeout(P.timer); clearTimeout(P.t2); const T = this.ctx.currentTime;
+    P.el.src = musicUrl(look, id); P.el.currentTime = 0; P.on = true; P.id = id; P.g.gain.cancelScheduledValues(T); P.g.gain.setValueAtTime(0.5, T); // half volume, even when music volume is 0
+    const p = P.el.play(); if (p && p.catch) p.catch(() => { P.on = false; });
+    P.timer = setTimeout(() => { const T2 = this.ctx.currentTime; P.g.gain.setTargetAtTime(0, T2, 0.3); P.t2 = setTimeout(() => this.stopPreview(), 1200); }, 8000); this._t = 0; },
+  stopPreview() { const P = this.pv; if (!P) return; clearTimeout(P.timer); clearTimeout(P.t2); P.el.pause(); P.on = false; P.id = null; this._t = 0; if (typeof Music.onPreviewEnd === 'function') Music.onPreviewEnd(); },
+  async download() { // background download into its own cache (kept across game updates)
+    if (!this.available() || !window.caches || location.protocol === 'file:' || this.dl.state === 'running') return;
+    const urls = musicAllUrls(this.look()); this.dl = { done: 0, total: urls.length, state: 'running' }; this.onDl();
+    try { const c = await caches.open(MUSIC_CACHE); for (const u of urls) { const abs = new URL(u, location.href).href; if (!(await c.match(abs))) { let ok = false; for (let i = 0; i < 3 && !ok; i++) { try { const r = await fetch(abs, { cache: 'no-store' }); if (r.ok && r.status === 200) { await c.put(abs, r); ok = true; } } catch (e) { await new Promise(r => setTimeout(r, 2000)); } } if (!ok) { this.dl.state = 'error'; this.onDl(); return; } } this.dl.done++; this.onDl(); }
+      this.dl.state = 'done'; this.onDl(); } catch (e) { this.dl.state = 'error'; this.onDl(); } },
+  onDl() { const e = document.getElementById('musDl'); if (e) e.textContent = musicDlText(); },
+};
+function musicDlText() { const d = Music.dl; if (!Music.available()) return 'Music is not included in the single-file version.';
+  if (d.state === 'done') return '✓ All music saved for offline play.'; if (d.state === 'error') return `⚠ Music download paused (${d.done}/${d.total}). It will retry next launch.`;
+  if (d.state === 'running') return `Downloading music for offline: ${d.done}/${d.total}`; return 'Music downloads in the background for offline play.'; }
+Music.load();
+['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, () => Music.unlock(), { capture: true, passive: true }));
+document.addEventListener('visibilitychange', () => { Music._t = 0; if (document.hidden) { if (Music.pv && Music.pv.on) Music.stopPreview(); } });
+(function musicLoop() { try { Music.update(performance.now()); } catch (e) { } requestAnimationFrame(musicLoop); })();
+window.addEventListener('load', () => setTimeout(() => Music.download(), 4000));
+function openMusic(fromPause) {
+  openModal('music', m => { const render = () => {
+    const look = Music.look(), L = MUSIC_LIB[look], ln = (LOOKS.find(x => x.id === look) || {}).name || look;
+    const row = (kind, t) => { const on = Music.pick(kind).id === t.id, pl = Music.pv && Music.pv.on && Music.pv.id === t.id;
+      return `<div class="mus-row"><button class="btn ${on ? 'mus-on' : ''} mus-pick" data-kind="${kind}" data-id="${t.id}" aria-pressed="${on}"><span>${on ? '✓ ' : ''}${on ? '<b>' : ''}${esc(t.name)}${on ? '</b>' : ''}</span><small>${esc(t.artist)}</small></button><button class="btn small mus-pv" data-pv="${t.id}" aria-label="Preview ${esc(t.name)}">${pl ? '■' : '▶'}</button></div>`; };
+    const P = sheetParts(m, `<h2>🎵 Music</h2><span class="pill">${esc(ln)} · ${esc(L.genre)}</span>`,
+      `${Music.available() ? '' : '<div class="note warn">Music is not included in the single-file version. Use the web/app version.</div>'}
+       <div class="mus-vol"><label for="musVol">Music volume: <b id="musVolV">${Music.vol ? Music.vol : 'Off'}</b></label><input type="range" id="musVol" min="0" max="100" step="5" value="${Music.vol}" aria-label="Music volume"></div>
+       <p class="txt">0 turns music off. Sound effects have their own switch. ▶ previews play at half volume.</p>
+       <h3 class="mus-h">Gameplay</h3>${L.gameplay.map(t => row('gameplay', t)).join('')}
+       <h3 class="mus-h">Finale / boss</h3>${L.finale.map(t => row('finale', t)).join('')}
+       <h3 class="mus-h">Menus &amp; briefings (fixed)</h3><div class="mus-row"><div class="mus-fixed"><span>${esc(L.menu.name)}</span><small>${esc(L.menu.artist)}</small></div><button class="btn small mus-pv" data-pv="${L.menu.id}" aria-label="Preview ${esc(L.menu.name)}">${Music.pv && Music.pv.on && Music.pv.id === L.menu.id ? '■' : '▶'}</button></div>
+       <p class="txt">Tracks change with the look (🎨 LOOK). Music speeds up and gets fuller as calls pile up.</p>
+       <p class="txt" id="musDl" role="status">${musicDlText()}</p>`,
+      '<div class="row"><button class="btn ghost" data-a="reset">RESET TO DEFAULTS</button><button class="btn pri" data-a="done">DONE</button></div>');
+    const vi = P.B.querySelector('#musVol'); vi.oninput = () => { Music.unlock(); Music.vol = +vi.value; P.B.querySelector('#musVolV').textContent = Music.vol ? Music.vol : 'Off'; Music._t = 0; Music.save(); };
+    P.B.querySelectorAll('.mus-pick').forEach(b => b.onclick = () => { Music.unlock(); Music.choose(b.dataset.kind, b.dataset.id); try { Sfx.click(); } catch (e) { } render(); });
+    P.B.querySelectorAll('.mus-pv').forEach(b => b.onclick = () => { if (Music.pv && Music.pv.on && Music.pv.id === b.dataset.pv) Music.stopPreview(); else Music.preview(look, b.dataset.pv); render(); });
+    P.F.querySelector('[data-a=reset]').onclick = () => { Music.reset(); render(); };
+    P.F.querySelector('[data-a=done]').onclick = () => { Music.stopPreview(); closeModal(); if (fromPause && UI.S) openPause(); };
+    Music.onPreviewEnd = () => { if (UI.modals[0] === m) render(); };
+  }; render(); m.onClose = () => { Music.onPreviewEnd = null; if (Music.pv && Music.pv.on) Music.stopPreview(); }; });
+}
+function openCredits() {
+  openModal('credits', m => { const P = sheetParts(m, '<h2>Credits</h2>',
+    `<p class="txt">Night Desk is an original game. All characters are fictional.</p>
+     <h3 class="mus-h">Music (credit required)</h3><ul class="cred">${MUSIC_CREDITS_BY.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+     <h3 class="mus-h">Music (CC0, thank you)</h3><p class="txt">${esc(MUSIC_CREDITS_CC0)}</p>
+     <h3 class="mus-h">Fonts</h3><p class="txt">Bangers, Inter, Rajdhani and VT323, SIL Open Font License 1.1.</p>
+     <p class="txt">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</p>`, '<button class="btn pri" data-a="done">DONE</button>');
+    P.F.querySelector('[data-a=done]').onclick = closeModal; });
+}
 
 </script></body></html>
