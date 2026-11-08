@@ -156,12 +156,14 @@ input.seed{min-height:44px;border-radius:10px;border:1px solid var(--line);backg
 .hhead{display:flex;gap:8px;align-items:center}
 .htitle{font:800 14px ui-monospace,monospace;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
 .htimer{flex:1;height:12px;border-radius:6px;background:#1b2346;overflow:hidden}.htimer i{display:block;height:100%;background:linear-gradient(90deg,#ff7b00,#ffb03a);width:100%}
-.hmsg{font:13px ui-monospace,monospace;color:#9effc0;display:flex;justify-content:space-between;gap:6px;min-height:18px}
+.hmsg{font:13px ui-monospace,monospace;color:#9effc0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 6px;min-height:18px}#hCharge{white-space:nowrap;margin-left:auto}
+.htimer i.low{background:linear-gradient(90deg,#dc2626,#f87171)!important}
+#hSeq .sqh{font-size:12px;color:#cfe3ff;margin-bottom:2px}#hSeq .arw{display:flex;gap:8px;justify-content:center;margin:6px 0}#hSeq .arw .btn{min-width:52px;min-height:48px;font-size:22px;padding:0}
 #hKey{position:absolute;top:4px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;font:800 20px ui-monospace,monospace;text-align:center;color:var(--yel);background:#2a2610;border-radius:8px;padding:4px}
 .hstage{flex:1;position:relative;min-height:0}
 #hcv{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #hSeq,#hPad{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);background:#0b1430f2;border:1px solid var(--cyan);border-radius:12px;padding:8px 10px;text-align:center;max-width:96%}
-#hSeq .arrows{font:800 26px ui-monospace,monospace;letter-spacing:4px}
+#hSeq .arrows{font:800 26px ui-monospace,monospace;letter-spacing:4px;color:#e8f0ff}
 #hSeq .arrows b{color:var(--grn)}
 #hPad .disp{font:800 26px ui-monospace,monospace;letter-spacing:8px;margin-bottom:6px;color:var(--yel)}
 #hPad .keys{display:grid;grid-template-columns:repeat(4,58px);gap:6px}
@@ -849,7 +851,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.16.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.17.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -888,7 +890,7 @@ const CONFIG = {
   deckJitter: 0.2, followUpDelay: 3, bossRespawn: 20, rogueFirstAt: 20, finaleCityHit: 8, finaleCityFollowUp: 4, sabotageTimer: 12, routeMult: 0.85, routeMax: 3,
   // v1.11.0: internal used-mission bag (not player-visible); sample deck sizes keep Dispatch pacing after pool expansion
   missionBagReset: 0.9,
-  deckTarget: [9, 13, 23, 28, 28, 16, 13, 30],
+  deckTarget: [10, 14, 24, 29, 30, 17, 14, 32], // v1.17.0: +1 per added hack mission (hacks are required units), so the other calls stay the same
   disruptionChance: 0.25, disruptionTimer: 12, disruptionAt: 0.4, disruptionsFromShift: 3,
   allowAllocUndo: false,    // v1.2: confirmed stat points are final (like the source game); UNDO only clears unconfirmed picks
   disruptRoundXP: [1, 0.75, 0.5], disruptHackTimeBonus: 2, // v1.8.1
@@ -944,14 +946,14 @@ const CONFIG = {
   pendingMusicBoost: 3,              // music speeds up with this many pending
   // per-shift plan: heroes on roster, hacks scheduled (seconds), expected calls for grading
   shifts: [
-    { joins: 5, hacks: [], diff: [4, 4, 0], expected: 18, blurb: 'Your first night on the Desk. Five reformed ex-villains, one dented headset, and a city that does not sleep. Tap a pin, pick heroes, press DISPATCH. Try not to get anyone fired.' },
-    { joins: 1, hacks: [150], diff: [3, 5, 0], expected: 20, blurb: '{joiners} joins the roster{joinQuip}. Also, the city network is held together with tape: when a ⌘ hack call comes in, YOU take the console.' },
-    { joins: 0, hacks: [110, 250], diff: [2, 5, 1], expected: 21, blurb: 'Things get messy. Missions can now be DISRUPTED mid-job ✋ and some calls come as competing choices ⇄. Answer the radio fast.' },
-    { joins: 2, hacks: [180], diff: [2, 5, 2], expected: 23, blurb: 'Two new hires: {joiners}. HR also flagged some "workplace frictions". Mind the ⚡ conflict icons, or work them through.' },
-    { joins: 0, hacks: [], blackout: true, diff: [2, 5, 2], expected: 20, blurb: 'BLACKOUT. Four districts are dark. Clear the ⌘ grid hacks to bring them back online, one by one.' },
-    { joins: 0, hacks: [140], requests: true, diff: [1, 5, 3], expected: 23, blurb: 'The heroes have opinions now. Some will ASK for a call. Say yes and they glow; say no twice and they sulk into next shift.{extras}' },
-    { joins: 0, hacks: [90, 230], requests: true, dense: true, diff: [1, 5, 3], expected: 26, blurb: 'Full moon, payday, and a citywide sale on fireworks. Calls will be dense. Hard calls stay capped unless a pair has real synergy.' },
-    { joins: 0, hacks: [120, 260], requests: true, finale: true, seconds: 450, diff: [1, 4, 5], expected: 25, blurb: 'Final shift of the review period. Corporate is watching. The big ones are coming in tonight.' },
+    { joins: 5, hacks: [120], diff: [4, 4, 0], expected: 18, blurb: 'Your first night on the Desk. Five reformed ex-villains, one dented headset, and a city that does not sleep. Tap a pin, pick heroes, press DISPATCH. Try not to get anyone fired. A ⌘ training console call will show you how hacking works.' },
+    { joins: 1, hacks: [100, 220], diff: [3, 5, 0], expected: 20, blurb: '{joiners} joins the roster{joinQuip}. Also, the city network is held together with tape: when a ⌘ hack call comes in, YOU take the console.' },
+    { joins: 0, hacks: [90, 180, 260], diff: [2, 5, 1], expected: 21, blurb: 'Things get messy. Missions can now be DISRUPTED mid-job ✋ and some calls come as competing choices ⇄. Answer the radio fast.' },
+    { joins: 2, hacks: [110, 230], diff: [2, 5, 2], expected: 23, blurb: 'Two new hires: {joiners}. HR also flagged some "workplace frictions". Mind the ⚡ conflict icons, or work them through.' },
+    { joins: 0, hacks: [45, 175], blackout: true, diff: [2, 5, 2], expected: 20, blurb: 'BLACKOUT. Four districts are dark. Clear the ⌘ grid hacks to bring them back online, one by one.' },
+    { joins: 0, hacks: [100, 220], requests: true, diff: [1, 5, 3], expected: 23, blurb: 'The heroes have opinions now. Some will ASK for a call. Say yes and they glow; say no twice and they sulk into next shift.{extras}' },
+    { joins: 0, hacks: [80, 170, 250], requests: true, dense: true, diff: [1, 5, 3], expected: 26, blurb: 'Full moon, payday, and a citywide sale on fireworks. Calls will be dense. Hard calls stay capped unless a pair has real synergy.' },
+    { joins: 0, hacks: [90, 190, 290], requests: true, finale: true, seconds: 450, diff: [1, 4, 5], expected: 25, blurb: 'Final shift of the review period. Corporate is watching. The big ones are coming in tonight.' },
   ],
 };
 const STATS = ['CMB', 'END', 'AGI', 'PRS', 'WIT'];
@@ -1461,6 +1463,27 @@ function missionMechanics(t) { const k = []; if (t.base === 'choice') k.push('ch
   if (t.hack && (t.hack.features || []).some(f => /invisible|inverted/.test(f))) k.push('invisible'); return [...new Set(k)]; }
 function missionBlurbs() { // tutorial line the first time each mechanic appears (shift index -> text)
   const seen = new Set(), out = []; MISSIONS_BY_SHIFT.forEach((list, i) => { const add = []; for (const t of list) for (const k of missionMechanics(t)) if (!seen.has(k)) { seen.add(k); add.push(MECHANICS[k][1]); } out[i] = add; }); return out; }
+/* v1.17.0: ~50% more hacking missions per shift (Shift 1 gets the console tutorial, Shift 8 the hand-made finale on s8_30).
+   Added as extra 'hack' templates: hacks are required deck units, and CONFIG.deckTarget grew by the same count, so the other calls are unchanged. */
+const HACK_EXTRA_MISSIONS = [
+  [1, 's1_h1', 'Console Training', 'The Desk console needs a dry run before the real thing. Learn the hacking controls on a safe training grid.', { tutorial: true, features: [] }],
+  [2, 's2_h2', 'Parking Meter Mutiny', 'Every meter downtown is printing tickets to itself. Take the console yourself.', { features: ['bridges'] }],
+  [3, 's3_h2', 'Ferry Schedule Scramble', 'The ferry board says every boat leaves at 3:07 AM. Take the console yourself.', { features: ['bridges', 'keys'] }],
+  [4, 's4_h2', 'Stadium Scoreboard Hijack', 'The scoreboard is broadcasting a villain\'s karaoke. Take the console yourself.', { features: ['keys', 'antivirus'] }],
+  [5, 's5_h5', 'Backup Generator Handshake', 'A backup generator will not talk to the grid. Take the console yourself.', { features: ['charges', 'bulbs'] }],
+  [5, 's5_h6', 'Substation Firewall', 'Someone firewalled the substation while the lights were out. Take the console yourself.', { features: ['charges', 'bulbs'] }],
+  [6, 's6_h2', 'Ambulance Router Loop', 'Ambulance GPS keeps routing to the same donut shop. Take the console yourself.', { features: ['charges', 'antivirus', 'splitKeys'] }],
+  [7, 's7_h2', 'Fireworks Launch Panel', 'The fireworks barge is counting down early. Take the console yourself.', { features: ['charges', 'antivirus x3', 'splitKeys'] }],
+  [8, 's8_h5', 'City Hall Mainframe', 'The Night Mayor left a back door in City Hall. Slam it shut.', { features: ['invisiblePaths', 'invertedControls', 'antivirus'] }],
+  [8, 's8_h6', 'Broadcast Tower Override', 'Every screen in the city shows the Night Mayor\'s face. Take the console yourself.', { features: ['invisiblePaths', 'invertedControls', 'antivirus'] }],
+];
+(function () {
+  const base = MISSION_TEMPLATES.find(t => t.type === 'hack'); if (!base) return;
+  for (const [sh, id, title, text, hk] of HACK_EXTRA_MISSIONS) { if (MISSION_BY_ID[id]) continue; const ref = (MISSIONS_BY_SHIFT[sh - 1] || []).find(t => t.type === 'hack') || base;
+    const t = Object.assign({}, ref, { id, title, text, shift: sh, minShift: sh, req: ref.req.slice(), tags: ref.tags.slice(), traits: [], goals: (ref.goals || []).slice(), hack: Object.assign({ time: 60, seq: 5, attempts: 1, district: null }, hk) });
+    delete t.disruption; MISSION_TEMPLATES.push(t); MISSION_BY_ID[id] = t; (MISSIONS_BY_SHIFT[sh - 1] = MISSIONS_BY_SHIFT[sh - 1] || []).push(t); }
+  if (MISSION_BY_ID.s8_30 && MISSION_BY_ID.s8_30.hack) MISSION_BY_ID.s8_30.hack = Object.assign({}, MISSION_BY_ID.s8_30.hack, { finale: true });
+})();
 
 /* ================= HACKING MINIGAME (logic + render) ================= */
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -1494,9 +1517,13 @@ class HackGame {
     this.L = layout; this.rng = rng; this.opts = opts || {};
     this.rows = layout.rows; this.H = this.rows.length; this.W = this.rows[0].length;
     this.time = layout.time; this.timeLeft = layout.time; this.unlimited = !!this.opts.unlimited;
+    if (layout.seed !== undefined) rng = hackRng32((layout.seed ^ 0xc0de5) >>> 0); // v1.17.0: seeded maps also get deterministic codes
     let code = ''; for (let i = 0; i < 4; i++) code += Math.floor(rng() * 10);
     this.code = code; this.split = this.find('k').length > 0;
     this.seqs = {}; for (const n of ['B', 'N']) { const s = []; for (let i = 0; i < (layout.seq || 4); i++) s.push(['up', 'down', 'left', 'right'][Math.floor(rng() * 4)]); this.seqs[n] = s; }
+    // v1.17.0 arrow lock: the code is shown on the lock (no ⌨ terminal on the map) or must be read at a ⌨ terminal (R); arrowMemo = only flashed there
+    this.arrowCode = []; for (let i = 0; i < (layout.arrowLen || 4); i++) this.arrowCode.push(['up', 'down', 'left', 'right'][Math.floor(rng() * 4)]);
+    this.hasTerminal = this.find('R').length > 0; this.filesTotal = this.find('F').length; this.files = {}; this.elapsed = 0; this.tips = layout.tips || null;
     this.resets = 0; this.status = 'play'; this.msg = 'Reach the green hexagon.';
     // v1.16.0: every hack has 3 lives (CONFIG.hack.lives); being caught costs a life and sends you back to the section start. Unlimited setting = no limit.
     this.attempts = this.unlimited ? 0 : (layout.lives || (typeof CONFIG !== 'undefined' && CONFIG.hack && CONFIG.hack.lives) || 3); this.lives = this.attempts; this.cp = null;
@@ -1509,10 +1536,12 @@ class HackGame {
   reset(first) {
     const cp = !first && this.cp;
     if (cp) { this.px = cp.px; this.py = cp.py; this.charge = cp.charge; this.used = Object.assign({}, cp.used); this.bulb = cp.bulb; this.tog = Object.assign({}, cp.tog); this.lockOpen = cp.lockOpen;
-      this.av = cp.av.map(a => ({ x: a.hx, y: a.hy, hx: a.hx, hy: a.hy, alive: a.alive, t: 0 })); }
+      this.av = cp.av.map(a => ({ x: a.hx, y: a.hy, hx: a.hx, hy: a.hy, alive: a.alive, t: 0, hunter: a.hunter }));
+      this.tools = cp.tools; this.broken = Object.assign({}, cp.broken); this.keys = cp.keys; this.qopen = Object.assign({}, cp.qopen); this.arrowKnown = cp.arrowKnown; this.arrowOpen = cp.arrowOpen; this.alarm = cp.alarm; this.picked = Object.assign({}, cp.picked); }
     else { const s = this.find('S')[0]; this.px = s[0]; this.py = s[1];
       this.charge = 0; this.used = {}; this.bulb = 0; this.tog = { B: false, N: false }; this.lockOpen = false;
-      this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 })); }
+      this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 })).concat(this.find('H').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0, hunter: true })));
+      this.tools = 0; this.broken = {}; this.keys = 0; this.qopen = {}; this.arrowKnown = !this.hasTerminal; this.arrowOpen = false; this.alarm = false; this.picked = {}; }
     this.mode = null; this.input = []; this.keyShow = 0; this.keyText = ''; this.hold = 0; this.holding = false;
     if (!first) { this.resets++; this.lives = this.attempts ? Math.max(0, this.attempts - this.resets) : 0;
       this.msg = 'Caught! ' + (this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '') + 'Back to the section start.';
@@ -1520,7 +1549,8 @@ class HackGame {
     this.reveal();
   }
   checkpoint() { // v1.16.0: 'P' tiles save the section start (position + puzzle state); antiviruses go home on a reset
-    this.cp = { px: this.px, py: this.py, charge: this.charge, used: Object.assign({}, this.used), bulb: this.bulb, tog: Object.assign({}, this.tog), lockOpen: this.lockOpen, av: this.av.map(a => ({ hx: a.hx, hy: a.hy, alive: a.alive })) }; }
+    this.cp = { px: this.px, py: this.py, charge: this.charge, used: Object.assign({}, this.used), bulb: this.bulb, tog: Object.assign({}, this.tog), lockOpen: this.lockOpen, av: this.av.map(a => ({ hx: a.hx, hy: a.hy, alive: a.alive, hunter: a.hunter })),
+      tools: this.tools, broken: Object.assign({}, this.broken), keys: this.keys, qopen: Object.assign({}, this.qopen), arrowKnown: this.arrowKnown, arrowOpen: this.arrowOpen, alarm: this.alarm, picked: Object.assign({}, this.picked) }; }
   reveal() { if (!this.invisible) return; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!dx || !dy) this.seen.add((this.px + dx) + ',' + (this.py + dy)); }
   inZone(x, y) { return this.zone.has(x + ',' + y); }
   isHidden(x, y) { return this.invisible && !this.seen.has(x + ',' + y) && this.ch(x, y) !== 'X' && this.ch(x, y) !== 'S'; }
@@ -1531,6 +1561,7 @@ class HackGame {
       case 'a': return this.tog.B; case 'b': return !this.tog.B;
       case 'c': return this.tog.N; case 'd': return !this.tog.N;
       case 'D': return this.lockOpen; case 'G': return this.bulb >= (this.L.bulbNeed || 1);
+      case 'W': return !!(this.broken && this.broken[x + ',' + y]); case 'Q': return !!(this.qopen && this.qopen[x + ',' + y]); case 'E': return !!this.arrowOpen;
       default: return true;
     }
   }
@@ -1538,9 +1569,14 @@ class HackGame {
   step(dir) {
     if (this.status !== 'play') return false;
     if (this.mode === 'seq') { this.seqInput(dir); return true; }
+    if (this.mode === 'arrow') { this.arrowInput(dir); return true; }
     if (this.mode === 'lock') return false;
     if (this.inZone(this.px, this.py)) dir = { up: 'down', down: 'up', left: 'right', right: 'left' }[dir]; // inverted-controls zone
     const [dx, dy] = DIRS[dir]; const nx = this.px + dx, ny = this.py + dy;
+    const tc = this.ch(nx, ny), tk = nx + ',' + ny; // v1.17.0: ⛏ break a cracked wall / 🗝 open a key door by walking into it
+    if (tc === 'W' && !this.broken[tk]) { if (this.tools > 0) { this.tools--; this.broken[tk] = 1; this.msg = 'Wall smashed with the pickaxe!'; this.fx = 'bridge'; } else { this.msg = 'Cracked wall: find a ⛏ pickaxe to break it.'; this.bump = 0.15; return false; } }
+    if (tc === 'Q' && !this.qopen[tk]) { if (this.keys > 0) { this.keys--; this.qopen[tk] = 1; this.msg = 'Key door unlocked.'; this.fx = 'bridge'; } else { this.msg = 'Key door: find a 🗝 key node first.'; this.bump = 0.15; return false; } }
+    if (tc === 'E' && !this.arrowOpen) { this.msg = 'Arrow gate: open it at the ⇄ arrow lock.'; this.bump = 0.15; return false; }
     if (!this.passable(nx, ny)) { this.bump = 0.15; return false; }
     const a = this.avAt(nx, ny);
     if (a) { if (this.charge) { a.alive = false; this.charge = 0; this.msg = 'Antivirus purged with a charge!'; this.fx = 'zap'; } else { this.reset(false); this.fx = 'caught'; return true; } }
@@ -1554,14 +1590,24 @@ class HackGame {
     else if (c === 'B' || c === 'N') this.msg = 'Bridge node: press ACT to rewire.';
     else if (c === 'L') this.msg = this.lockOpen ? 'Lock open.' : 'Lock: press ACT and enter the code.';
     else if (c === 'X') this.msg = 'Exit! HOLD to upload (0.5s).';
+    else if (c === 'T' && !this.picked[k]) { this.picked[k] = 1; this.tools++; this.msg = 'Pickaxe tool picked up (⛏' + this.tools + '). Walk into a cracked wall to break it.'; this.fx = 'charge'; }
+    else if (c === 'Y' && !this.picked[k]) { this.picked[k] = 1; this.keys++; this.msg = 'Key node picked up (🗝' + this.keys + '). Walk into a key door.'; this.fx = 'key'; }
+    else if (c === 'F' && !this.files[k]) { this.files[k] = 1; this.msg = 'File recovered! (' + this.filesFound() + '/' + this.filesTotal + ')'; this.fx = 'charge'; }
+    else if (c === 'R') { this.arrowKnown = true; this.keyText = 'ARROW CODE: ' + this.arrowCode.map(d => ARROW[d]).join(''); this.keyShow = CONFIG.hack.keyShowAfter + this.arrowCode.length * 0.4; this.msg = this.L.arrowMemo ? 'Memorize the arrow code!' : 'Arrow code downloaded to the lock.'; this.fx = 'key'; }
+    else if (c === 'A') this.msg = this.arrowOpen ? 'Arrow lock open.' : 'Arrow lock: press ACT and enter the arrows.';
+    else if (c === 'Z' && !this.alarm) { this.alarm = true; this.msg = 'ALARM! Antivirus hunters are chasing you!'; this.fx = 'err'; }
     else if (c === 'P' && !(this.cp && this.cp.px === this.px && this.cp.py === this.py)) { this.checkpoint(); this.msg = 'Checkpoint saved. Getting caught brings you back here.'; this.fx = 'charge'; }
+    if (this.tips && this.tips[k] && !this.tipSeen) this.tipSeen = {};
+    if (this.tips && this.tips[k] && c !== 'X' && !this.tipSeen[k]) { this.tipSeen[k] = 1; this.msg = this.tips[k]; }
   }
-  onNode() { const c = this.ch(this.px, this.py); return 'BNLKkCUX'.includes(c) ? c : null; }
+  onNode() { const c = this.ch(this.px, this.py); return 'BNLKkCUXA'.includes(c) ? c : null; }
+  filesFound() { return Object.keys(this.files).length; }
   act() {
     if (this.status !== 'play') return;
     const c = this.ch(this.px, this.py);
     if (c === 'B' || c === 'N') { this.mode = 'seq'; this.seqNode = c; this.input = []; this.msg = 'Enter the arrow sequence.'; }
     else if (c === 'L' && !this.lockOpen) { this.mode = 'lock'; this.entry = ''; }
+    else if (c === 'A' && !this.arrowOpen) { this.mode = 'arrow'; this.input = []; this.msg = this.arrowKnown ? 'Enter the arrow code.' : 'Unknown code: read it at a ⌨ terminal first.'; }
     else if (c === 'X') this.msg = 'Hold the HOLD button (or Space).';
   }
   seqInput(dir) {
@@ -1569,21 +1615,25 @@ class HackGame {
     if (s[this.input.length] === dir) { this.input.push(dir); if (this.input.length === s.length) { this.tog[this.seqNode] = !this.tog[this.seqNode]; this.mode = null; this.input = []; this.msg = 'Bridges rewired.'; this.fx = 'bridge'; this.checkStuck(); } }
     else { this.input = []; this.msg = 'Wrong arrow. Sequence restarted.'; this.fx = 'err'; }
   }
+  arrowInput(dir) { // v1.17.0 arrow-sequence password lock
+    if (this.arrowCode[this.input.length] === dir) { this.input.push(dir); if (this.input.length === this.arrowCode.length) { this.arrowOpen = true; this.mode = null; this.input = []; this.msg = 'Arrow lock opened! The gate is open.'; this.fx = 'bridge'; } }
+    else { this.input = []; this.msg = 'Wrong arrow. Start the code again.'; this.fx = 'err'; } }
   checkStuck() { for (const a of this.av) if (a.alive && !this.passable(a.x, a.y)) { a.x = a.hx; a.y = a.hy; } }
   cancelMode() { this.mode = null; this.input = []; }
   lockKey(d) { if (this.mode !== 'lock') return; if (d === 'C') this.entry = ''; else if (d === 'OK') { if (this.entry === this.code) { this.lockOpen = true; this.mode = null; this.msg = 'Lock opened!'; this.fx = 'bridge'; } else { this.entry = ''; this.msg = 'Wrong code.'; this.fx = 'err'; } } else if (this.entry.length < 4) this.entry += d; }
   bfs(fx, fy) { const d = {}; d[fx + ',' + fy] = 0; const q = [[fx, fy]]; const prev = {}; while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of Object.values(DIRS)) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (d[k] === undefined && this.passable(nx, ny)) { d[k] = d[x + ',' + y] + 1; prev[k] = [x, y]; q.push([nx, ny]); } } } return { d, prev }; }
   update(dt) {
     if (this.status !== 'play') return;
+    this.elapsed += dt;
     if (!this.unlimited) { this.timeLeft -= dt; if (this.timeLeft <= 0) { this.timeLeft = 0; this.status = 'fail'; this.msg = 'Connection timed out.'; return; } }
     if (this.keyShow > 0) { const c = this.ch(this.px, this.py); if (c !== 'K' && c !== 'k') this.keyShow -= dt; }
     if (this.bump) this.bump = Math.max(0, this.bump - dt);
     if (this.holding && this.ch(this.px, this.py) === 'X' && !this.mode) { this.hold += dt; if (this.hold >= CONFIG.hack.holdTime) { this.status = 'win'; this.msg = 'Upload complete!'; } } else this.hold = 0;
     if (this.mode) return; // antiviruses freeze while you type
     for (const a of this.av) {
-      if (!a.alive) continue; a.t += dt; if (a.t < CONFIG.hack.avInterval) continue; a.t = 0;
-      const home = this.bfs(a.hx, a.hy).d; const pd = home[this.px + ',' + this.py];
-      const target = (pd !== undefined && pd <= CONFIG.hack.avZone) ? [this.px, this.py] : [a.hx, a.hy];
+      if (!a.alive || (a.hunter && !this.alarm)) continue; a.t += dt; if (a.t < (a.hunter ? (this.L.hunterInterval || 0.7) : (this.L.avInterval || CONFIG.hack.avInterval))) continue; a.t = 0;
+      let target; if (a.hunter) target = [this.px, this.py]; else { const home = this.bfs(a.hx, a.hy).d; const pd = home[this.px + ',' + this.py];
+        target = (pd !== undefined && pd <= (this.L.avZone || CONFIG.hack.avZone)) ? [this.px, this.py] : [a.hx, a.hy]; }
       if (a.x === target[0] && a.y === target[1]) continue;
       const r = this.bfs(target[0], target[1]); let best = null, bd = 1e9;
       for (const [dx, dy] of Object.values(DIRS)) { const nx = a.x + dx, ny = a.y + dy; const v = r.d[nx + ',' + ny]; if (v !== undefined && v < bd && !this.av.some(o => o !== a && o.alive && o.x === nx && o.y === ny)) { bd = v; best = [nx, ny]; } }
@@ -1611,6 +1661,9 @@ class HackGame {
       if (this.inZone(x, y)) { ctx.fillStyle = 'rgba(239,68,68,.32)'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); }
       if ('abcd'.includes(c) && !pass) { ctx.strokeStyle = '#334'; ctx.setLineDash([3, 3]); ctx.strokeRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.setLineDash([]); }
       if (c === 'D' && !pass) { ctx.fillStyle = '#7a4b12'; ctx.fillRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.fillStyle = '#ffcc66'; ctx.font = `${cs * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▣', sx + cs / 2, sy + cs / 2); }
+      if (c === 'W' && !pass) { ctx.fillStyle = '#3a2f4a'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + cs * 0.3, sy + 3); ctx.lineTo(sx + cs * 0.55, sy + cs * 0.45); ctx.lineTo(sx + cs * 0.4, sy + cs * 0.6); ctx.lineTo(sx + cs * 0.7, sy + cs - 3); ctx.stroke(); ctx.lineWidth = 1; }
+      if (c === 'Q' && !pass) { ctx.fillStyle = '#5b3a0e'; ctx.fillRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); ctx.lineWidth = 1; }
+      if (c === 'E' && !pass) { ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(sx + 3, sy + i * cs / 4); ctx.lineTo(sx + cs - 3, sy + i * cs / 4); ctx.stroke(); } ctx.lineWidth = 1; }
       if (c === 'G' && !pass) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(sx + i * cs / 4, sy + 3); ctx.lineTo(sx + i * cs / 4, sy + cs - 3); ctx.stroke(); } ctx.lineWidth = 1; }
       const icon = (txt, col) => { ctx.fillStyle = col; ctx.font = `bold ${Math.floor(cs * 0.55)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx + cs / 2, sy + cs / 2 + 1); };
       const k = x + ',' + y;
@@ -1620,10 +1673,18 @@ class HackGame {
       if (c === 'K' || c === 'k') icon('🔑', '#fff');
       if (c === 'L') icon(this.lockOpen ? '🔓' : '🔒', '#fff');
       if (c === 'B' || c === 'N') icon('⚒', c === 'B' ? '#7dd3fc' : '#f0abfc');
+      if (c === 'T' && !this.picked[k]) icon('⛏', '#e9d5ff');
+      if (c === 'Y' && !this.picked[k]) icon('🗝', '#fbbf24');
+      if (c === 'Q' && !pass) icon('🗝', '#fde68a');
+      if (c === 'F' && !this.files[k]) icon('📁', '#fff');
+      if (c === 'R') icon('⌨', this.arrowKnown ? '#67e8f9' : '#fff');
+      if (c === 'A') icon(this.arrowOpen ? '✓' : '⇄', '#67e8f9');
+      if (c === 'Z') icon('⚠', this.alarm ? '#ef4444' : '#fca5a5');
       if (c === 'P') icon('⚑', this.cp && this.cp.px === x && this.cp.py === y ? '#22c55e' : '#9ab');
     }
     if (pv) { ctx.lineWidth = 2; ctx.setLineDash([4, 3]); for (const [x, y] of pv.appear) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#22c55e'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } for (const [x, y] of pv.vanish) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#ef4444'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } ctx.setLineDash([]); ctx.lineWidth = 1; }
-    for (const a of this.av) { if (!a.alive) continue; const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * (CONFIG.hack.avZone + 0.5), 0, 7); ctx.stroke();
+    for (const a of this.av) { if (!a.alive) continue; if (a.hunter) { const [sx, sy] = P(a.x, a.y); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : 'rgba(244,114,182,.45)'; ctx.beginPath(); const r = cs * (on ? 0.36 * (1 + 0.1 * Math.sin(t * 12)) : 0.3); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.fill(); if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
+      const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * ((this.L.avZone || CONFIG.hack.avZone) + 0.5), 0, 7); ctx.stroke();
       const [sx, sy] = P(a.x, a.y); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); }
     const [px, py] = P(this.px, this.py); const m = cs * 0.2 + (this.bump ? 2 : 0);
     ctx.fillStyle = this.charge ? HT.playerCh : HT.player; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m); ctx.shadowBlur = 0;
@@ -1631,20 +1692,30 @@ class HackGame {
     if (this.hold > 0) { ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px + cs / 2, py + cs / 2, cs * 0.45, -Math.PI / 2, -Math.PI / 2 + 6.283 * this.hold / CONFIG.hack.holdTime); ctx.stroke(); ctx.lineWidth = 1; }
   }
 }
-function hackPlan(game) { // BFS over (pos, charge, used charges, bulbs, bridges, lock, keys, antiviruses); returns a list of actions
+function hackRng32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hackPlan(game, opt) { // opt.danger: also avoid cells next to live antiviruses unless charged (validator replans with this)
+  opt = opt || {}; // BFS over (pos, charge, used charges, bulbs, bridges, lock, keys, antiviruses); returns a list of actions
   const rows = game.rows, H = rows.length, W = rows[0].length, ch = (x, y) => (y < 0 || y >= H || x < 0 || x >= W) ? '#' : rows[y][x];
   const cells = t => { const o = []; rows.forEach((r, y) => { for (let x = 0; x < W; x++) if (r[x] === t) o.push(x + ',' + y); }); return o; };
-  const charges = cells('C'), avs = cells('V'), split = cells('k').length > 0, need = game.L.bulbNeed || 1;
-  const st0 = { x: game.px, y: game.py, c: game.charge, u: 0, b: game.bulb, B: +game.tog.B, N: +game.tog.N, lo: +game.lockOpen, av: 0, k1: 0, k2: 0 };
+  const charges = cells('C'), avs = game.av.map(a => a.x + ',' + a.y), split = cells('k').length > 0, need = game.L.bulbNeed || 1;
+  const tools = cells('T'), walls = cells('W'), keyn = cells('Y'), doors = cells('Q'), pc = m => { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; };
+  const st0 = { x: game.px, y: game.py, c: game.charge, u: 0, b: game.bulb, B: +game.tog.B, N: +game.tog.N, lo: +game.lockOpen, av: 0, k1: 0, k2: 0, t: 0, w: 0, yk: 0, q: 0, r: +!!game.arrowKnown, ao: +!!game.arrowOpen };
   charges.forEach((k, i) => { if (game.used[k]) st0.u |= 1 << i; }); game.av.forEach((a, i) => { if (!a.alive) st0.av |= 1 << i; });
-  const pass = (s, x, y) => { const c = ch(x, y); if (c === '#') return false; if (c === 'a') return !!s.B; if (c === 'b') return !s.B; if (c === 'c') return !!s.N; if (c === 'd') return !s.N; if (c === 'D') return !!s.lo; if (c === 'G') return s.b >= need; return true; };
-  const key = s => [s.x, s.y, s.c, s.u, s.b, s.B, s.N, s.lo, s.av, s.k1, s.k2].join(','); const prev = new Map([[key(st0), null]]); const q = [st0];
+  tools.forEach((k, i) => { if (game.picked && game.picked[k]) st0.t |= 1 << i; }); walls.forEach((k, i) => { if (game.broken && game.broken[k]) st0.w |= 1 << i; });
+  keyn.forEach((k, i) => { if (game.picked && game.picked[k]) st0.yk |= 1 << i; }); doors.forEach((k, i) => { if (game.qopen && game.qopen[k]) st0.q |= 1 << i; });
+  const pass = (s, x, y) => { const c = ch(x, y); if (c === '#') return false; if (c === 'a') return !!s.B; if (c === 'b') return !s.B; if (c === 'c') return !!s.N; if (c === 'd') return !s.N; if (c === 'D') return !!s.lo; if (c === 'G') return s.b >= need; if (c === 'E') return !!s.ao;
+    if (c === 'W') { const i = walls.indexOf(x + ',' + y); return !!(s.w >> i & 1) || pc(s.t) - pc(s.w) > 0; } if (c === 'Q') { const i = doors.indexOf(x + ',' + y); return !!(s.q >> i & 1) || pc(s.yk) - pc(s.q) > 0; } return true; };
+  const danger = new Set(); if (opt.danger) game.av.forEach(a => { if (a.alive && (!a.hunter || game.alarm)) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (Math.abs(dx) + Math.abs(dy) <= (opt.danger | 0 || 1)) danger.add((a.x + dx) + ',' + (a.y + dy)); });
+  const key = s => [s.x, s.y, s.c, s.u, s.b, s.B, s.N, s.lo, s.av, s.k1, s.k2, s.t, s.w, s.yk, s.q, s.r, s.ao].join(','); const prev = new Map([[key(st0), null]]); const q = [st0];
   const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-  while (q.length) { const s = q.shift(); const c = ch(s.x, s.y);
+  let qh = 0; const maxS = opt.maxStates || 0;
+  while (qh < q.length) { const s = q[qh++]; const c = ch(s.x, s.y); if (maxS && prev.size > maxS) return null;
     if (c === 'X') { const out = []; let k = key(s); while (prev.get(k)) { const [pk, acts] = prev.get(k); out.unshift(...acts); k = pk; } return out; }
     const nx = [];
-    for (const d in dirs) { const [dx, dy] = dirs[d]; const x = s.x + dx, y = s.y + dy; if (!pass(s, x, y)) continue; const n = { ...s, x, y }; const ai = avs.indexOf(x + ',' + y); if (ai >= 0 && !(n.av >> ai & 1)) { if (!n.c) continue; n.av |= 1 << ai; n.c = 0; }
-      const nc = ch(x, y), ci = charges.indexOf(x + ',' + y); if (nc === 'C' && !(n.u >> ci & 1) && !n.c) { n.c = 1; n.u |= 1 << ci; } if (nc === 'U' && n.c && n.b < need) { n.c = 0; n.b++; } if (nc === 'K') n.k1 = 1; if (nc === 'k') n.k2 = 1; nx.push([n, [d]]); }
+    for (const d in dirs) { const [dx, dy] = dirs[d]; const x = s.x + dx, y = s.y + dy; if (!pass(s, x, y)) continue; if (!s.c && danger.has(x + ',' + y) && avs.indexOf(x + ',' + y) < 0) continue; const n = { ...s, x, y }; const ai = avs.indexOf(x + ',' + y); if (ai >= 0 && !(n.av >> ai & 1)) { if (!n.c) continue; n.av |= 1 << ai; n.c = 0; }
+      const nc = ch(x, y), ci = charges.indexOf(x + ',' + y); if (nc === 'C' && !(n.u >> ci & 1) && !n.c) { n.c = 1; n.u |= 1 << ci; } if (nc === 'U' && n.c && n.b < need) { n.c = 0; n.b++; } if (nc === 'K') n.k1 = 1; if (nc === 'k') n.k2 = 1;
+      const xy = x + ',' + y, wi = walls.indexOf(xy), qi = doors.indexOf(xy), ti = tools.indexOf(xy), yi = keyn.indexOf(xy); if (wi >= 0) n.w |= 1 << wi; if (qi >= 0) n.q |= 1 << qi; if (ti >= 0) n.t |= 1 << ti; if (yi >= 0) n.yk |= 1 << yi; if (nc === 'R') n.r = 1; nx.push([n, [d]]); }
+    if (c === 'A' && !s.ao && s.r) nx.push([{ ...s, ao: 1 }, ['ACT', ...game.arrowCode]]);
     if (c === 'B' || c === 'N') nx.push([{ ...s, [c]: 1 - s[c] }, ['ACT', ...game.seqs[c]]]);
     if (c === 'L' && !s.lo && s.k1 && (!split || s.k2)) nx.push([{ ...s, lo: 1 }, ['ACT', ...game.code.split('').map(d => 'K:' + d), 'K:OK']]);
     for (const [n, acts] of nx) { const k = key(n); if (!prev.has(k)) { prev.set(k, [key(s), acts]); q.push(n); } } }
@@ -1666,7 +1737,179 @@ function hackCamera(cam, g, w, h, dt, zoomHeld) { // cam = {cx, cy, z, init}; re
   const rx = hackCamClamp(cam.cx + (g.W / 2 - cam.cx) * cam.z, g.W, w / cs), ry = hackCamClamp(cam.cy + (g.H / 2 - cam.cy) * cam.z, g.H, h / cs);
   return { cs, ox: w / 2 - rx * cs, oy: h / 2 - ry * cs, cx: rx, cy: ry, z: cam.z, playCs, fitCs, tx, ty };
 }
-if (typeof module !== 'undefined') module.exports = { HackGame, genProceduralLayout, hackCamera, hackPlayCs };
+if (typeof module !== 'undefined') module.exports = { HackGame, genProceduralLayout, hackCamera, hackPlayCs, hackPlan };
+
+/* ================= v1.17.0 HACK MAP GENERATOR (Dispatch-style) =================
+   Maps are assembled from hand-made 5x5 rooms on a room grid (stride 6), seeded per mission so a mission's map is deterministic.
+   Gates sit on doorways along the start->exit path; the item each gate needs is placed before it. Every map is played out by
+   hackSimulate (BFS plan + a real HackGame run at a cautious human pace, antiviruses and hunters moving); the time limit is that
+   run's time x the shift's slack. A map that is not beaten cleanly is regenerated with the next sub-seed.
+   New tiles: T pickaxe  W cracked wall  Y key node  Q key door  R ⌨ arrow-code terminal  A ⇄ arrow lock  E arrow gate
+              F 📁 file (optional bonus)  Z ⚠ alarm tripwire  H hunter antivirus (sleeps until the alarm, then chases anywhere)  P ⚑ checkpoint */
+const HACK_ROOMS = [ // hand-made room interiors; edge-mid cells (2,0) (0,2) (4,2) (2,4) are always open and connected
+  ['.....', '.....', '.....', '.....', '.....'],
+  ['.....', '.#.#.', '.....', '.#.#.', '.....'],
+  ['#...#', '.....', '.....', '.....', '#...#'],
+  ['.....', '####.', '.....', '.####', '.....'],
+  ['.....', '.#.#.', '..#..', '.#.#.', '.....'],
+  ['.....', '.###.', '.#...', '.###.', '.....'],
+  ['.#...', '.#.#.', '...#.', '##.#.', '.....'],
+  ['.....', '#.#.#', '.....', '#.#.#', '.....'],
+  ['.....', '.#.##', '.#...', '.##..', '.....'],
+  ['##.##', '#...#', '.....', '#...#', '##.##'],
+  ['.....', '.#...', '.#.#.', '...#.', '.....'],
+  ['.#.#.', '.....', '.#.#.', '.....', '.#.#.'],
+];
+const HACK_PACE = { step: 0.3, act: 0.4, arrow: 0.45, digit: 0.5 }; // cautious phone pace used by the validator
+// difficulty curve, index = shift index (Shift 1 = tutorial). Same curve for Classic ON and OFF; features = the shift's default hack spec.
+const HACK_CURVE = [
+  { tutorial: true },
+  { rooms: [3, 2], features: ['bridges'], extra: ['tool'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.4, speed: 10 },
+  { rooms: [3, 2], features: ['bridges', 'keys'], extra: ['arrow'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.2, speed: 10 },
+  { rooms: [3, 3], features: ['keys', 'antivirus'], extra: ['tool', 'key'], av: 1, avZone: 2, seq: 5, arrowLen: 4, files: 3, loops: 2, slack: 2.0, speed: 10 },
+  { rooms: [3, 3], features: ['charges', 'bulbs'], extra: ['arrow', 'tool'], av: 1, avZone: 2, seq: 5, arrowLen: 5, terminal: true, files: 3, loops: 2, slack: 1.9, speed: 10 },
+  { rooms: [4, 3], features: ['charges', 'antivirus', 'splitKeys'], extra: ['key', 'arrow'], av: 1, avZone: 3, seq: 6, arrowLen: 5, terminal: true, memo: true, hunters: 1, hunterInterval: 0.8, files: 3, loops: 2, slack: 1.8, speed: 10 },
+  { rooms: [4, 3], features: ['charges', 'antivirus x3', 'splitKeys'], extra: ['tool', 'key', 'arrow'], av: 3, avZone: 3, seq: 6, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.7, files: 4, loops: 3, slack: 1.7, speed: 10 },
+  { rooms: [4, 3], features: ['invisiblePaths', 'invertedControls', 'antivirus'], extra: ['lock', 'tool', 'key', 'arrow'], av: 2, avZone: 3, seq: 7, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.6, files: 4, loops: 3, slack: 1.7, speed: 10 },
+];
+const HACK_TUTORIAL = { name: 'Console Training', time: 150, seq: 3, arrowLen: 3, tutorial: true, rows: [
+  '###################',
+  '#S.T..#..Y..#.F...#',
+  '#.###.W.###.Q.###.#',
+  '#.....#.....#...#.#',
+  '#################.#',
+  '#X..E.A...........#',
+  '###################'],
+  tips: { '1,1': 'Swipe or use the d-pad to move. Hold ⊞ MAP (or M) to see the whole grid.', '3,1': '⛏ Pickaxe! Walk into the cracked wall to smash it.', '5,2': 'Cracked wall ahead: walk into it while you carry a ⛏.',
+    '9,1': '🗝 Key node! Walk into the key door to open it.', '11,2': 'Key door ahead: walk into it with a 🗝.', '14,1': '📁 Files are optional: each one is worth bonus points.',
+    '17,5': 'Head left to the ⇄ arrow lock.', '6,5': '⇄ Arrow lock: press ACT, then enter the arrows (d-pad, swipe, arrow keys or the panel buttons).', '3,5': 'Green hexagon = exit. Stand on it and HOLD. Faster = bonus points.' } };
+// Shift 8 finale: hand-made, two sections; the ⚑ checkpoint mid-map saves your progress (getting caught after it brings you back to it).
+const HACK_FINALE = { name: "Night Mayor's Kill Switch", time: 0, seq: 6, arrowLen: 6, arrowMemo: true, hunterInterval: 0.6, avZone: 3, finale: true, rows: [
+  '#########################',
+  '#S......#.......Q......F#',
+  '#.#####.#.#######.......#',
+  '#.......W.......#.#######',
+  '######..#######.#.......#',
+  '#T......#Y......#......C#',
+  '####################P####',
+  '#H......................#',
+  '#######.#.#####.#.#######',
+  '#RC..Z..#.#####.......A##',
+  '#.#######.#####.######E##',
+  '#......F#...V..F######X##',
+  '#########################'] };
+function hackSeed() { let h = 2166136261 >>> 0; for (const a of arguments) { const s = String(a); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= 0x9e; h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
+function hackRoomTpl(rng) { let r = HACK_ROOMS[Math.floor(rng() * HACK_ROOMS.length)].map(x => x.split('')); const rot = Math.floor(rng() * 4), flip = rng() < 0.5;
+  for (let k = 0; k < rot; k++) r = r[0].map((_, i) => r.map(row => row[i]).reverse()); if (flip) r = r.map(row => row.slice().reverse()); return r; }
+function hackFeatCfg(base, features, opts) { // merge the shift curve with a mission spec's feature list
+  const f = (features || base.features || []).map(x => String(x)); const c = Object.assign({}, base); c.gates = [];
+  if (f.includes('bridges')) c.gates.push('bridge'); if (f.some(x => /^keys|splitKeys/.test(x))) c.gates.push('lock'); c.split = f.includes('splitKeys');
+  if (f.includes('bulbs')) { c.gates.push('bulb'); c.bulbNeed = 1; }
+  const avm = f.map(x => /^antivirus(?: x(\d+))?$/.exec(x)).find(Boolean); c.av = avm ? Math.max(base.av || 0, +(avm[1] || 1)) : (base.av || 0); c.charges = (f.includes('charges') ? 1 : 0) + c.av;
+  for (const e of base.extra || []) if (!c.gates.includes(e)) c.gates.push(e);
+  c.invisible = f.includes('invisiblePaths'); c.inverted = f.includes('invertedControls');
+  if (opts && opts.easy) { c.gates = c.gates.slice(0, Math.max(1, c.gates.length - 1)); c.hunters = 0; c.av = Math.min(c.av, 1); c.slack = (c.slack || 2) + 0.4; c.rooms = [Math.min(3, c.rooms[0]), Math.min(3, c.rooms[1])]; }
+  return c; }
+function genHackMap(seed, cfg) {
+  const rng = hackRng32(seed), [RC, RR] = cfg.rooms, W = RC * 6 + 1, H = RR * 6 + 1, g = []; for (let y = 0; y < H; y++) g.push(Array(W).fill('#'));
+  const ri = (x, y) => y * RC + x, rooms = []; for (let y = 0; y < RR; y++) for (let x = 0; x < RC; x++) { const t = hackRoomTpl(rng); for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) g[y * 6 + 1 + j][x * 6 + 1 + i] = t[j][i]; rooms.push({ x, y }); }
+  const nb = r => [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [r.x + dx, r.y + dy]).filter(([x, y]) => x >= 0 && y >= 0 && x < RC && y < RR).map(([x, y]) => ri(x, y));
+  const door = (a, b) => { const A = rooms[a], B = rooms[b]; if (A.y === B.y) return [Math.max(A.x, B.x) * 6, A.y * 6 + 3]; return [A.x * 6 + 3, Math.max(A.y, B.y) * 6]; };
+  const mid = (r, toward) => { const A = rooms[r], B = rooms[toward]; return [A.x * 6 + 3 + Math.sign(B.x - A.x) * 2, A.y * 6 + 3 + Math.sign(B.y - A.y) * 2]; };
+  const corners = [ri(0, 0), ri(RC - 1, 0), ri(0, RR - 1), ri(RC - 1, RR - 1)]; const start = corners[Math.floor(rng() * 4)];
+  const par = { [start]: -1 }, depth = { [start]: 0 }, st = [start], kids = {}; while (st.length) { const r = st[st.length - 1]; const n = nb(rooms[r]).filter(x => par[x] === undefined); if (!n.length) { st.pop(); continue; } const c = n[Math.floor(rng() * n.length)]; par[c] = r; depth[c] = depth[r] + 1; (kids[r] = kids[r] || []).push(c); st.push(c); }
+  let exitR = start; for (const r in depth) if (depth[r] > depth[exitR]) exitR = +r;
+  const path = []; for (let r = exitR; r !== -1; r = par[r]) path.unshift(r);
+  for (const r in par) if (par[r] >= 0) { const [x, y] = door(+r, par[r]); g[y][x] = '.'; }
+  const gates = cfg.gates.slice(0, path.length - 1); const edges = []; // gate i on path edge path[e]->path[e+1]
+  const ne = path.length - 1; gates.forEach((_, i) => { let e = Math.floor((i + 1) * ne / (gates.length + 1)); if (gates.length >= ne) e = i; while (edges.includes(e)) e++; edges.push(Math.min(ne - 1, e)); });
+  const region = {}; const reg = r => { if (region[r] !== undefined) return region[r]; if (r === start) return (region[r] = 0); const p = par[r], pi = path.indexOf(p), e = pi >= 0 && path[pi + 1] === r ? edges.indexOf(pi) : -1; return (region[r] = reg(p) + (e >= 0 ? 1 : 0)); };
+  rooms.forEach((_, r) => reg(r));
+  // extra loops inside one region (never bypass a gate)
+  let loops = cfg.loops || 0; for (let tries = 0; loops > 0 && tries < 40; tries++) { const a = Math.floor(rng() * rooms.length), n = nb(rooms[a]); const b = n[Math.floor(rng() * n.length)]; if (par[a] === b || par[b] === a || region[a] !== region[b]) continue; const [x, y] = door(a, b); if (g[y][x] === '#') { g[y][x] = '.'; loops--; } }
+  const mids = new Set(); rooms.forEach(R => { for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) mids.add((R.x * 6 + 3 + dx) + ',' + (R.y * 6 + 3 + dy)); });
+  const free = r => { const R = rooms[r], o = []; for (let j = 1; j <= 5; j++) for (let i = 1; i <= 5; i++) { const x = R.x * 6 + i, y = R.y * 6 + j; if (g[y][x] === '.' && !mids.has(x + ',' + y)) o.push([x, y]); } return o; };
+  const put = (r, ch) => { const f = free(r); if (!f.length) return false; const [x, y] = f[Math.floor(rng() * f.length)]; g[y][x] = ch; return [x, y]; };
+  const inReg = (lo, hi) => rooms.map((_, r) => r).filter(r => region[r] >= lo && region[r] <= hi);
+  const pick = arr => arr[Math.floor(rng() * arr.length)];
+  const putIn = (i, ch) => { const pref = rng() < 0.7 ? inReg(i, i) : inReg(0, i); const order = pref.concat(inReg(0, i)); for (let k = 0; k < 8; k++) { const r = pick(k < 4 ? pref : order); if (put(r, ch)) return true; } for (const r of order) if (put(r, ch)) return true; return false; };
+  put(start, 'S'); put(exitR, 'X');
+  let bridges = 0; const out = { bulbNeed: cfg.bulbNeed || 1 };
+  for (let i = 0; i < gates.length; i++) { const e = edges[i], a = path[e], b = path[e + 1], [dx, dy] = door(a, b), kind = gates[i];
+    if (kind === 'tool') { g[dy][dx] = 'W'; if (!putIn(i, 'T')) return null; }
+    else if (kind === 'key') { g[dy][dx] = 'Q'; if (!putIn(i, 'Y')) return null; }
+    else if (kind === 'bridge') { if (bridges >= 2) continue; g[dy][dx] = bridges ? 'c' : 'a'; const [mx, my] = mid(a, b); if (g[my][mx] !== '.') return null; g[my][mx] = bridges ? 'N' : 'B'; bridges++; }
+    else if (kind === 'lock') { g[dy][dx] = 'D'; const [mx, my] = mid(a, b); if (g[my][mx] !== '.') return null; g[my][mx] = 'L'; if (!putIn(i, 'K')) return null; if (cfg.split && !putIn(i, 'k')) return null; }
+    else if (kind === 'bulb') { g[dy][dx] = 'G'; if (!putIn(i, 'U')) return null; for (let k = 0; k < out.bulbNeed; k++) if (!putIn(i, 'C')) return null; }
+    else if (kind === 'arrow') { g[dy][dx] = 'E'; const [mx, my] = mid(a, b); if (g[my][mx] !== '.') return null; g[my][mx] = 'A'; if (cfg.terminal && !putIn(i, 'R')) return null; } }
+  for (let k = 0; k < (cfg.charges || 0); k++) putIn(Math.max(0, gates.length - 1 - k), 'C');
+  const openN = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => g[y + dy][x + dx] !== '#').length;
+  const floodN = () => { let sx, sy; g.forEach((row, y) => row.forEach((c, x) => { if (c === 'S') { sx = x; sy = y; } })); const seen = new Set([sx + ',' + sy]), q = [[sx, sy]]; while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (x + dx) + ',' + (y + dy); if (g[y + dy][x + dx] !== '#' && !seen.has(k)) { seen.add(k); q.push([x + dx, y + dy]); } } } return seen.size; };
+  const notCut = (x, y) => { const before = floodN(), c = g[y][x]; g[y][x] = '#'; const after = floodN(); g[y][x] = c; return after === before - 1; };
+  const putOpen1 = (r, ch, need) => { const f = free(r).filter(([x, y]) => openN(x, y) >= need && notCut(x, y)); if (!f.length) return false; const [x, y] = f[Math.floor(rng() * f.length)]; g[y][x] = ch; return [x, y]; };
+  const putOpen = (r, ch, alt) => { const order = [r].concat((alt || []).filter(x => x !== r)); for (const need of [3, 2]) for (const q of order) { const p = putOpen1(q, ch, need); if (p) return p; } return false; }; // preferred room first, then the fallback rooms
+  const bypass = (x, y) => { // an antivirus may only sit where the player can walk around it (every item / gate / exit stays reachable with its neighbourhood blocked)
+    const blk = new Set(); for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) blk.add((x + dx) + ',' + (y + dy)); let sx, sy; const need = [];
+    g.forEach((row, yy) => row.forEach((c, xx) => { if (c === 'S') { sx = xx; sy = yy; } else if (c !== '.' && c !== '#') need.push(xx + ',' + yy); }));
+    if (need.some(k => blk.has(k))) return false; const seen = new Set([sx + ',' + sy]), q = [[sx, sy]];
+    while (q.length) { const [cx, cy] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (cx + dx) + ',' + (cy + dy); if (g[cy + dy][cx + dx] !== '#' && !blk.has(k) && !seen.has(k)) { seen.add(k); q.push([cx + dx, cy + dy]); } } }
+    return need.every(k => seen.has(k)); };
+  const putAv = (r, alt) => { for (const q of [r].concat((alt || []).filter(x => x !== r))) { const f = free(q).filter(([x, y]) => openN(x, y) >= 3 && bypass(x, y)); if (f.length) { const [x, y] = f[Math.floor(rng() * f.length)]; g[y][x] = 'V'; return [x, y]; } } return putOpen(r, 'V', alt); };
+  const later = path.slice(1).filter(r => r !== exitR); for (let k = 0; k < (cfg.av || 0); k++) { const r = later.length ? later[(k * 2 + 1) % later.length] : exitR; putAv(r, later.concat([exitR])); }
+  if (cfg.hunters) { const zr = path[Math.max(1, Math.floor(path.length / 2))]; const [mx, my] = mid(zr, par[zr]); if (g[my][mx] === '.') g[my][mx] = 'Z';
+    const back = inReg(0, 0).filter(r => r !== start); for (let k = 0; k < cfg.hunters; k++) putOpen(back.length ? back[k % back.length] : start, 'H', back.concat(inReg(0, 1).filter(r => r !== start && r !== exitR))); }
+  const leaves = rooms.map((_, r) => r).filter(r => !kids[r] && r !== exitR && r !== start); for (let k = 0; k < (cfg.files || 0); k++) put(leaves.length && k < leaves.length ? leaves[k] : Math.floor(rng() * rooms.length), 'F');
+  return Object.assign(out, { rows: g.map(r => r.join('')), rooms: [RC, RR], gates: gates.slice(), pathRooms: path.length }); }
+function hackSimulate(L, o) { // plays the BFS plan in a real HackGame at HACK_PACE; returns {ok, t, steps, resets}
+  o = o || {}; const g = new HackGame(Object.assign({}, L, { time: 9999 }), hackRng32(1), {}); const plan = hackPlan(g); if (!plan) return { ok: false, why: 'no plan' };
+  let t = 0, i = 0, cur = plan, waited = 0; const tick = d => { g.update(d); t += d; };
+  const D4 = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const safeNext = a => { if (!a || !D4[a]) return true; const nx = g.px + D4[a][0], ny = g.py + D4[a][1]; // plan directions are real moves (the sim pre-inverts the key press inside red zones) // only replan when the next cell is within 2 of a live antivirus
+    return !g.av.some(v => v.alive && (!v.hunter || g.alarm) && Math.abs(v.x - nx) + Math.abs(v.y - ny) <= 2); };
+  const near = () => g.av.some(a => a.alive && (!a.hunter || g.alarm) && Math.abs(a.x - g.px) + Math.abs(a.y - g.py) <= 3);
+  let replans = 0; const RP = o.maxReplans || 25, MS = o.maxStates || 20000; // budgets keep generation fast on phones; a map that needs more is simply rejected
+  while (g.status === 'play' && !g.resets && t < 600) {
+    if (!g.mode && !g.charge && near() && !safeNext(cur[i])) { if (replans >= RP) return { ok: false, why: 'budget', t, steps: plan.length, resets: 0 };
+      replans++; const p2 = hackPlan(g, { danger: 2, maxStates: MS }) || hackPlan(g, { danger: 1, maxStates: MS }); if (p2 && safeNext(p2[0])) { cur = p2; i = 0; } else { for (let w = 0; w < 3 && g.status === 'play'; w++) tick(HACK_PACE.step); waited += 3 * HACK_PACE.step; if (waited > 15) break; continue; } }
+    const a = cur[i++]; if (a === undefined) break;
+    if (a === 'ACT') { tick(HACK_PACE.act); g.act(); } else if (a.startsWith('K:')) { tick(HACK_PACE.digit); g.lockKey(a.slice(2)); }
+    else { const typing = g.mode === 'seq' || g.mode === 'arrow'; tick(typing ? HACK_PACE.arrow : HACK_PACE.step); if (g.status !== 'play' || g.resets) break; g.step(!typing && g.inZone(g.px, g.py) ? { up: 'down', down: 'up', left: 'right', right: 'left' }[a] : a); } }
+  if (g.status === 'play' && !g.resets) { g.holding = true; for (let i = 0; i < 20 && g.status === 'play'; i++) tick(0.1); }
+  return { ok: g.status === 'win' && !g.resets, t, waited, replans, steps: plan.length, resets: g.resets, why: g.resets ? 'caught' : g.status }; }
+function hackTimeFor(L, cfg, simT) { const slack = (cfg.slack || 2) + (cfg.invisible ? 0.4 : 0); return Math.max(30, Math.ceil((simT * slack + 6) / 5) * 5); }
+// v1.17.0: generated maps are cached (deterministic, so a cached map is identical) and pre-built in a Web Worker when a hack call
+// spawns, so opening the console never stalls the phone. No Worker (tests, old browsers): built on demand, same result.
+const HACK_GEN_CACHE = new Map(); const HACK_GEN_PENDING = new Set(); let HACK_WORKER = null, HACK_WORKER_OFF = false;
+function hackGenKey(seed, idx, features, opts) { opts = opts || {}; return [(seed >>> 0), idx | 0, features === undefined ? '~' : features.join('+'), opts.easy ? 1 : 0, opts.noTutorial ? 1 : 0].join('|'); }
+function genHackForShift(seed, idx, features, opts) { const k = hackGenKey(seed, idx, features, opts); let L = HACK_GEN_CACHE.get(k);
+  if (!L) { L = genHackForShiftRaw(seed, idx, features, opts); hackCachePut(k, L); } return Object.assign({}, L); }
+function hackCachePut(k, L) { HACK_GEN_CACHE.set(k, L); HACK_GEN_PENDING.delete(k); if (HACK_GEN_CACHE.size > 60) HACK_GEN_CACHE.delete(HACK_GEN_CACHE.keys().next().value); }
+function hackWorkerSrc() { const J = JSON.stringify;
+  return ['const CONFIG={hack:' + J(CONFIG.hack) + '};', 'const DIRS=' + J(DIRS) + ';', 'const ARROW=' + J(ARROW) + ';', 'const HACK_THEME_DEFAULT=' + J(HACK_THEME_DEFAULT) + ';', 'const HACK_ROOMS=' + J(HACK_ROOMS) + ';', 'const HACK_PACE=' + J(HACK_PACE) + ';', 'const HACK_CURVE=' + J(HACK_CURVE) + ';', 'const HACK_TUTORIAL=' + J(HACK_TUTORIAL) + ';',
+    HackGame, hackPlan, hackRng32, hackSeed, hackRoomTpl, hackFeatCfg, genHackMap, hackSimulate, hackTimeFor, genProceduralLayout, genHackForShiftRaw, hackTutorialLayout].map(String).join('\n') +
+    '\nonmessage=e=>{const d=e.data;let L=null;try{L=genHackForShiftRaw(d.seed,d.idx,d.features,d.opts);}catch(err){}postMessage({k:d.k,L});};'; }
+function hackPrewarm(seed, idx, features, opts) { // fire-and-forget; returns true when a build was queued
+  const k = hackGenKey(seed, idx, features, opts); if (HACK_GEN_CACHE.has(k) || HACK_GEN_PENDING.has(k) || HACK_WORKER_OFF || typeof Worker === 'undefined' || typeof Blob === 'undefined') return false;
+  try { if (!HACK_WORKER) { HACK_WORKER = new Worker(URL.createObjectURL(new Blob([hackWorkerSrc()], { type: 'text/javascript' })));
+      HACK_WORKER.onmessage = e => { const d = e.data; HACK_GEN_PENDING.delete(d.k); if (d.L && !HACK_GEN_CACHE.has(d.k)) hackCachePut(d.k, d.L); };
+      HACK_WORKER.onerror = () => { HACK_WORKER_OFF = true; HACK_GEN_PENDING.clear(); }; }
+    HACK_GEN_PENDING.add(k); HACK_WORKER.postMessage({ k, seed: seed >>> 0, idx, features, opts: opts || {} }); return true; } catch (e) { HACK_WORKER_OFF = true; return false; } }
+function genHackForShiftRaw(seed, idx, features, opts) { // -> validated layout (deterministic for a seed)
+  opts = opts || {}; idx = Math.max(0, Math.min(HACK_CURVE.length - 1, idx | 0));
+  if (HACK_CURVE[idx].tutorial && !opts.noTutorial) return hackTutorialLayout();
+  const base = HACK_CURVE[idx].tutorial ? HACK_CURVE[1] : HACK_CURVE[idx]; const cfg = hackFeatCfg(base, features, opts);
+  for (let tries = 0; tries < 60; tries++) { const c = tries < 40 ? cfg : Object.assign({}, cfg, { av: tries < 50 ? Math.max(0, cfg.av - 1) : 0, hunters: tries < 50 ? cfg.hunters : 0 });
+    const m = genHackMap(hackSeed(seed, tries), c); if (!m) continue; const mt = m.rows.join('');
+    if (tries < 50 && ((mt.match(/V/g) || []).length < (c.av || 0) || (mt.match(/H/g) || []).length < (c.hunters || 0))) continue; // every antivirus/hunter the shift calls for must be on the map
+    const L = Object.assign(m, { name: 'Grid ' + ((seed >>> 0) % 9000 + 1000), seq: c.seq || 5, arrowLen: c.arrowLen || 4, arrowMemo: !!c.memo, avZone: c.avZone, hunterInterval: c.hunterInterval, seed: hackSeed(seed, tries, 'g'), generated: true, shiftIdx: idx, speedBonus: c.speed || 10, inverted: c.inverted, invisible: c.invisible });
+    const sim = hackSimulate(L); if (!sim.ok) continue;
+    L.time = hackTimeFor(L, c, sim.t); L.simTime = Math.round(sim.t * 10) / 10; L.tries = tries + 1; return L; }
+  const L = genProceduralLayout(hackRng32(seed), 13); L.speedBonus = 10; return L; } // never reached in tests; safety net
+function hackTutorialLayout() { return Object.assign({}, HACK_TUTORIAL, { seed: 1701, speedBonus: 10 }); }
+function hackFinaleLayout() { const L = Object.assign({}, HACK_FINALE, { seed: 8008, speedBonus: 10 }); if (!L.time) { const s = hackSimulate(L); L.time = hackTimeFor(L, { slack: 1.7 }, s.t); L.simTime = s.t; } return L; }
+function hackBonus(g) { // v1.17.0: small speed bonus (up to speedBonus points, by time left) + 3 per recovered file
+  if (!g || g.status !== 'win') return { speed: 0, files: 0, total: 0 }; const T = g.time || 1; const speed = Math.round((g.L.speedBonus || 10) * Math.max(0, Math.min(1, 1 - g.elapsed / T)));
+  const files = 3 * g.filesFound(); return { speed, files, total: speed + files }; }
 
 /* ================= ENGINE (DOM-free; runs in the browser and in runSimulation) ================= */
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -1885,7 +2128,7 @@ function startShift(camp) {
   if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
   if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); if (S.solsticeAtStart) solsticeJoin(camp, S, 'campaign'); return S; }
   if (plan.blackout) { const off = [0, 2, 3, 5]; [15, 75, 140, 205].forEach((t, i) => S.hackQueue.push({ t, district: off[i] })); }
-  else (plan.hacks || []).forEach(t => S.hackQueue.push({ t }));
+  (plan.hacks || []).forEach(t => S.hackQueue.push({ t })); S.hackQueue.sort((a, b) => a.t - b.t);
   if (plan.finale) setupRogueFinale(camp, S);
   if (S.solsticeAtStart && S.finale) solsticeJoin(camp, S, 'campaign');
   return S;
@@ -2282,7 +2525,7 @@ function tick(camp, S, dt) {
   if (S.over) return;
   S.t += dt;
   // scheduled hacks
-  for (const hq of S.hackQueue) if (!hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); if (hq.district !== undefined) c.restoreDistrict = hq.district; }
+  for (const hq of S.hackQueue) if (!hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); c.hackOrd = S.hackQueue.indexOf(hq); if (hq.district !== undefined) c.restoreDistrict = hq.district; }
   if (S.deckMode) tickDeck(camp, S, dt);
   // spawn
   else if (S.t >= S.nextSpawn && S.t < CONFIG.spawnStopAt) {
@@ -2526,16 +2769,26 @@ function missionHackSpec(S, call) { // a mission hack call's own spec, or (hack 
 function disruptionHackSpec(S) { // v1.8.1: the hack option inside a disruption uses an easier version of the shift's hack: no invisible/inverted, one feature fewer, +2 s, unlimited resets
   const sp = missionHackSpec(S, null); if (!sp) return null; let f = (sp.features || []).filter(x => !/invisible|inverted/.test(x)); if (f.length > 1) f = f.slice(0, -1);
   return Object.assign({}, sp, { features: f, time: (sp.time || 60) + (CONFIG.disruptHackTimeBonus || 2), attempts: 0 }); }
-function missionLayout(camp, S, spec) {
-  const want = (spec.features || []).map(f => f.replace(/ x\d+$/, '')).filter(f => !/invisible|inverted/.test(f));
-  let best = null, bs = -1e9; HACK_LAYOUTS.forEach((L, i) => { const f = layoutFeatures(L); let sc = 0; for (const w of want) sc += f.has(w) ? 3 : -2; sc -= [...f].filter(x => !want.includes(x)).length; sc -= (S.hackUsed && S.hackUsed[i] ? 0.5 : 0); if (sc > bs) { bs = sc; best = i; } });
-  S.hackUsed = S.hackUsed || {}; let L;
-  if (best === null || bs < 0) L = genProceduralLayout(S.hackRng, S.idx >= 6 ? 13 : 11); else { S.hackUsed[best] = 1; L = HACK_LAYOUTS[best]; }
-  L = Object.assign({}, L, { time: spec.time || L.time, seq: spec.seq || L.seq, attempts: spec.attempts || 0, invisible: (spec.features || []).includes('invisiblePaths'), inverted: (spec.features || []).includes('invertedControls'), features: spec.features });
-  if (toolUnlocked(camp, 'hacktime')) { L.time += (CONFIG.hackTimeBonus || 0); L.timeBonus = CONFIG.hackTimeBonus; }
+function hackMapKey(S, call, opts) { return call ? String(call.tpl.id) + ':' + (call.hackOrd || 0) + (opts && opts.easy ? ':radio' : '') : 'radio:' + (S.radioN = (S.radioN || 0) + 1); }
+function missionLayout(camp, S, spec, call, opts) { // v1.17.0: generated (seeded, solver-validated) maps; Shift 1 tutorial; Shift 8 hand-made finale
+  opts = opts || {}; const f = spec.features || [];
+  const key = hackMapKey(S, call, opts);
+  let L; if (spec.tutorial && !opts.easy) L = hackTutorialLayout(); else if (spec.finale && !opts.easy) L = hackFinaleLayout();
+  else L = genHackForShift(hackSeed(camp.seed >>> 0, S.idx, key), S.idx, f, { easy: !!opts.easy, noTutorial: !!opts.easy });
+  const fin = !!(L.tutorial || L.finale);
+  L = Object.assign({}, L, { attempts: spec.attempts || 0, invisible: !fin && f.includes('invisiblePaths'), inverted: !fin && f.includes('invertedControls'), features: f, hackKey: key });
+  if (toolUnlocked(camp, 'hacktime')) { L.time += (CONFIG.hackTimeBonus || 0); L.timeBonus = CONFIG.hackTimeBonus; } // upgrades only ever add time
   return L; }
-function hackLayoutFor(camp, S, call) { if (camp.missionSet === 'v1.8' && S.deckMode) { const sp = missionHackSpec(S, call); if (sp) return missionLayout(camp, S, sp); }
-  const i = camp.layoutIdx++; const L = i < HACK_LAYOUTS.length ? HACK_LAYOUTS[i] : genProceduralLayout(S.hackRng, S.idx >= 6 ? 13 : 11); return toolUnlocked(camp, 'hacktime') ? Object.assign({}, L, { time: L.time + (CONFIG.hackTimeBonus || 0), timeBonus: CONFIG.hackTimeBonus || 0 }) : L; }
+function legacyHackSpec(S, call) { // Classic ON: same curve as Classic OFF (Shift 1 tutorial, Shift 8 last hack = finale)
+  const c = HACK_CURVE[Math.min(HACK_CURVE.length - 1, S.idx)] || {}; const ord = call && call.hackOrd !== undefined ? call.hackOrd : -1;
+  return { features: c.features || [], tutorial: !!c.tutorial && ord <= 0, finale: !!(S.plan && S.plan.finale) && ord >= 0 && ord === (S.hackQueue || []).length - 1 }; }
+function hackLayoutFor(camp, S, call) { if (camp.missionSet === 'v1.8' && S.deckMode) { const sp = missionHackSpec(S, call); if (sp) return missionLayout(camp, S, sp, call); }
+  camp.layoutIdx = (camp.layoutIdx || 0) + 1; return missionLayout(camp, S, legacyHackSpec(S, call), call); }
+function hackPrewarmCall(camp, S, call) { // v1.17.0: queue the map for a just-spawned hack call in the background worker (same seed/args as hackLayoutFor)
+  if (!call || !call.tpl || call.tpl.type !== 'hack' || typeof hackPrewarm !== 'function') return false;
+  const spec = camp.missionSet === 'v1.8' && S.deckMode ? missionHackSpec(S, call) : legacyHackSpec(S, call); if (!spec || spec.tutorial || spec.finale) return false;
+  return hackPrewarm(hackSeed(camp.seed >>> 0, S.idx, hackMapKey(S, call, {})), S.idx, spec.features || [], { easy: false, noTutorial: false }); }
+function addHackBonus(S, b) { if (!S || !b || !b.total) return 0; S.stats.hackBonus = (S.stats.hackBonus || 0) + b.total; return b.total; } // v1.17.0 speed + files bonus
 function finishHack(camp, S, call, win) {
   call.stage = 'closed'; call.result = win ? 'success' : 'fail'; call.reviewed = true;
   if (win) { S.stats.hacks++; if (call.restoreDistrict !== undefined && !S.online.includes(call.restoreDistrict)) { S.online.push(call.restoreDistrict); Bus.emit('districtOnline', call.restoreDistrict); } }
@@ -2561,7 +2814,7 @@ function endShiftClock(camp, S) {
   }
   Bus.emit('shiftOver', S);
 }
-function shiftScore(S) { const k = CONFIG.score, s = S.stats; return k.success * s.success + k.fail * s.fail + k.missed * s.missed + k.perfect * s.perfect + k.hack * s.hacks; }
+function shiftScore(S) { const k = CONFIG.score, s = S.stats; return k.success * s.success + k.fail * s.fail + k.missed * s.missed + k.perfect * s.perfect + k.hack * s.hacks + (s.hackBonus || 0); }
 function expectedCalls(S) { const e = S.expected !== undefined ? S.expected : S.plan.expected; return Math.max(Math.round(e * 0.5), S.calls.filter(c => c.result !== 'dropped' && c.result !== 'declined').length); }
 function gradeFor(S) { const r = shiftScore(S) / (expectedCalls(S) * 100); let g = 'D'; for (const [gg, th] of CONFIG.grades) if (r >= th) { g = gg; break; }
   if (S.finale && S.finale.lost && CONFIG.gradePoints[g] > CONFIG.gradePoints.C) g = 'C'; return g; }
@@ -3414,26 +3667,34 @@ function openReview(c) {
 function openHackBrief(c) {
   openModal('hackbrief', m => { const P = sheetParts(m, `<span class="diff normal">⌘ HACK</span><h2>${esc(c.tpl.title)}</h2><span class="pill">⏱ ${Math.ceil(c.expiresAt - UI.S.t)}s</span>`,
     `<p class="txt">${esc(c.tpl.text)}</p>${c.restoreDistrict !== undefined ? `<div class="note good">Clearing this restores power to <b>${DISTRICTS[c.restoreDistrict].name}</b>.</div>` : ''}
-     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
+     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks take an arrow code, 📁 files and a fast finish give bonus points. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
     `<button class="btn ghost" data-a="close">LATER</button><button class="btn pri" data-a="go">TAKE THE CONSOLE</button>`);
     P.F.querySelector('[data-a=close]').onclick = () => closeModal(); P.F.querySelector('[data-a=go]').onclick = () => { closeModal(); startHack(c); }; });
 }
 function startHack(c, layout, disrupt) {
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
-  const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp) : hackLayoutFor(UI.camp, UI.S, disrupt ? null : c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. Time is paused on the map.');
+  const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
+  if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
+  if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
+  if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
+  if (/R/.test(L.rows.join('')) && L.arrowMemo) tutorial('hackR', '⌨ Terminals flash the arrow code for the ⇄ lock only for a few seconds. Memorize it!');
   if (L.invisible || L.inverted) tutorial('hackG', '👁 Invisible paths: floor tiles only show next to you. ⇅ Red zones invert your controls while you stand in them.');
   renderHackPanels();
 }
 function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; $('hack').classList.add('hidden');
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); return; }
-  finishHack(UI.camp, UI.S, H.c, win); if (win) { Sfx.fanfare(); toast('⌘ Hack cleared! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ Hack failed.'); } }
+  const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
+  finishHack(UI.camp, UI.S, H.c, win); if (win) { Sfx.fanfare(); toast('⌘ Hack cleared! +' + CONFIG.score.hack + (hb && hb.speed ? ' · speed +' + hb.speed : '') + (hb && hb.files ? ' · 📁 +' + hb.files : '')); } else { Sfx.thud(); shake(); toast('⌘ Hack failed.'); } }
 function hackStep(d) { const H = UI.hack; if (!H) return; const g = H.game; const before = g.resets; g.step(d); if (g.resets > before) { Sfx.thud(); } else Sfx.click(); hackFx(); renderHackPanels(); }
 function hackFx() { const g = UI.hack && UI.hack.game; if (!g || !g.fx) return; ({ zap: () => Sfx.chime(), caught: () => { Sfx.thud(); shake(); }, charge: () => Sfx.tone(900, .15, 'triangle', .1), key: () => Sfx.blip(), bridge: () => Sfx.chime(), err: () => Sfx.alarm() })[g.fx](); g.fx = null; }
 function renderHackPanels() {
   const H = UI.hack; if (!H) return; const g = H.game;
-  const seq = $('hSeq'); if (g.mode === 'seq') { const s = g.seqs[g.seqNode]; seq.classList.remove('hidden'); seq.innerHTML = `<div style="font-size:12px;color:#9ab">Enter with the d-pad / swipes:</div><div class="arrows">${s.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : ARROW[d]).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`; $('seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; } else seq.classList.add('hidden');
+  const seq = $('hSeq'); if (g.mode === 'arrow') { const show = g.arrowKnown && !g.L.arrowMemo; seq.classList.remove('hidden');
+    seq.innerHTML = `<div class="sqh">⇄ ARROW LOCK${!g.arrowKnown ? ': code unknown, find the ⌨ terminal' : g.L.arrowMemo ? ': enter the code from memory' : ''}</div><div class="arrows">${g.arrowCode.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : show ? ARROW[d] : '_').join('')}</div><div class="arw">${['left', 'up', 'down', 'right'].map(d => `<button class="btn" data-ar="${d}" aria-label="${d}">${ARROW[d]}</button>`).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`;
+    seq.querySelectorAll('[data-ar]').forEach(b => b.onclick = () => { hackStep(b.dataset.ar); }); $('seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; }
+  else if (g.mode === 'seq') { const s = g.seqs[g.seqNode]; seq.classList.remove('hidden'); seq.innerHTML = `<div style="font-size:12px;color:#9ab">Enter with the d-pad / swipes:</div><div class="arrows">${s.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : ARROW[d]).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`; $('seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; } else seq.classList.add('hidden');
   const pad = $('hPad'); if (g.mode === 'lock') { pad.classList.remove('hidden'); pad.innerHTML = `<div class="disp">${(g.entry + '____').slice(0, 4)}</div><div class="keys">${['1', '2', '3', 'C', '4', '5', '6', '0', '7', '8', '9', 'OK'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div><button class="btn small ghost" id="padX" style="margin-top:6px">CANCEL</button>`;
     pad.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { g.lockKey(b.dataset.k); Sfx.click(); hackFx(); renderHackPanels(); }); $('padX').onclick = () => { g.cancelMode(); renderHackPanels(); }; } else pad.classList.add('hidden');
 }
@@ -3442,7 +3703,7 @@ function hackFrame(dt) {
   const cv = $('hcv'), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr); }
   if (!H.cam) H.cam = { init: false }; H.view = hackCamera(H.cam, g, w, hh, dt, !!H.zoom);
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t, H.view);
-  $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hCharge').textContent = (g.charge ? '⚡ CHARGED  ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
+  $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hTimer').classList.toggle('low', !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm)); $('hCharge').textContent = (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
   const k = $('hKey'); if (g.keyShow > 0) { k.classList.remove('hidden'); k.textContent = g.keyText; } else k.classList.add('hidden');
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
@@ -4036,7 +4297,7 @@ function showEnd() {
 }
 
 /* ---------- bus wiring ---------- */
-Bus.on('spawn', c => { if (!UI.S || UI.sim) return; Sfx.ring(); if (c.requestHero) radio(c.requestHero, `Hey boss, can I take "${c.tpl.title}"? Please?`); if (c.autoHero) radio(c.autoHero, 'I got this one. Already on my way. Do not argue.'); if (c.tpl.type === 'hack') toast('⌘ Hack call: ' + esc(c.tpl.title)); });
+Bus.on('spawn', c => { if (!UI.S || UI.sim) return; setTimeout(() => { try { if (UI.S) hackPrewarmCall(UI.camp, UI.S, c); } catch (e) { } }, 0); Sfx.ring(); if (c.requestHero) radio(c.requestHero, `Hey boss, can I take "${c.tpl.title}"? Please?`); if (c.autoHero) radio(c.autoHero, 'I got this one. Already on my way. Do not argue.'); if (c.tpl.type === 'hack') toast('⌘ Hack call: ' + esc(c.tpl.title)); });
 function mechTutorial(tpl) { const camp = UI.camp; if (!camp || !tpl.mission) return; camp.seenMech = camp.seenMech || {};
   for (const k of missionMechanics(tpl)) if (!camp.seenMech[k]) { camp.seenMech[k] = 1; toast(MECHANICS[k][0] + ' ' + esc(MECHANICS[k][1]), 7000); radioLog(null, '📘 New: ' + MECHANICS[k][1], 'tut'); } }
 Bus.on('spawn', c => { if (!UI.S || UI.sim || !c.tpl.mission) return; mechTutorial(c.tpl);
@@ -4169,7 +4430,7 @@ window.ND = {
   solveHack(ms) { // demo/test helper: plans the puzzle with a BFS solver and plays it out step by step
     if (!UI.hack) return false; const g = UI.hack.game; const plan = hackPlan(g); if (!plan) return false; let i = 0;
     const run = () => { if (!UI.hack || UI.hack.game !== g || g.status !== 'play') return; if (i >= plan.length) { g.holding = true; return; } const a = plan[i++];
-      if (a === 'ACT') g.act(); else if (a.startsWith('K:')) g.lockKey(a.slice(2)); else hackStep(g.mode !== 'seq' && g.inZone(g.px, g.py) ? { up: 'down', down: 'up', left: 'right', right: 'left' }[a] : a); /* pre-invert in red zones */ renderHackPanels(); setTimeout(run, ms || 140); };
+      if (a === 'ACT') g.act(); else if (a.startsWith('K:')) g.lockKey(a.slice(2)); else hackStep(g.mode !== 'seq' && g.mode !== 'arrow' && g.inZone(g.px, g.py) ? { up: 'down', down: 'up', left: 'right', right: 'left' }[a] : a); /* pre-invert in red zones */ renderHackPanels(); setTimeout(run, ms || 140); };
     run(); return plan.length;
   },
 };
