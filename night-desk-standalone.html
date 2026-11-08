@@ -157,6 +157,10 @@ input.seed{min-height:44px;border-radius:10px;border:1px solid var(--line);backg
 .htitle{font:800 14px ui-monospace,monospace;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
 .htimer{flex:1;height:12px;border-radius:6px;background:#1b2346;overflow:hidden}.htimer i{display:block;height:100%;background:linear-gradient(90deg,#ff7b00,#ffb03a);width:100%}
 .hmsg{font:13px ui-monospace,monospace;color:#9effc0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 6px;min-height:18px}#hCharge{white-space:nowrap;margin-left:auto}
+#hReboot{white-space:nowrap;padding-left:8px;padding-right:8px}#hReboot b{color:#fca5a5;font-weight:800}#hReboot.armed{border-color:var(--yel);color:var(--yel);background:#2a2610}#hReboot.stuck{border-color:var(--yel);animation:hrbPulse 1s ease-in-out infinite alternate}@keyframes hrbPulse{from{box-shadow:0 0 0 0 rgba(255,210,63,.0)}to{box-shadow:0 0 0 4px rgba(255,210,63,.55)}}
+html[data-look="comic"] #hReboot b{color:#b91c1c!important}
+@media (max-width:480px) and (orientation:portrait){.hhead{flex-wrap:wrap;row-gap:5px}.hhead .htimer{order:5;flex:1 0 100%}.hhead .htitle{flex:1;max-width:none}} /* v1.18.1: narrow phones put the timer bar on its own full-width row so ↻ REBOOT fits */
+@media (prefers-reduced-motion:reduce){#hReboot.stuck{animation:none;box-shadow:0 0 0 3px rgba(255,210,63,.55)}}
 .htimer i.low{background:linear-gradient(90deg,#dc2626,#f87171)!important}
 #hSeq .sqh{font-size:12px;color:#cfe3ff;margin-bottom:2px}#hSeq .arw{display:flex;gap:8px;justify-content:center;margin:6px 0}#hSeq .arw .btn{min-width:52px;min-height:48px;font-size:22px;padding:0}
 #hKey{position:absolute;top:4px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;font:800 20px ui-monospace,monospace;text-align:center;color:var(--yel);background:#2a2610;border-radius:8px;padding:4px}
@@ -839,7 +843,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <div id="screen" class="hidden"></div>
   <div id="modal" class="hidden"></div>
   <div id="hack" class="hidden">
-    <div class="hhead"><div class="htitle" id="hTitle">HACK</div><div class="htimer"><i id="hTimer"></i></div><button class="btn small ghost" id="hQuit">GIVE UP</button></div>
+    <div class="hhead"><div class="htitle" id="hTitle">HACK</div><div class="htimer"><i id="hTimer"></i></div><button class="btn small ghost" id="hReboot" aria-label="Reboot section: costs one life, the timer keeps running">↻ REBOOT</button><button class="btn small ghost" id="hQuit">GIVE UP</button></div>
     <div class="hmsg"><span id="hMsg"></span><span id="hCharge"></span></div>
     <div class="hstage"><div id="hKey" class="hidden"></div><canvas id="hcv"></canvas><div id="hSeq" class="hidden"></div><div id="hPad" class="hidden"></div></div>
     <div class="hctrl">
@@ -851,7 +855,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.18.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.18.1';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1534,24 +1538,33 @@ class HackGame {
   }
   find(ch) { const out = []; this.rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === ch) out.push([x, y]); }); return out; }
   ch(x, y) { if (y < 0 || y >= this.H || x < 0 || x >= this.W) return '#'; return this.rows[y][x]; }
-  reset(first) {
+  reset(first, why) { // why: undefined = caught by an antivirus, 'reboot' = v1.18.1 ↻ Reboot section (same cost: one life)
     const cp = !first && this.cp;
     if (cp) { this.px = cp.px; this.py = cp.py; this.charge = cp.charge; this.used = Object.assign({}, cp.used); this.bulb = cp.bulb; this.tog = Object.assign({}, cp.tog); this.lockOpen = cp.lockOpen;
       this.av = cp.av.map(a => ({ x: a.hx, y: a.hy, hx: a.hx, hy: a.hy, alive: a.alive, t: 0, hunter: a.hunter }));
-      this.tools = cp.tools; this.broken = Object.assign({}, cp.broken); this.keys = cp.keys; this.qopen = Object.assign({}, cp.qopen); this.arrowKnown = cp.arrowKnown; this.arrowOpen = cp.arrowOpen; this.alarm = cp.alarm; this.picked = Object.assign({}, cp.picked); }
+      this.tools = cp.tools; this.broken = Object.assign({}, cp.broken); this.keys = cp.keys; this.qopen = Object.assign({}, cp.qopen); this.arrowKnown = cp.arrowKnown; this.arrowOpen = cp.arrowOpen; this.alarm = cp.alarm; this.picked = Object.assign({}, cp.picked); this.seenK = Object.assign({}, cp.seenK || {}); }
     else { const s = this.find('S')[0]; this.px = s[0]; this.py = s[1];
       this.charge = 0; this.used = {}; this.bulb = 0; this.tog = { B: false, N: false }; this.lockOpen = false;
       this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 })).concat(this.find('H').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0, hunter: true })));
-      this.tools = 0; this.broken = {}; this.keys = 0; this.qopen = {}; this.arrowKnown = !this.hasTerminal; this.arrowOpen = false; this.alarm = false; this.picked = {}; }
+      this.tools = 0; this.broken = {}; this.keys = 0; this.qopen = {}; this.arrowKnown = !this.hasTerminal; this.arrowOpen = false; this.alarm = false; this.picked = {}; this.seenK = {}; }
     this.mode = null; this.input = []; this.keyShow = 0; this.keyText = ''; this.hold = 0; this.holding = false;
     if (!first) { this.resets++; this.lives = this.attempts ? Math.max(0, this.attempts - this.resets) : 0;
-      this.msg = 'Caught! ' + (this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '') + 'Back to the section start.';
-      if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = 'Caught by the antivirus. No lives left.'; } }
+      const left = this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '';
+      this.msg = why === 'reboot' ? 'Section rebooted: items, gates and antiviruses restored. ' + left : 'Caught! ' + left + 'Back to the section start.';
+      if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = why === 'reboot' ? 'Rebooted on your last life. Connection lost.' : 'Caught by the antivirus. No lives left.'; } }
+    this._stSig = null;
     this.reveal();
   }
   checkpoint() { // v1.16.0: 'P' tiles save the section start (position + puzzle state); antiviruses go home on a reset
     this.cp = { px: this.px, py: this.py, charge: this.charge, used: Object.assign({}, this.used), bulb: this.bulb, tog: Object.assign({}, this.tog), lockOpen: this.lockOpen, av: this.av.map(a => ({ hx: a.hx, hy: a.hy, alive: a.alive, hunter: a.hunter })),
-      tools: this.tools, broken: Object.assign({}, this.broken), keys: this.keys, qopen: Object.assign({}, this.qopen), arrowKnown: this.arrowKnown, arrowOpen: this.arrowOpen, alarm: this.alarm, picked: Object.assign({}, this.picked) }; }
+      tools: this.tools, broken: Object.assign({}, this.broken), keys: this.keys, qopen: Object.assign({}, this.qopen), arrowKnown: this.arrowKnown, arrowOpen: this.arrowOpen, alarm: this.alarm, picked: Object.assign({}, this.picked), seenK: Object.assign({}, this.seenK || {}) }; }
+  reboot() { // v1.18.1 ↻ Reboot section: back to the section start (or the ⚑ checkpoint) with that moment's items, gates, antiviruses and alarm restored.
+    // Costs one life exactly like being caught (Unlimited setting: free); the timer keeps running (no refill).
+    if (this.status !== 'play') return false; this.reset(false, 'reboot'); this.fx = 'reboot'; return true; }
+  stuckSig() { return [this.charge, this.bulb, Object.keys(this.used).length, this.av.map(a => +a.alive).join(''), this.tools, this.keys, Object.keys(this.broken).length, Object.keys(this.qopen).length, +this.tog.B, +this.tog.N, +this.lockOpen, +this.arrowOpen, +this.arrowKnown, Object.keys(this.picked).length].join('|'); }
+  isStuck() { // true only when the route planner has PROVEN there is no way to the exit from here (antiviruses ignored); a budget cut-off never counts as stuck
+    if (this.status !== 'play') return false; const sig = this.stuckSig(); if (sig === this._stSig) return this._stuck; this._stSig = sig;
+    const info = {}; const p = hackPlan(this, { ignoreAv: true, maxStates: 20000, info }); this._stuck = !p && !info.budget; return this._stuck; }
   reveal() { if (!this.invisible) return; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!dx || !dy) this.seen.add((this.px + dx) + ',' + (this.py + dy)); }
   inZone(x, y) { return this.zone.has(x + ',' + y); }
   isHidden(x, y) { return this.invisible && !this.seen.has(x + ',' + y) && this.ch(x, y) !== 'X' && this.ch(x, y) !== 'S'; }
@@ -1587,7 +1600,7 @@ class HackGame {
     const c = this.ch(this.px, this.py), k = this.px + ',' + this.py;
     if (c === 'C' && !this.used[k]) { if (this.charge < 1) { this.charge = 1; this.used[k] = 1; this.msg = 'Charge picked up (max 1).'; this.fx = 'charge'; } else this.msg = 'Already holding a charge.'; }
     else if (c === 'U') { const need = this.L.bulbNeed || 1; if (this.bulb >= need) this.msg = 'Bulb is lit. Gate open.'; else if (this.charge) { this.charge = 0; this.bulb++; this.fx = 'charge'; this.msg = this.bulb >= need ? 'Bulb lit! The gate opens.' : 'Bulb ' + this.bulb + '/' + need + '. Needs another charge.'; } else this.msg = 'Bulb needs a charge (' + this.bulb + '/' + need + ').'; }
-    else if (c === 'K' || c === 'k') { const part = !this.split ? this.code : (c === 'K' ? this.code.slice(0, 2) + '__' : '__' + this.code.slice(2)); this.keyText = 'KEY CODE: ' + part; this.keyShow = CONFIG.hack.keyShowAfter; this.msg = 'Memorize the code!'; this.fx = 'key'; }
+    else if (c === 'K' || c === 'k') { this.seenK[c] = 1; const part = !this.split ? this.code : (c === 'K' ? this.code.slice(0, 2) + '__' : '__' + this.code.slice(2)); this.keyText = 'KEY CODE: ' + part; this.keyShow = CONFIG.hack.keyShowAfter; this.msg = 'Memorize the code!'; this.fx = 'key'; }
     else if (c === 'B' || c === 'N') this.msg = 'Bridge node: press ACT to rewire.';
     else if (c === 'L') this.msg = this.lockOpen ? 'Lock open.' : 'Lock: press ACT and enter the code.';
     else if (c === 'X') this.msg = 'Exit! HOLD to upload (0.5s).';
@@ -1698,10 +1711,10 @@ function hackPlan(game, opt) { // opt.danger: also avoid cells next to live anti
   opt = opt || {}; // BFS over (pos, charge, used charges, bulbs, bridges, lock, keys, antiviruses); returns a list of actions
   const rows = game.rows, H = rows.length, W = rows[0].length, ch = (x, y) => (y < 0 || y >= H || x < 0 || x >= W) ? '#' : rows[y][x];
   const cells = t => { const o = []; rows.forEach((r, y) => { for (let x = 0; x < W; x++) if (r[x] === t) o.push(x + ',' + y); }); return o; };
-  const charges = cells('C'), avs = game.av.map(a => a.x + ',' + a.y), split = cells('k').length > 0, need = game.L.bulbNeed || 1;
+  const charges = cells('C'), avs = opt.ignoreAv ? [] : game.av.map(a => a.x + ',' + a.y), split = cells('k').length > 0, need = game.L.bulbNeed || 1;
   const tools = cells('T'), walls = cells('W'), keyn = cells('Y'), doors = cells('Q'), pc = m => { let n = 0; while (m) { n += m & 1; m >>= 1; } return n; };
-  const st0 = { x: game.px, y: game.py, c: game.charge, u: 0, b: game.bulb, B: +game.tog.B, N: +game.tog.N, lo: +game.lockOpen, av: 0, k1: 0, k2: 0, t: 0, w: 0, yk: 0, q: 0, r: +!!game.arrowKnown, ao: +!!game.arrowOpen };
-  charges.forEach((k, i) => { if (game.used[k]) st0.u |= 1 << i; }); game.av.forEach((a, i) => { if (!a.alive) st0.av |= 1 << i; });
+  const st0 = { x: game.px, y: game.py, c: game.charge, u: 0, b: game.bulb, B: +game.tog.B, N: +game.tog.N, lo: +game.lockOpen, av: 0, k1: +!!(game.seenK && game.seenK.K), k2: +!!(game.seenK && game.seenK.k), t: 0, w: 0, yk: 0, q: 0, r: +!!game.arrowKnown, ao: +!!game.arrowOpen };
+  charges.forEach((k, i) => { if (game.used[k]) st0.u |= 1 << i; }); if (!opt.ignoreAv) game.av.forEach((a, i) => { if (!a.alive) st0.av |= 1 << i; });
   tools.forEach((k, i) => { if (game.picked && game.picked[k]) st0.t |= 1 << i; }); walls.forEach((k, i) => { if (game.broken && game.broken[k]) st0.w |= 1 << i; });
   keyn.forEach((k, i) => { if (game.picked && game.picked[k]) st0.yk |= 1 << i; }); doors.forEach((k, i) => { if (game.qopen && game.qopen[k]) st0.q |= 1 << i; });
   const pass = (s, x, y) => { const c = ch(x, y); if (c === '#') return false; if (c === 'a') return !!s.B; if (c === 'b') return !s.B; if (c === 'c') return !!s.N; if (c === 'd') return !s.N; if (c === 'D') return !!s.lo; if (c === 'G') return s.b >= need; if (c === 'E') return !!s.ao;
@@ -1710,7 +1723,7 @@ function hackPlan(game, opt) { // opt.danger: also avoid cells next to live anti
   const key = s => [s.x, s.y, s.c, s.u, s.b, s.B, s.N, s.lo, s.av, s.k1, s.k2, s.t, s.w, s.yk, s.q, s.r, s.ao].join(','); const prev = new Map([[key(st0), null]]); const q = [st0];
   const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   let qh = 0; const maxS = opt.maxStates || 0;
-  while (qh < q.length) { const s = q[qh++]; const c = ch(s.x, s.y); if (maxS && prev.size > maxS) return null;
+  while (qh < q.length) { const s = q[qh++]; const c = ch(s.x, s.y); if (maxS && prev.size > maxS) { if (opt.info) opt.info.budget = true; return null; }
     if (c === 'X') { const out = []; let k = key(s); while (prev.get(k)) { const [pk, acts] = prev.get(k); out.unshift(...acts); k = pk; } return out; }
     const nx = [];
     for (const d in dirs) { const [dx, dy] = dirs[d]; const x = s.x + dx, y = s.y + dy; if (!pass(s, x, y)) continue; if (!s.c && danger.has(x + ',' + y) && avs.indexOf(x + ',' + y) < 0) continue; const n = { ...s, x, y }; const ai = avs.indexOf(x + ',' + y); if (ai >= 0 && !(n.av >> ai & 1)) { if (!n.c) continue; n.av |= 1 << ai; n.c = 0; }
@@ -1745,6 +1758,8 @@ if (typeof module !== 'undefined') module.exports = { HackGame, genProceduralLay
    Gates sit on doorways along the start->exit path; the item each gate needs is placed before it. Every map is played out by
    hackSimulate (BFS plan + a real HackGame run at a cautious human pace, antiviruses and hunters moving); the time limit is that
    run's time x the shift's slack. A map that is not beaten cleanly is regenerated with the next sub-seed.
+   v1.18.1: every antivirus gets a spare ⚡ placed before each gate its chase can reach back across; every map must pass hackSafety (all reachable
+   states, not one route) or it is rebuilt; time limits come from a human-pace budget of the map's route and puzzles (hackTimeFor), not the robot run.
    New tiles: T pickaxe  W cracked wall  Y key node  Q key door  R ⌨ arrow-code terminal  A ⇄ arrow lock  E arrow gate
               F 📁 file (optional bonus)  Z ⚠ alarm tripwire  H hunter antivirus (sleeps until the alarm, then chases anywhere)  P ⚑ checkpoint */
 const HACK_ROOMS = [ // hand-made room interiors; edge-mid cells (2,0) (0,2) (4,2) (2,4) are always open and connected
@@ -1765,13 +1780,13 @@ const HACK_PACE = { step: 0.3, act: 0.4, arrow: 0.45, digit: 0.5 }; // cautious 
 // difficulty curve, index = shift index (Shift 1 = tutorial). Same curve for Classic ON and OFF; features = the shift's default hack spec.
 const HACK_CURVE = [
   { tutorial: true },
-  { rooms: [3, 2], features: ['bridges'], extra: ['tool'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.4, speed: 10 },
-  { rooms: [3, 2], features: ['bridges', 'keys'], extra: ['arrow'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.2, speed: 10 },
-  { rooms: [3, 3], features: ['keys', 'antivirus'], extra: ['tool', 'key'], av: 1, avZone: 2, seq: 5, arrowLen: 4, files: 3, loops: 2, slack: 2.0, speed: 10 },
-  { rooms: [3, 3], features: ['charges', 'bulbs'], extra: ['arrow', 'tool'], av: 1, avZone: 2, seq: 5, arrowLen: 5, terminal: true, files: 3, loops: 2, slack: 1.9, speed: 10 },
-  { rooms: [4, 3], features: ['charges', 'antivirus', 'splitKeys'], extra: ['key', 'arrow'], av: 1, avZone: 3, seq: 6, arrowLen: 5, terminal: true, memo: true, hunters: 1, hunterInterval: 0.8, files: 3, loops: 2, slack: 1.8, speed: 10 },
-  { rooms: [4, 3], features: ['charges', 'antivirus x3', 'splitKeys'], extra: ['tool', 'key', 'arrow'], av: 3, avZone: 3, seq: 6, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.7, files: 4, loops: 3, slack: 1.7, speed: 10 },
-  { rooms: [4, 3], features: ['invisiblePaths', 'invertedControls', 'antivirus'], extra: ['lock', 'tool', 'key', 'arrow'], av: 2, avZone: 3, seq: 7, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.6, files: 4, loops: 3, slack: 1.7, speed: 10 },
+  { rooms: [3, 2], features: ['bridges'], extra: ['tool'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.4, speed: 10, timeMargin: 1.5, timeMin: 45 },
+  { rooms: [3, 2], features: ['bridges', 'keys'], extra: ['arrow'], av: 0, seq: 4, arrowLen: 4, files: 2, loops: 1, slack: 2.2, speed: 10, timeMargin: 1.45, timeMin: 50 },
+  { rooms: [3, 3], features: ['keys', 'antivirus'], extra: ['tool', 'key'], av: 1, avZone: 2, seq: 5, arrowLen: 4, files: 3, loops: 2, slack: 2.0, speed: 10, timeMargin: 1.4, timeMin: 55 },
+  { rooms: [3, 3], features: ['charges', 'bulbs'], extra: ['arrow', 'tool'], av: 1, avZone: 2, seq: 5, arrowLen: 5, terminal: true, files: 3, loops: 2, slack: 1.9, speed: 10, timeMargin: 1.35, timeMin: 60 },
+  { rooms: [4, 3], features: ['charges', 'antivirus', 'splitKeys'], extra: ['key', 'arrow'], av: 1, avZone: 3, seq: 6, arrowLen: 5, terminal: true, memo: true, hunters: 1, hunterInterval: 0.8, files: 3, loops: 2, slack: 1.8, speed: 10, timeMargin: 1.3, timeMin: 65 },
+  { rooms: [4, 3], features: ['charges', 'antivirus x3', 'splitKeys'], extra: ['tool', 'key', 'arrow'], av: 3, avZone: 3, seq: 6, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.7, files: 4, loops: 3, slack: 1.7, speed: 10, timeMargin: 1.3, timeMin: 70 },
+  { rooms: [4, 3], features: ['invisiblePaths', 'invertedControls', 'antivirus'], extra: ['lock', 'tool', 'key', 'arrow'], av: 2, avZone: 3, seq: 7, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.6, files: 4, loops: 3, slack: 1.7, speed: 10, timeMargin: 1.25, timeMin: 75 },
 ];
 const HACK_TUTORIAL = { name: 'Console Training', time: 150, seq: 3, arrowLen: 3, tutorial: true, rows: [
   '###################',
@@ -1843,7 +1858,7 @@ function genHackMap(seed, cfg) {
     else if (kind === 'lock') { g[dy][dx] = 'D'; const [mx, my] = mid(a, b); if (g[my][mx] !== '.') return null; g[my][mx] = 'L'; if (!putIn(i, 'K')) return null; if (cfg.split && !putIn(i, 'k')) return null; }
     else if (kind === 'bulb') { g[dy][dx] = 'G'; if (!putIn(i, 'U')) return null; for (let k = 0; k < out.bulbNeed; k++) if (!putIn(i, 'C')) return null; }
     else if (kind === 'arrow') { g[dy][dx] = 'E'; const [mx, my] = mid(a, b); if (g[my][mx] !== '.') return null; g[my][mx] = 'A'; if (cfg.terminal && !putIn(i, 'R')) return null; } }
-  for (let k = 0; k < (cfg.charges || 0); k++) putIn(Math.max(0, gates.length - 1 - k), 'C');
+  for (let k = 0; k < (cfg.charges || 0) - (cfg.av || 0); k++) putIn(Math.max(0, gates.length - 1 - k), 'C'); // v1.18.1: the antivirus spares are placed with their antivirus below
   const openN = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => g[y + dy][x + dx] !== '#').length;
   const floodN = () => { let sx, sy; g.forEach((row, y) => row.forEach((c, x) => { if (c === 'S') { sx = x; sy = y; } })); const seen = new Set([sx + ',' + sy]), q = [[sx, sy]]; while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (x + dx) + ',' + (y + dy); if (g[y + dy][x + dx] !== '#' && !seen.has(k)) { seen.add(k); q.push([x + dx, y + dy]); } } } return seen.size; };
   const notCut = (x, y) => { const before = floodN(), c = g[y][x]; g[y][x] = '#'; const after = floodN(); g[y][x] = c; return after === before - 1; };
@@ -1856,7 +1871,9 @@ function genHackMap(seed, cfg) {
     while (q.length) { const [cx, cy] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (cx + dx) + ',' + (cy + dy); if (g[cy + dy][cx + dx] !== '#' && !blk.has(k) && !seen.has(k)) { seen.add(k); q.push([cx + dx, cy + dy]); } } }
     return need.every(k => seen.has(k)); };
   const putAv = (r, alt) => { for (const q of [r].concat((alt || []).filter(x => x !== r))) { const f = free(q).filter(([x, y]) => openN(x, y) >= 3 && bypass(x, y)); if (f.length) { const [x, y] = f[Math.floor(rng() * f.length)]; g[y][x] = 'V'; return [x, y]; } } return putOpen(r, 'V', alt); };
-  const later = path.slice(1).filter(r => r !== exitR); for (let k = 0; k < (cfg.av || 0); k++) { const r = later.length ? later[(k * 2 + 1) % later.length] : exitR; putAv(r, later.concat([exitR])); }
+  const roomOf = (x, y) => ri(Math.min(RC - 1, Math.floor((x - 1) / 6)), Math.min(RR - 1, Math.floor((y - 1) / 6)));
+  const spareFor = p => { if (!p) return; let lo = region[roomOf(p[0], p[1])]; for (const k of hackAvReach(g, p, cfg.avZone)) { const [x, y] = k.split(',').map(Number); lo = Math.min(lo, region[roomOf(x, y)]); } putIn(lo, 'C'); }; // v1.18.1: one spare ⚡ per antivirus, before every gate its chase can reach back across
+  const later = path.slice(1).filter(r => r !== exitR); for (let k = 0; k < (cfg.av || 0); k++) { const r = later.length ? later[(k * 2 + 1) % later.length] : exitR; spareFor(putAv(r, later.concat([exitR]))); }
   if (cfg.hunters) { const zr = path[Math.max(1, Math.floor(path.length / 2))]; const [mx, my] = mid(zr, par[zr]); if (g[my][mx] === '.') g[my][mx] = 'Z';
     const back = inReg(0, 0).filter(r => r !== start); for (let k = 0; k < cfg.hunters; k++) putOpen(back.length ? back[k % back.length] : start, 'H', back.concat(inReg(0, 1).filter(r => r !== start && r !== exitR))); }
   const leaves = rooms.map((_, r) => r).filter(r => !kids[r] && r !== exitR && r !== start); for (let k = 0; k < (cfg.files || 0); k++) put(leaves.length && k < leaves.length ? leaves[k] : Math.floor(rng() * rooms.length), 'F');
@@ -1877,7 +1894,85 @@ function hackSimulate(L, o) { // plays the BFS plan in a real HackGame at HACK_P
     else { const typing = g.mode === 'seq' || g.mode === 'arrow'; tick(typing ? HACK_PACE.arrow : HACK_PACE.step); if (g.status !== 'play' || g.resets) break; g.step(!typing && g.inZone(g.px, g.py) ? { up: 'down', down: 'up', left: 'right', right: 'left' }[a] : a); } }
   if (g.status === 'play' && !g.resets) { g.holding = true; for (let i = 0; i < 20 && g.status === 'play'; i++) tick(0.1); }
   return { ok: g.status === 'win' && !g.resets, t, waited, replans, steps: plan.length, resets: g.resets, why: g.resets ? 'caught' : g.status }; }
-function hackTimeFor(L, cfg, simT) { const slack = (cfg.slack || 2) + (cfg.invisible ? 0.4 : 0); return Math.max(30, Math.ceil((simT * slack + 6) / 5) * 5); }
+/* v1.18.1 SOFT-LOCK SAFETY. hackSafety explores EVERY reachable abstract state of a map (position + every item, gate and puzzle bit, which
+   antiviruses are dead, alarm) instead of one solver route. Besides walking/ACT, a live hostile antivirus whose reach covers the player may
+   take the held ⚡ (it is spent automatically on contact, so the validator lets an antivirus take it anywhere it could touch you). A map is safe only if every
+   reachable state can still reach the exit. Catches, Reboot and the finale ⚑ checkpoint only return to a state that was itself reachable, so
+   they never create a new dead end. If the state budget runs out the result is 'indeterminate' and the map is REJECTED like an unsafe one. */
+const HACK_SAFETY = { maxStates: 60000 };
+function hackAvReach(rows, home, zone) { // over-approximation of every cell an antivirus homed at `home` can stand on: all gates treated as open, 2×zone+1 steps
+  const R = 2 * (zone || (typeof CONFIG !== 'undefined' && CONFIG.hack && CONFIG.hack.avZone) || 4) + 1, H = rows.length, W = rows[0].length;
+  const d = new Map([[home[0] + ',' + home[1], 0]]), q = [home]; for (let i = 0; i < q.length; i++) { const [x, y] = q[i], dd = d.get(x + ',' + y); if (dd >= R) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (nx < 0 || ny < 0 || nx >= W || ny >= H || rows[ny][nx] === '#' || d.has(k)) continue; d.set(k, dd + 1); q.push([nx, ny]); } }
+  return new Set(d.keys()); }
+function hackSafetyKey(s, proj) { return proj ? [s.x, s.y, s.b, s.B, s.N, s.lo, s.k1, s.k2, s.t, s.w, s.yk, s.q, s.r, s.ao].join(',') : [s.x, s.y, s.c, s.u, s.b, s.B, s.N, s.lo, s.av, s.k1, s.k2, s.t, s.w, s.yk, s.q, s.r, s.ao, s.al].join(','); }
+function hackSafetyProj(rows) { return !rows.some(r => r.indexOf('G') >= 0); } // no ⚡ bulb gate: charges, antiviruses and the alarm can't change which doors open, so they are projected out (exact, keeps big Shift 7-8 maps small)
+function hackSafety(L, opt) { // -> { ok, verdict: 'safe' | 'unsafe' | 'indeterminate' | 'unsolvable', states, dead, example }
+  opt = opt || {}; const rows = L.rows, H = rows.length, W = rows[0].length, ch = (x, y) => (y < 0 || y >= H || x < 0 || x >= W) ? '#' : rows[y][x];
+  const cells = t => { const o = []; rows.forEach((r, y) => { for (let x = 0; x < W; x++) if (r[x] === t) o.push([x, y]); }); return o; }, K = (x, y) => x + ',' + y;
+  const charges = cells('C').map(p => K(...p)), tools = cells('T').map(p => K(...p)), walls = cells('W').map(p => K(...p)), keyn = cells('Y').map(p => K(...p)), doors = cells('Q').map(p => K(...p));
+  const split = cells('k').length > 0, need = L.bulbNeed || 1, hasTerm = cells('R').length > 0;
+  // same antivirus order as HackGame (V cells, then H cells): av bit i = antivirus i dead
+  const avs = cells('V').map(p => ({ h: p, hunter: false })).concat(cells('H').map(p => ({ h: p, hunter: true })));
+  avs.forEach(a => { a.reach = a.hunter ? null : hackAvReach(rows, a.h, L.avZone); });
+  const pc = m => { let n = 0; while (m) { n += m & 1; m >>>= 1; } return n; };
+  const s0 = cells('S')[0]; const S0 = { x: s0[0], y: s0[1], c: 0, u: 0, b: 0, B: 0, N: 0, lo: 0, av: 0, k1: 0, k2: 0, t: 0, w: 0, yk: 0, q: 0, r: hasTerm ? 0 : 1, ao: 0, al: 0 };
+  const pass = (s, x, y) => { const c = ch(x, y); if (c === '#') return false; if (c === 'a') return !!s.B; if (c === 'b') return !s.B; if (c === 'c') return !!s.N; if (c === 'd') return !s.N; if (c === 'D') return !!s.lo; if (c === 'G') return s.b >= need; if (c === 'E') return !!s.ao;
+    if (c === 'W') { const i = walls.indexOf(K(x, y)); return !!(s.w >> i & 1) || pc(s.t) - pc(s.w) > 0; } if (c === 'Q') { const i = doors.indexOf(K(x, y)); return !!(s.q >> i & 1) || pc(s.yk) - pc(s.q) > 0; } return true; };
+  const enter = n => { const x = n.x, y = n.y, nc = ch(x, y), xy = K(x, y); const ci = charges.indexOf(xy); if (nc === 'C' && !(n.u >> ci & 1) && !n.c) { n.c = 1; n.u |= 1 << ci; } if (nc === 'U' && n.c && n.b < need) { n.c = 0; n.b++; }
+    if (nc === 'K') n.k1 = 1; if (nc === 'k') n.k2 = 1; const wi = walls.indexOf(xy), qi = doors.indexOf(xy), ti = tools.indexOf(xy), yi = keyn.indexOf(xy); if (wi >= 0) n.w |= 1 << wi; if (qi >= 0) n.q |= 1 << qi; if (ti >= 0) n.t |= 1 << ti; if (yi >= 0) n.yk |= 1 << yi; if (nc === 'R') n.r = 1; if (nc === 'Z') n.al = 1; return n; };
+  const canTouch = (s, i) => { if (s.av >> i & 1) return false; const a = avs[i]; if (a.hunter) return s.al ? true : (Math.abs(a.h[0] - s.x) + Math.abs(a.h[1] - s.y) <= 1); return a.reach.has(K(s.x, s.y)); };
+  const proj = hackSafetyProj(rows); // exact quotient: without a bulb gate, ⚡/antivirus/alarm bits never affect a door, so dead ends don't depend on them
+  const id = new Map(), st = [], succ = []; const add = s => { if (proj) { s.c = 0; s.u = 0; s.av = 0; s.al = 0; } const k = hackSafetyKey(s, proj); let i = id.get(k); if (i === undefined) { i = st.length; id.set(k, i); st.push(s); succ.push(null); } return i; };
+  add(S0); const MAX = opt.maxStates || HACK_SAFETY.maxStates;
+  for (let i = 0; i < st.length; i++) { if (st.length > MAX) return { ok: false, verdict: 'indeterminate', states: st.length };
+    const s = st[i], c = ch(s.x, s.y), nx = []; if (c === 'X') { succ[i] = []; continue; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = s.x + dx, y = s.y + dy; if (pass(s, x, y)) nx.push(enter({ ...s, x, y })); }
+    if (c === 'A' && !s.ao && s.r) nx.push({ ...s, ao: 1 }); if (c === 'B' || c === 'N') nx.push({ ...s, [c]: 1 - s[c] }); if (c === 'L' && !s.lo && s.k1 && (!split || s.k2)) nx.push({ ...s, lo: 1 });
+    if (s.c && !proj) for (let a = 0; a < avs.length; a++) if (canTouch(s, a)) nx.push({ ...s, c: 0, av: s.av | (1 << a) }); // the antivirus takes the held charge (voluntary or forced)
+    succ[i] = nx.map(add); }
+  const n = st.length, good = new Uint8Array(n), rev = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) { for (const j of succ[i]) rev[j].push(i); if (ch(st[i].x, st[i].y) === 'X') good[i] = 1; }
+  const q = []; for (let i = 0; i < n; i++) if (good[i]) q.push(i); while (q.length) { const j = q.pop(); for (const i of rev[j]) if (!good[i]) { good[i] = 1; q.push(i); } }
+  let dead = 0, ex = null; for (let i = 0; i < n; i++) if (!good[i]) { dead++; if (!ex) ex = st[i]; }
+  const r = { ok: !!good[0] && dead === 0, verdict: !good[0] ? 'unsolvable' : dead ? 'unsafe' : 'safe', states: n, dead, example: ex, proj };
+  if (opt.keys) r.keys = id; return r; }
+function hackRuntimeKey(g, L) { // the HackGame state in hackSafety's abstract form (tests compare runtime against the validator with this)
+  const rows = g.rows, W = rows[0].length, cells = t => { const o = []; rows.forEach((r, y) => { for (let x = 0; x < W; x++) if (r[x] === t) o.push(x + ',' + y); }); return o; };
+  const bits = (list, f) => list.reduce((m, k, i) => m | (f(k) ? 1 << i : 0), 0);
+  return hackSafetyKey({ x: g.px, y: g.py, c: g.charge ? 1 : 0, u: bits(cells('C'), k => g.used[k]), b: g.bulb, B: +g.tog.B, N: +g.tog.N, lo: +g.lockOpen, av: g.av.reduce((m, a, i) => m | (a.alive ? 0 : 1 << i), 0),
+    k1: g.seenK ? +!!g.seenK.K : 0, k2: g.seenK ? +!!g.seenK.k : 0, t: bits(cells('T'), k => g.picked[k]), w: bits(cells('W'), k => g.broken[k]), yk: bits(cells('Y'), k => g.picked[k]), q: bits(cells('Q'), k => g.qopen[k]), r: +!!g.arrowKnown, ao: +!!g.arrowOpen, al: +!!g.alarm }, hackSafetyProj(rows)); }
+/* v1.18.1 HUMAN-PACE TIMERS (report-derived; replaces robot time × slack). Built from what the map actually asks of you along its route:
+   reading + a MAP look per section, 0.5 s per step (+50% in ⇅ zones), exploring invisible floor, typing every digit/arrow/bridge key with recall time
+   per code (×2 for memory codes), pickups, a wait per antivirus/hunter, the exit hold, +25% of movement as a retry allowance when there are threats,
+   then × the shift's margin, at least the shift's minimum, rounded up to 5 s. Tutorial stays 150 s. */
+const HACK_HUMAN = { read: 6, mapLook: 2, step: 0.5, zoneExtra: 0.5, explore: 0.5, digit: 0.9, arrow: 0.8, seqKey: 0.8, act: 0.6, recall: 2, pick: 0.6, av: 4, hunter: 6, hold: 1.5, retry: 0.25, finaleMargin: 1.3, finaleMin: 120 };
+function hackProfile(L) { // replays the route plan from the start (antiviruses ignored: they are budgeted separately) and counts what it asks of the player
+  const mk = () => { const g = new HackGame(Object.assign({}, L, { time: 9999 }), hackRng32(1), {}); g.av = []; return g; }; const plan = hackPlan(mk()) || [];
+  const g = mk(); let moves = 0, zone = 0, acts = 0, digits = 0, arrows = 0, seq = 0, picks = 0;
+  for (const a of plan) { if (a === 'ACT') { acts++; g.act(); } else if (a.startsWith('K:')) { digits++; g.lockKey(a.slice(2)); }
+    else if (g.mode === 'seq' || g.mode === 'arrow') { if (g.mode === 'arrow') arrows++; else seq++; g.step(a); }
+    else { moves++; const z = g.inZone(g.px, g.py); if (z) zone++; const c0 = g.tools + g.keys + g.charge + g.filesFound(); g.step(z ? { up: 'down', down: 'up', left: 'right', right: 'left' }[a] : a); if (g.tools + g.keys + g.charge + g.filesFound() > c0) picks++; } }
+  const t = L.rows.join(''), floor = t.replace(/#/g, '').length, nAV = (t.match(/V/g) || []).length, nH = (t.match(/H/g) || []).length;
+  return { moves, zone, acts, digits, arrows, seq, picks, floor, nAV, nH, sections: (L.gates ? L.gates.length : 1) + 1 + (t.includes('P') ? 1 : 0), memo: !!L.arrowMemo, invisible: !!L.invisible, planned: plan.length > 0 }; }
+function hackHumanBudget(p) { const P = HACK_HUMAN; const move = p.moves * P.step + p.zone * P.step * P.zoneExtra, explore = p.invisible ? Math.max(0, p.floor * 0.5 - p.moves) * P.explore : 0;
+  const typing = p.digits * P.digit + p.arrows * P.arrow + p.seq * P.seqKey + p.acts * P.act + (p.arrows ? P.recall * (p.memo ? 2 : 1) : 0) + (p.digits ? P.recall : 0);
+  const threat = p.nAV * P.av + p.nH * P.hunter, retry = (p.nAV + p.nH) ? P.retry * move : 0;
+  return P.read + p.sections * P.mapLook + move + explore + typing + p.picks * P.pick + threat + P.hold + retry; }
+function hackTimeFor(L, cfg, prof) { // cfg: {timeMargin, timeMin} from the shift curve (or the finale constants); prof: hackProfile(L)
+  if (L.tutorial) return HACK_TUTORIAL.time; const p = prof || hackProfile(L); const budget = hackHumanBudget(p);
+  return Math.ceil(Math.max(cfg.timeMin || 45, budget * (cfg.timeMargin || 1.5)) / 5) * 5; }
+// deterministic last-resort map (no consumables, no antivirus): used only if 60 generated candidates all fail validation
+const HACK_FALLBACK = { name: 'Grid Failsafe', seq: 4, arrowLen: 4, rows: [
+  '#################',
+  '#S..T..#..Y..#..#',
+  '#.###..W.###.Q..#',
+  '#.....##.....#..#',
+  '##########...#E##',
+  '#X.........A....#',
+  '#################'] };
+function hackFallbackLayout(idx, base) { const L = Object.assign({}, HACK_FALLBACK, { seed: 4242 + idx, speedBonus: 10, generated: true, fallback: true, shiftIdx: idx, gates: ['tool', 'key', 'arrow'] });
+  L.time = hackTimeFor(L, base || {}); return L; }
 // v1.17.0: generated maps are cached (deterministic, so a cached map is identical) and pre-built in a Web Worker when a hack call
 // spawns, so opening the console never stalls the phone. No Worker (tests, old browsers): built on demand, same result.
 const HACK_GEN_CACHE = new Map(); const HACK_GEN_PENDING = new Set(); let HACK_WORKER = null, HACK_WORKER_OFF = false;
@@ -1887,7 +1982,8 @@ function genHackForShift(seed, idx, features, opts) { const k = hackGenKey(seed,
 function hackCachePut(k, L) { HACK_GEN_CACHE.set(k, L); HACK_GEN_PENDING.delete(k); if (HACK_GEN_CACHE.size > 60) HACK_GEN_CACHE.delete(HACK_GEN_CACHE.keys().next().value); }
 function hackWorkerSrc() { const J = JSON.stringify;
   return ['const CONFIG={hack:' + J(CONFIG.hack) + '};', 'const DIRS=' + J(DIRS) + ';', 'const ARROW=' + J(ARROW) + ';', 'const HACK_THEME_DEFAULT=' + J(HACK_THEME_DEFAULT) + ';', 'const HACK_ROOMS=' + J(HACK_ROOMS) + ';', 'const HACK_PACE=' + J(HACK_PACE) + ';', 'const HACK_CURVE=' + J(HACK_CURVE) + ';', 'const HACK_TUTORIAL=' + J(HACK_TUTORIAL) + ';',
-    HackGame, hackPlan, hackRng32, hackSeed, hackRoomTpl, hackFeatCfg, genHackMap, hackSimulate, hackTimeFor, genProceduralLayout, genHackForShiftRaw, hackTutorialLayout].map(String).join('\n') +
+    'const HACK_SAFETY=' + J(HACK_SAFETY) + ';', 'const HACK_HUMAN=' + J(HACK_HUMAN) + ';', 'const HACK_FALLBACK=' + J(HACK_FALLBACK) + ';',
+    HackGame, hackPlan, hackRng32, hackSeed, hackRoomTpl, hackFeatCfg, genHackMap, hackSimulate, hackAvReach, hackSafetyKey, hackSafetyProj, hackSafety, hackProfile, hackHumanBudget, hackTimeFor, hackFallbackLayout, genProceduralLayout, genHackForShiftRaw, hackTutorialLayout].map(String).join('\n') +
     '\nonmessage=e=>{const d=e.data;let L=null;try{L=genHackForShiftRaw(d.seed,d.idx,d.features,d.opts);}catch(err){}postMessage({k:d.k,L});};'; }
 function hackPrewarm(seed, idx, features, opts) { // fire-and-forget; returns true when a build was queued
   const k = hackGenKey(seed, idx, features, opts); if (HACK_GEN_CACHE.has(k) || HACK_GEN_PENDING.has(k) || HACK_WORKER_OFF || typeof Worker === 'undefined' || typeof Blob === 'undefined') return false;
@@ -1903,11 +1999,12 @@ function genHackForShiftRaw(seed, idx, features, opts) { // -> validated layout 
     const m = genHackMap(hackSeed(seed, tries), c); if (!m) continue; const mt = m.rows.join('');
     if (tries < 50 && ((mt.match(/V/g) || []).length < (c.av || 0) || (mt.match(/H/g) || []).length < (c.hunters || 0))) continue; // every antivirus/hunter the shift calls for must be on the map
     const L = Object.assign(m, { name: 'Grid ' + ((seed >>> 0) % 9000 + 1000), seq: c.seq || 5, arrowLen: c.arrowLen || 4, arrowMemo: !!c.memo, avZone: c.avZone, hunterInterval: c.hunterInterval, seed: hackSeed(seed, tries, 'g'), generated: true, shiftIdx: idx, speedBonus: c.speed || 10, inverted: c.inverted, invisible: c.invisible });
+    const safe = hackSafety(L); if (!safe.ok) continue; // v1.18.1: every reachable state must still reach the exit (unsafe or indeterminate = rebuild)
     const sim = hackSimulate(L); if (!sim.ok) continue;
-    L.time = hackTimeFor(L, c, sim.t); L.simTime = Math.round(sim.t * 10) / 10; L.tries = tries + 1; return L; }
-  const L = genProceduralLayout(hackRng32(seed), 13); L.speedBonus = 10; return L; } // never reached in tests; safety net
+    const prof = hackProfile(L); L.time = hackTimeFor(L, c, prof); L.simTime = Math.round(sim.t * 10) / 10; L.humanBudget = Math.round(hackHumanBudget(prof) * 10) / 10; L.safeStates = safe.states; L.tries = tries + 1; return L; }
+  return hackFallbackLayout(idx, base); } // v1.18.1: deterministic, validated failsafe (never the old unvalidated random maze)
 function hackTutorialLayout() { return Object.assign({}, HACK_TUTORIAL, { seed: 1701, speedBonus: 10 }); }
-function hackFinaleLayout() { const L = Object.assign({}, HACK_FINALE, { seed: 8008, speedBonus: 10 }); if (!L.time) { const s = hackSimulate(L); L.time = hackTimeFor(L, { slack: 1.7 }, s.t); L.simTime = s.t; } return L; }
+let HACK_FINALE_TIME = 0; function hackFinaleLayout() { const L = Object.assign({}, HACK_FINALE, { seed: 8008, speedBonus: 10 }); if (!L.time) { if (!HACK_FINALE_TIME) HACK_FINALE_TIME = hackTimeFor(L, { timeMargin: HACK_HUMAN.finaleMargin, timeMin: HACK_HUMAN.finaleMin }); L.time = HACK_FINALE_TIME; } return L; }
 function hackBonus(g) { // v1.17.0: small speed bonus (up to speedBonus points, by time left) + 3 per recovered file
   if (!g || g.status !== 'win') return { speed: 0, files: 0, total: 0 }; const T = g.time || 1; const speed = Math.round((g.L.speedBonus || 10) * Math.max(0, Math.min(1, 1 - g.elapsed / T)));
   const files = 3 * g.filesFound(); return { speed, files, total: speed + files }; }
@@ -3697,7 +3794,7 @@ function openReview(c) {
 function openHackBrief(c) {
   openModal('hackbrief', m => { const P = sheetParts(m, `<span class="diff normal">⌘ HACK</span><h2>${esc(c.tpl.title)}</h2><span class="pill">⏱ ${Math.ceil(c.expiresAt - UI.S.t)}s</span>`,
     `<p class="txt">${esc(c.tpl.text)}</p>${c.restoreDistrict !== undefined ? `<div class="note good">Clearing this restores power to <b>${DISTRICTS[c.restoreDistrict].name}</b>.</div>` : ''}
-     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks take an arrow code, 📁 files and a fast finish give bonus points. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
+     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks take an arrow code, 📁 files and a fast finish give bonus points. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start. An antivirus takes a held ⚡ when it touches you; every map has a spare ⚡ for each antivirus before the gates it guards. Stuck anyway? <b>↻ REBOOT</b> restores the section (items, gates, antiviruses) for one life; the timer keeps running. Each map's timer is set from its length and puzzles.</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
     `<button class="btn ghost" data-a="close">LATER</button><button class="btn pri" data-a="go">TAKE THE CONSOLE</button>`);
     P.F.querySelector('[data-a=close]').onclick = () => closeModal(); P.F.querySelector('[data-a=go]').onclick = () => { closeModal(); startHack(c); }; });
 }
@@ -3710,15 +3807,25 @@ function startHack(c, layout, disrupt) {
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
   if (/R/.test(L.rows.join('')) && L.arrowMemo) tutorial('hackR', '⌨ Terminals flash the arrow code for the ⇄ lock only for a few seconds. Memorize it!');
   if (L.invisible || L.inverted) tutorial('hackG', '👁 Invisible paths: floor tiles only show next to you. ⇅ Red zones invert your controls while you stand in them.');
+  if (L.rows.join('').indexOf('V') >= 0 || /[UG]/.test(L.rows.join(''))) tutorial('hackRb', '⚡ An antivirus takes a held charge when it touches you. Each map has a spare ⚡ for every antivirus before the gates it guards. If you ever have no way forward, tap ↻ REBOOT: the section is restored for one life (the timer keeps running).');
+  renderHackBtns();
   renderHackPanels();
 }
-function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; $('hack').classList.add('hidden');
+function renderHackBtns() { const H = UI.hack, b = $('hReboot'); if (!H || !b) return; const g = H.game; // v1.18.1 ↻ Reboot section: label shows the cost
+  if (H.rbArm) { b.classList.add('armed'); b.innerHTML = g.attempts && g.lives <= 1 ? 'TAP AGAIN: <b>last ♥</b>' : 'TAP AGAIN'; b.setAttribute('aria-label', 'Tap again to reboot the section' + (g.attempts ? ' for one life' : '')); }
+  else { b.classList.remove('armed'); b.innerHTML = '↻ REBOOT' + (g.attempts ? ' <b>−1♥</b>' : ''); b.setAttribute('aria-label', 'Reboot section' + (g.attempts ? ': costs one life' : '') + ', the timer keeps running'); }
+  b.classList.toggle('stuck', !!H.stuck && !H.rbArm); }
+function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game, now = performance.now(); if (e) e.preventDefault();
+  if (g.status !== 'play' || (H.rbLast && now - H.rbLast < 450)) return; H.rbLast = now; // ghost-click / double-tap guard: a second tap within 450 ms is ignored
+  if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
+  H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; g.reboot(); hackFx(); renderHackBtns(); renderHackPanels(); }
+function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); $('hack').classList.add('hidden');
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); return; }
   const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
   finishHack(UI.camp, UI.S, H.c, win); if (win) { Sfx.fanfare(); toast('⌘ Hack cleared! +' + CONFIG.score.hack + (hb && hb.speed ? ' · speed +' + hb.speed : '') + (hb && hb.files ? ' · 📁 +' + hb.files : '')); } else { Sfx.thud(); shake(); toast('⌘ Hack failed.'); } }
 function hackStep(d) { const H = UI.hack; if (!H) return; const g = H.game; const before = g.resets; g.step(d); if (g.resets > before) { Sfx.thud(); } else Sfx.click(); hackFx(); renderHackPanels(); }
-function hackFx() { const g = UI.hack && UI.hack.game; if (!g || !g.fx) return; ({ zap: () => Sfx.chime(), caught: () => { Sfx.thud(); shake(); }, charge: () => Sfx.tone(900, .15, 'triangle', .1), key: () => Sfx.blip(), bridge: () => Sfx.chime(), err: () => Sfx.alarm() })[g.fx](); g.fx = null; }
+function hackFx() { const g = UI.hack && UI.hack.game; if (!g || !g.fx) return; (({ zap: () => Sfx.chime(), caught: () => { Sfx.thud(); shake(); }, charge: () => Sfx.tone(900, .15, 'triangle', .1), key: () => Sfx.blip(), bridge: () => Sfx.chime(), err: () => Sfx.alarm(), reboot: () => { Sfx.thud(); } })[g.fx] || (() => {}))(); g.fx = null; }
 function renderHackPanels() {
   const H = UI.hack; if (!H) return; const g = H.game;
   const seq = $('hSeq'); if (g.mode === 'arrow') { const show = g.arrowKnown && !g.L.arrowMemo; seq.classList.remove('hidden');
@@ -3734,6 +3841,8 @@ function hackFrame(dt) {
   if (!H.cam) H.cam = { init: false }; H.view = hackCamera(H.cam, g, w, hh, dt, !!H.zoom);
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t, H.view);
   $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hTimer').classList.toggle('low', !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm)); $('hCharge').textContent = (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
+  if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (g.attempts ? ' (costs 1 life).' : '.'); renderHackBtns(); } }
+  if (H.rbLives !== g.lives) { H.rbLives = g.lives; renderHackBtns(); }
   const k = $('hKey'); if (g.keyShow > 0) { k.classList.remove('hidden'); k.textContent = g.keyText; } else k.classList.add('hidden');
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
@@ -3743,6 +3852,7 @@ function initHackInput() {
   const hb = $('hHold'); const hs = e => { e.preventDefault(); if (UI.hack) UI.hack.game.holding = true; }; const he = () => { if (UI.hack) UI.hack.game.holding = false; };
   hb.addEventListener('pointerdown', hs); hb.addEventListener('pointerup', he); hb.addEventListener('pointerleave', he); hb.addEventListener('pointercancel', he);
   $('hQuit').onclick = () => endHack(false, true);
+  $('hReboot').addEventListener('click', hackRebootTap);
   const mb = $('hMap'); const ms = e => { e.preventDefault(); mb.classList.add('press'); if (UI.hack) UI.hack.zoom = true; }; const me = () => { mb.classList.remove('press'); if (UI.hack) UI.hack.zoom = false; }; // v1.16.0: hold to see the whole map
   mb.addEventListener('pointerdown', ms); mb.addEventListener('pointerup', me); mb.addEventListener('pointerleave', me); mb.addEventListener('pointercancel', me); mb.addEventListener('contextmenu', e => e.preventDefault());
   const cv = $('hcv'); let sw = null; cv.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
