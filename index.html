@@ -526,6 +526,12 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 @media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.full{padding-top:14px}.sheet.bfix .bdock .slot .e{font-size:18px}}
 @media (orientation:landscape) and (max-height:520px){.sheet.bfix .bdock .slot.full .e{display:none}.sheet.bfix .bdock .slot.full{padding-top:20px;justify-content:flex-start}}
 
+/* v1.18.2 briefing tray hold-to-scroll */
+.sheet.bfix .bdock .tray{touch-action:none}
+.sheet.bfix .bdock .tray.hs-armed{outline:2px dashed var(--accent,#7fd3ff);outline-offset:-2px}
+.sheet.bfix .bdock .tray.hs-armed .chip{transform:scale(.94);transition:transform .12s}
+.hs-cue{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-100%);background:var(--accent,#7fd3ff);color:#000;font:700 12px system-ui,sans-serif;padding:3px 9px;border-radius:10px;white-space:nowrap}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -855,7 +861,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.18.1';
+<script>window.ND_VERSION='nd-v1.18.2';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3669,7 +3675,7 @@ function openBriefing(c) {
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
          <div class="binfo"><p class="txt">${markup(tpl.text)}</p>${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
-        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Tap a hero to add (or drag onto a slot). Tap a slot to remove.</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
+        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Hold the row, then slide, to scroll · Tap or drag a hero to add · Tap a slot to remove</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
       { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
@@ -3677,7 +3683,7 @@ function openBriefing(c) {
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { const hh = camp.heroes[info.healer]; if (hh) { hh.lifeTradeChoice = +b.dataset.lt; Sfx.click(); render(); } });
       m.sheet.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
-      m.sheet.querySelectorAll('.chip').forEach(b => attachDrag(b, slotIdx => assign(b.dataset.hero, slotIdx)));
+      m.sheet.querySelectorAll('.chip').forEach(b => { const f = slotIdx => assign(b.dataset.hero, slotIdx); if (b.closest('.bdock .tray')) b.__onDrop = f; else attachDrag(b, f); }); // v1.18.2: briefing tray chips use the hold-to-scroll arbiter below
       m.sheet.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
       P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
       P.H.querySelectorAll('.pair-ab [data-ab]:not([disabled])').forEach(b => b.onclick = () => { if (b.dataset.ab !== pairLetter(c)) m.switchPair(); });
@@ -3698,6 +3704,37 @@ function attachDrag(btn, onDrop) {
   const end = e => { if (id !== e.pointerId) return; id = null; if (ghost) { ghost.remove(); ghost = null; const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) onDrop(+s.dataset.slot); else document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); } else if (e.type === 'pointerup') onDrop(null); };
   btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
 }
+
+/* v1.18.2 BRIEFING TRAY GESTURES (Craig t110/t111): touch and move at once = drag the hero (any direction); release quickly without moving = tap-assign;
+   hold still ~300 ms (10 px wobble allowed) = scroll mode (cue: dashed outline, chips shrink, "slide to scroll" label, short vibration if supported),
+   then the row follows the finger until release. A held release assigns nothing. Disabled chips can be held to scroll. Native panning can't be
+   switched on mid-gesture, so the tray is touch-action:none and the game moves scrollLeft itself (no momentum). Scoped to the fixed briefing tray only. */
+const TRAY_HOLD_MS = 300, TRAY_JITTER = 10;
+let trayG = null, traySuppressUntil = 0;
+function trayGestureEnd(e, cancel) {
+  const g = trayG; if (!g || (e && e.pointerId !== g.id)) return; trayG = null; clearTimeout(g.timer);
+  g.tr.classList.remove('hs-armed'); if (g.cue) g.cue.remove(); document.querySelectorAll('.slot.drop').forEach(s => s.classList.remove('drop'));
+  if (g.mode === 'drag') { g.ghost.remove(); if (!cancel && e && e.type === 'pointerup' && g.chip.isConnected) { const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) g.chip.__onDrop(+s.dataset.slot); } }
+  else if (g.mode === 'pending' && !cancel && e && e.type === 'pointerup' && g.ok && g.chip.isConnected) g.chip.__onDrop(null);
+  traySuppressUntil = performance.now() + 400; }
+document.addEventListener('pointerdown', e => {
+  const tr = e.target.closest && e.target.closest('.sheet.bfix .bdock .tray'); if (!tr || e.target.closest('.hinfo') || e.button > 0) return;
+  if (trayG) trayGestureEnd(null, true);
+  const chip = e.target.closest('.chip'); const g = trayG = { tr, chip, ok: !!(chip && !chip.disabled && chip.__onDrop), id: e.pointerId, x0: e.clientX, y0: e.clientY, sl0: tr.scrollLeft, mode: 'pending', ghost: null, cue: null };
+  try { tr.setPointerCapture(e.pointerId); } catch (_) {}
+  g.timer = setTimeout(() => { if (trayG !== g || g.mode !== 'pending') return; g.mode = 'scroll'; tr.classList.add('hs-armed');
+    const c = h('div', 'hs-cue', '⇆ slide to scroll'); const r = tr.getBoundingClientRect(); c.style.left = (r.left + r.width / 2) + 'px'; c.style.top = (r.top - 6) + 'px'; document.body.appendChild(c); g.cue = c;
+    try { if (navigator.vibrate) navigator.vibrate(15); } catch (_) {} }, TRAY_HOLD_MS);
+  e.preventDefault(); }, true);
+document.addEventListener('pointermove', e => {
+  const g = trayG; if (!g || e.pointerId !== g.id) return; if (!g.tr.isConnected) { trayGestureEnd(null, true); return; }
+  const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+  if (g.mode === 'pending' && Math.hypot(dx, dy) > TRAY_JITTER) { clearTimeout(g.timer); if (g.ok) { g.mode = 'drag'; g.ghost = h('div', 'ghostdrag', g.chip.querySelector('.e').textContent); document.body.appendChild(g.ghost); } else g.mode = 'dead'; }
+  if (g.mode === 'drag') { g.ghost.style.left = e.clientX + 'px'; g.ghost.style.top = e.clientY + 'px'; document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) s.classList.add('drop'); }
+  else if (g.mode === 'scroll') g.tr.scrollLeft = g.sl0 - dx; }, true);
+document.addEventListener('pointerup', e => trayGestureEnd(e, false), true);
+document.addEventListener('pointercancel', e => trayGestureEnd(e, true), true);
+document.addEventListener('click', e => { if (performance.now() < traySuppressUntil && e.target.closest && e.target.closest('.bdock .tray .chip')) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 
 /* ---------- disruption ---------- */
 function disruptionStatList(tpl, team) { const D = disruptionDef(tpl.disruption); const st = [...new Set(((D && D.rounds && D.rounds[0]) || []).map(o => o.stat))]; // v1.8.1 briefing hint
