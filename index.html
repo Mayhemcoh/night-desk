@@ -834,6 +834,11 @@ html[data-look="comic"] .opt .need.ok{background:#11702f!important;color:#fff!im
 html[data-look="comic"] .sheet .card{background:#fff8e7;border:2px solid #111}html[data-look="comic"] .sheet .card *{color:#111}html[data-look="comic"] .sheet .card h3{color:#0b4fb3}html[data-look="comic"] .sheet .card small{color:#3a3a3a}
 html[data-look="comic"] .statrow span{background:#fff;color:#111}
 html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111}
+
+/* v1.20.1 City Map picker thumbs */
+.ms-prev{padding:0!important;background:#05070f!important}
+.ms-prev .ms-thumb{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.ms-prev .lpin{right:10px;bottom:8px;left:auto;top:auto}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -870,7 +875,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.20.0';
+<script>window.ND_VERSION='nd-v1.20.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4716,21 +4721,27 @@ function rogueIntroHTML(camp) { const r = ensureRogueBoss(camp); if (r.fallback 
   const d = heroDef(r.id), hp = rogueBossHP(d.stats[1]);
   return `<div class="note warn rogue-intro" style="border-left:6px solid ${d.color}"><div class="rogue-h"><span class="e" aria-hidden="true">${d.emoji}</span> <b>☠ ROGUE HERO: ${esc(d.codename)}</b></div><div>${esc(r.motive)}</div><div><small>FINALE: protect the City bar (fails and misses cost ${CONFIG.finaleCityHit}). Win the ☠ ${esc(d.codename)} calls to take their resolve from ${hp} to 0 (resolve = ${ROGUE_BOSS_HP_BASE} + END ${d.stats[1]} × ${ROGUE_BOSS_HP_PER_END}, rounded).</small></div></div>`; }
 
-/* ---------- v1.20.0 Map styles: Classic / Blueprint / Night City (visual only) ---------- */
+/* ---------- v1.20.1 Map styles: Blueprint / Night City (visual only). Classic removed. ---------- */
 const MAP_STYLE_KEY = 'nightdesk.mapstyle.v1';
 const MAP_STYLES = [
-  { id: 'nightcity', name: 'Night City', desc: 'Lit satellite city — glowing streets and landmarks.', art: 'map/nightcity.webp', fallback: 'map/nightcity.jpg' },
-  { id: 'blueprint', name: 'Blueprint', desc: 'Teal hologram city — wireframe towers and grid.', art: 'map/blueprint.webp', fallback: 'map/blueprint.jpg' },
-  { id: 'classic', name: 'Classic', desc: 'Original Night Desk district boxes.', art: null }
+  { id: 'nightcity', name: 'Night City', desc: 'Lit satellite city — glowing streets and landmarks.',
+    art: 'map/nightcity.webp', fallback: 'map/nightcity.jpg',
+    prev: 'map/nightcity-prev.webp', prevFallback: 'map/nightcity-prev.jpg' },
+  { id: 'blueprint', name: 'Blueprint', desc: 'Teal hologram city — wireframe towers and grid.',
+    art: 'map/blueprint.webp', fallback: 'map/blueprint.jpg',
+    prev: 'map/blueprint-prev.webp', prevFallback: 'map/blueprint-prev.jpg' }
 ];
 var MapStyle = { id: 'nightcity', imgs: {}, ready: {}, static: null, staticKey: '', fail: {} };
 function mapStyleLoad() {
   let v = null; try { v = JSON.parse(localStorage.getItem(MAP_STYLE_KEY)); } catch (e) { }
-  MapStyle.id = (v && MAP_STYLES.some(s => s.id === v.id)) ? v.id : 'nightcity';
+  // v1.20.1: Classic removed — migrate saved "classic" (and unknown ids) to Night City
+  let id = v && v.id; if (id === 'classic' || !MAP_STYLES.some(s => s.id === id)) id = 'nightcity';
+  MapStyle.id = id;
+  if (!v || v.id !== id) mapStyleSave();
 }
 function mapStyleSave() { try { localStorage.setItem(MAP_STYLE_KEY, JSON.stringify({ id: MapStyle.id })); } catch (e) { } }
 function mapStyleGet() { return MAP_STYLES.find(s => s.id === MapStyle.id) || MAP_STYLES[0]; }
-function mapStyleIsArt() { const s = mapStyleGet(); return !!(s && s.art); }
+function mapStyleIsArt() { const s = mapStyleGet(); return !!(s && s.art && MapStyle.ready[s.id]); }
 function mapStyleInvalidate() { if (!MapStyle) return; MapStyle.static = null; MapStyle.staticKey = ''; }
 function mapStyleSet(id) {
   if (!MAP_STYLES.some(s => s.id === id)) return;
@@ -4747,25 +4758,25 @@ function mapStyleEnsure(id) {
     img.onerror = () => { if (next) trySrc(next, null); else { MapStyle.fail[id] = true; MapStyle.ready[id] = false; } };
     img.src = src;
   };
-  // Prefer webp; jpg fallback. Standalone build may lack files — fail soft to classic draw.
   trySrc(s.art, s.fallback);
 }
 function mapStylePreviewHTML(id) {
   const s = MAP_STYLES.find(x => x.id === id) || MAP_STYLES[0];
-  const bg = id === 'blueprint' ? 'linear-gradient(160deg,#04121c,#0a3a48)' : id === 'nightcity' ? 'linear-gradient(160deg,#05070f,#1a1428)' : 'linear-gradient(160deg,#04060d,#121a30)';
-  return `<div class="lk-prev ms-prev" data-ms="${id}" style="background:${bg}"><span class="lpin" style="left:72%;top:28%"></span></div>`;
+  const src = s.prev || s.art, fb = s.prevFallback || s.fallback;
+  // Real city thumbnail: <img> with webp + jpg fallback via onerror. Pin overlays for call-site cue.
+  return `<div class="lk-prev ms-prev" data-ms="${id}"><img class="ms-thumb" src="${src}" alt="${s.name} preview" decoding="async" loading="eager" onerror="if(this.dataset.fb){this.src=this.dataset.fb;this.dataset.fb=''}" data-fb="${fb || ''}"><span class="lpin" aria-hidden="true"></span></div>`;
 }
 function openMapStyle(fromPause) {
   openModal('mapstyle', m => { const render = () => {
     const P = sheetParts(m, '<h2>🗺 City Map</h2><span class="pill">Visual only</span>',
-      `<p class="txt">Choose how the city looks. Gameplay, call positions and your save are not affected. Works with every 🎨 Look (pins, HQ and trails follow the Look; art styles keep their city paint and may get a light Look tint).</p>
+      `<p class="txt">Choose how the city looks. Gameplay, call positions and your save are not affected. Works with every 🎨 Look (pins, HQ and trails follow the Look; city art keeps its paint and may get a light Look tint).</p>
        <div class="lk-grid">${MAP_STYLES.map(s => `<button class="lk-card ${s.id === MapStyle.id ? 'on' : ''}" data-ms-id="${s.id}" aria-pressed="${s.id === MapStyle.id}">${mapStylePreviewHTML(s.id)}<b>${s.name}</b><small>${s.desc}</small></button>`).join('')}</div>`,
       '<button class="btn pri" data-a="done">DONE</button>');
     P.B.querySelectorAll('[data-ms-id]').forEach(b => b.onclick = () => { mapStyleSet(b.dataset.msId); try { Sfx.click(); } catch (e) { } render(); });
     P.F.querySelector('[data-a=done]').onclick = () => { closeModal(); if (fromPause && UI.S) openPause(); };
   }; render(); });
 }
-/** Build or reuse the static city canvas (base art or classic procedural). */
+/** Build or reuse the static city canvas. */
 function mapStyleStaticCanvas(W, H, T, online) {
   const look = (typeof LookState !== 'undefined' && LookState.look) || 'current';
   const onSig = (online && online.length) ? online.slice().sort().join('') : 'all';
@@ -4773,14 +4784,13 @@ function mapStyleStaticCanvas(W, H, T, online) {
   if (MapStyle.static && MapStyle.staticKey === key) return MapStyle.static;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
-  if (mapStyleIsArt() && MapStyle.ready[MapStyle.id] && MapStyle.imgs[MapStyle.id]) {
+  if (mapStyleIsArt() && MapStyle.imgs[MapStyle.id]) {
     g.drawImage(MapStyle.imgs[MapStyle.id], 0, 0, W, H);
-    // Soft Look tint (art styles keep their paint; Looks nudge palette)
     if (T.tint && T.tint !== 'transparent') { g.fillStyle = T.tint; g.fillRect(0, 0, W, H); }
   } else {
-    paintClassicCity(g, W, H, T, online);
+    // Internal emergency fallback only (art still loading or failed). Not a player option.
+    paintFallbackCity(g, W, H, T, online);
   }
-  // Offline district overlays (same hit regions)
   if (online) {
     for (const d of DISTRICTS) {
       if (online.includes(d.id)) continue;
@@ -4792,11 +4802,10 @@ function mapStyleStaticCanvas(W, H, T, online) {
   }
   MapStyle.static = cv; MapStyle.staticKey = key; return cv;
 }
-function paintClassicCity(g, W, H, T, online) {
+function paintFallbackCity(g, W, H, T, online) {
   g.fillStyle = T.bg; g.fillRect(0, 0, W, H);
   g.fillStyle = T.road; g.fillRect(0, H * 0.47, W, H * 0.06); g.fillRect(W * 0.33, 0, W * 0.015, H); g.fillRect(W * 0.655, 0, W * 0.015, H);
   g.strokeStyle = T.dash; g.setLineDash([8, 8]); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H * 0.5); g.lineTo(W, H * 0.5); g.stroke(); g.setLineDash([]);
-  // reuse MapV.bld via buildings() if available
   const blds = (typeof buildings === 'function') ? buildings() : [];
   for (const d of DISTRICTS) {
     const x = d.r[0] * W, y = d.r[1] * H, w = d.r[2] * W, hh = d.r[3] * H;
@@ -4809,7 +4818,6 @@ function paintClassicCity(g, W, H, T, online) {
     g.fillStyle = on ? T.label : '#555'; g.font = '600 11px system-ui,sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(d.name.toUpperCase(), x + 6, y + 5);
   }
 }
-/** Orange call-site building cluster under a pin (art styles). */
 function paintCallCluster(g, x, y, col) {
   g.save();
   g.shadowColor = col; g.shadowBlur = 18;
