@@ -532,6 +532,14 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .sheet.bfix .bdock .tray.hs-armed .chip{transform:scale(.94);transition:transform .12s}
 .hs-cue{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-100%);background:var(--accent,#7fd3ff);color:#000;font:700 12px system-ui,sans-serif;padding:3px 9px;border-radius:10px;white-space:nowrap}
 
+/* v1.19.0 hero hacking-power chips */
+.hpowers{display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px 2px;justify-content:center}
+.hpowers.hidden{display:none}
+.hpowers .hpwr{min-height:40px;padding:6px 10px;font-size:13px;font-weight:700;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--txt);touch-action:manipulation}
+.hpowers .hpwr:disabled{opacity:.45}
+.hpowers .hpwr.armed{border-color:var(--yel);color:var(--yel);background:#2a2610}
+.hpowers .hpwr b{color:var(--cyan)}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -851,6 +859,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <div id="hack" class="hidden">
     <div class="hhead"><div class="htitle" id="hTitle">HACK</div><div class="htimer"><i id="hTimer"></i></div><button class="btn small ghost" id="hReboot" aria-label="Reboot section: costs one life, the timer keeps running">↻ REBOOT</button><button class="btn small ghost" id="hQuit">GIVE UP</button></div>
     <div class="hmsg"><span id="hMsg"></span><span id="hCharge"></span></div>
+    <div id="hPowers" class="hpowers hidden" aria-label="Hero hacking powers"></div>
     <div class="hstage"><div id="hKey" class="hidden"></div><canvas id="hcv"></canvas><div id="hSeq" class="hidden"></div><div id="hPad" class="hidden"></div></div>
     <div class="hctrl">
       <div class="dpad"><button data-d="up" class="dp up">▲</button><button data-d="left" class="dp left">◀</button><button data-d="right" class="dp right">▶</button><button data-d="down" class="dp down">▼</button></div>
@@ -861,7 +870,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.18.2';
+<script>window.ND_VERSION='nd-v1.19.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -916,6 +925,7 @@ const CONFIG = {
   signatureLevel: 8,        // v1.10: LV at which a hero who has trained MAY upgrade the base power to Mk II (explicit choice, never automatic)
   slotBonusMinSlots: 3,     // v1.10: slot-bonus powers only work on calls with 3+ slots (Dispatch: En Pointe / Diamond in the Rough)
   extendExpirySeconds: 8, extendExpiryAt: 5, // v1.10 Head Time Mk II: once per shift, +8 s on a call about to expire
+  hackBorrowedSeconds: 10, // v1.19.0 Head Time ✦ also once per hack
   flyTravelMult: 0.65, // v1.12 Flybae / En L'air / Strong Back flight
   portalTravelMult: 0.3, // v1.12 Velvet Hex Portal Ritual approx (once/shift after heal)
   spreadMaxMult: 1.0, // v1.12 Spread Thin: +25%/empty up to +100% (=200% of base contribution)
@@ -1004,7 +1014,7 @@ const HERO_DEFS = [
     quips: ['Water always finds a way. So do I.', 'Stand behind me. Further. Bit further.', 'I used to break dams. Now I AM one.'] },
   { id: 'quickstep', name: 'Theo Okafor', codename: 'Quickstep', color: '#a3e635', emoji: '👟', stats: [1, 2, 6, 1, 2], bio: 'Ex-getaway courier. Talks fast, eats fast, apologises fast.', power: 'headstart', train: ['secondwind', 'courierroute'], synergy: 'hotwire',
     quips: ['Already there. Also already back.', 'Sorry-sorry-sorry, coming through!', 'I can outrun anything except my landlord.'] },
-  { id: 'ledger', name: 'Prudence Vale', codename: 'Ledger', color: '#e2e8f0', emoji: '🧾', stats: [1, 1, 1, 3, 6], bio: 'Reformed embezzler. Can find a missing penny in a city budget, and a missing person in a phone bill.', power: 'audittrail', train: ['compound', 'fineprint'], synergy: 'brasstack',
+  { id: 'ledger', name: 'Prudence Vale', codename: 'Ledger', color: '#e2e8f0', emoji: '🧾', stats: [1, 1, 1, 3, 6], bio: 'Reformed embezzler. Can find a missing penny in a city budget, and a missing person in a phone bill.', power: 'audittrail', train: ['compound', 'codewhisper'], synergy: 'brasstack',
     quips: ['The numbers never lie. People, constantly.', 'I will need receipts for that heroics.', 'Interesting. Deeply, fiscally interesting.'] },
   { id: 'marquee', name: 'Augustin Bell', codename: 'Marquee', color: '#f472b6', emoji: '🎭', stats: [1, 2, 1, 6, 2], bio: 'Ex-cult frontman turned hostage negotiator. Still cannot enter a room without an entrance.', power: 'headliner', train: ['ovation', 'crowdwork'], synergy: 'murmur',
     quips: ['Ladies, gentlemen, and frightened bystanders!', 'Every crisis is just an audience that has not clapped yet.', 'Cue the spotlight. Any light. A phone torch is fine.'] },
@@ -1012,17 +1022,17 @@ const HERO_DEFS = [
     quips: ['Hit it till it is a different shape.', 'Sorry about your car. It is a bench now.', 'Warm-up done. Where is the problem?'] },
   { id: 'copperhead', name: 'Viktor Szabo', codename: 'Copperhead', color: '#b45309', emoji: '🐍', stats: [5, 2, 3, 1, 1], bio: 'Ex-enforcer and grappling champion. Polite, coiled, never blinks first.', power: 'coil', train: ['constrict', 'shedskin'], synergy: 'snare',
     quips: ['Please hold still. It is easier for both of us.', 'A small team is a tidy team.', 'I do not blink. It is a medical thing.'] },
-  { id: 'hotwire', name: 'Jules Ferro', codename: 'Hotwire', color: '#facc15', emoji: '🔧', stats: [2, 1, 5, 1, 3], bio: 'Car thief who can start anything with a paperclip, including arguments.', power: 'jumpstart', train: ['chopshop', 'pitstop'], synergy: 'quickstep',
+  { id: 'hotwire', name: 'Jules Ferro', codename: 'Hotwire', color: '#facc15', emoji: '🔧', stats: [2, 1, 5, 1, 3], bio: 'Car thief who can start anything with a paperclip, including arguments.', power: 'jumpstart', train: ['softreboot', 'pitstop'], synergy: 'quickstep',
     quips: ['I did not steal it, I borrowed it fast.', 'Two wires, one spark, zero paperwork.', 'Shotgun! Also, I am driving.'] },
   { id: 'gravemoss', name: 'Elias Thorn', codename: 'Gravemoss', color: '#4ade80', emoji: '🌿', stats: [1, 4, 1, 2, 4], bio: 'Plant-bonded hermit who used to grow crimes. Slow, wise, smells like rain.', power: 'deeproots', train: ['photosynth', 'overgrowth'], synergy: 'halogen',
     quips: ['Patience. Moss always wins eventually.', 'The ferns told me. Do not ask how.', 'I am rooted. Please do not water me.'] },
-  { id: 'halogen', name: 'Priya Anand', codename: 'Halogen', color: '#fde047', emoji: '💡', stats: [2, 2, 2, 2, 4], bio: "Light-bender who once blinded a whole stadium. Now does lighting for kids' plays.", power: 'floodlight', train: ['prism', 'flashbang'], synergy: 'gravemoss',
+  { id: 'halogen', name: 'Priya Anand', codename: 'Halogen', color: '#fde047', emoji: '💡', stats: [2, 2, 2, 2, 4], bio: "Light-bender who once blinded a whole stadium. Now does lighting for kids' plays.", power: 'floodlight', train: ['prism', 'consolescout'], synergy: 'gravemoss',
     quips: ['Let me shed some light on this.', 'Everyone close your eyes. No, really.', 'I do rainbows on request.'] },
   { id: 'brasstack', name: 'Otto Ruiz', codename: 'Brass Tack', color: '#d97706', emoji: '⚙️', stats: [2, 3, 1, 1, 5], bio: 'Gadgeteer who built heist rigs. Every pocket holds a tool and a snack.', power: 'toolbelt', train: ['juryrig', 'gadgetpack'], synergy: 'ledger',
     quips: ['Let us get down to brass tacks. I have some.', 'Duct tape: the other superpower.', 'Give me ninety seconds and a wrench.'] },
   { id: 'murmur', name: 'Sefa Lind', codename: 'Murmur', color: '#c4b5fd', emoji: '🫧', stats: [1, 1, 2, 5, 3], bio: 'Soft-spoken empath who used to talk guards into opening vaults. Now talks jumpers down.', power: 'soothe', train: ['empathy', 'kindwords'], synergy: 'marquee',
     quips: ['Shh. Everyone breathe with me.', 'I can go alone. It is quieter that way.', 'You are not in trouble. Well. A little.'] },
-  { id: 'rook', name: 'Casimir Dray', codename: 'Rook', color: '#94a3b8', emoji: '♜', stats: [3, 2, 1, 2, 4], bio: 'Ex-crime-family strategist. Thinks twelve moves ahead, forgets where he parked.', power: 'gambit', train: ['fork', 'castle'], synergy: null,
+  { id: 'rook', name: 'Casimir Dray', codename: 'Rook', color: '#94a3b8', emoji: '♜', stats: [3, 2, 1, 2, 4], bio: 'Ex-crime-family strategist. Thinks twelve moves ahead, forgets where he parked.', power: 'gambit', train: ['routeghost', 'castle'], synergy: null,
     quips: ['Check. And, eventually, mate.', 'I planned for this. And for that. Not for the pigeons.', 'Sacrifice the pawn. I am kidding. Mostly.'] },
   { id: 'kitefall', name: 'Ama Boateng', codename: 'Kitefall', color: '#22d3ee', emoji: '🪁', stats: [2, 1, 5, 3, 1], bio: 'Rooftop glider and former cat burglar; waves at everyone on the way down.', power: 'updraft', train: ['swoop', 'landing'], synergy: 'sundial',
     quips: ['Hiii! Bye! Wheee!', 'The wind owes me a favour.', 'Gravity is more of a suggestion.'] },
@@ -1125,7 +1135,8 @@ const POWERS = {
   headstart2: { name: 'Head Start ✦', signature: true, desc: 'MK II: travel time x0.45 and rests half as long between calls.', travelMult: 0.45, restMult: 0.5 },
   audittrail: { name: 'Audit Trail', desc: 'Follows the money: +1 Wits to the team on calls that need Wits 5+.', onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 1; } },
   compound: { name: 'Compound Interest', desc: 'Team XP +20% on calls she joins, and her paperwork reveals the call requirements in the briefing when assigned.', xpBoost: 0.20, preview: true },
-  fineprint: { name: 'Fine Print', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } },
+  fineprint: { name: 'Fine Print', slotBonus: true, desc: '(Retired) Slot bonus (calls with 3+ slots): +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } }, // kept for old saves until migrate
+  codewhisper: { name: 'Code Whisper', kind: 'hack', hack: 'code', desc: 'Hacking: once per hack, re-show the lock or arrow code you need (no walking back). Does nothing on normal calls.', },
   audittrail2: { name: 'Audit Trail ✦', signature: true, desc: 'MK II: +2 Wits to the team on calls that need Wits 5+, and team XP +15% on her calls.', xpBoost: 0.15, onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 2; } },
   headliner: { name: 'Headliner', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Presence in slot 1.', onCompute(c) { if (c.slot === 0) c.st[3] += 2; } },
   ovation: { name: 'Standing Ovation', desc: 'Team XP +20% on calls he joins.', xpBoost: 0.20 },
@@ -1140,7 +1151,8 @@ const POWERS = {
   shedskin: { name: 'Shed Skin', desc: 'Can never be Downed.', noDown: true },
   coil2: { name: 'Coil ✦', signature: true, desc: 'MK II: +3 Might and +1 Agility on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [3, 0, 1, 0, 0] } },
   jumpstart: { name: 'Jump Start', desc: 'Hot-wires a ride: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  chopshop: { name: 'Chop Shop', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Wits in slot 2.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; } },
+  chopshop: { name: 'Chop Shop', slotBonus: true, desc: '(Retired) Slot bonus (calls with 3+ slots): +2 Wits in slot 2.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; } },
+  softreboot: { name: 'Soft Reboot', kind: 'hack', hack: 'softreboot', desc: 'Hacking: once per hack, the next ↻ REBOOT costs no life (timer still runs). Does nothing on normal calls.', },
   pitstop: { name: 'Pit Stop', desc: 'Rests 40% less between calls.', restMult: 0.6 },
   jumpstart2: { name: 'Jump Start ✦', signature: true, desc: 'MK II: travel time x0.5, and he rests 20% less between calls (with Pit Stop, the better 40% applies).', travelMult: 0.5, restMult: 0.8 },
   deeproots: { name: 'Deep Roots', desc: 'Ignores injury debuffs.', ignoreInjury: true },
@@ -1149,7 +1161,8 @@ const POWERS = {
   deeproots2: { name: 'Deep Roots ✦', signature: true, desc: 'MK II: ignores injuries, can never be Downed, and aura: teammates get +1 Endurance (doesn\'t stack with the same aura).', ignoreInjury: true, noDown: true, aura: [0, 1, 0, 0, 0] },
   floodlight: { name: 'Floodlight', desc: 'Aura: lights up the scene, teammates get +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 0] },
   prism: { name: 'Prism', desc: 'Aura: splits the light into ideas, teammates get +1 Wits (doesn\'t stack with the same aura), and reveals the call requirements in the briefing when assigned.', aura: [0, 0, 0, 0, 1], preview: true },
-  flashbang: { name: 'Flashbang', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
+  flashbang: { name: 'Flashbang', slotBonus: true, desc: '(Retired) Slot bonus (calls with 3+ slots): +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
+  consolescout: { name: 'Console Scout', kind: 'hack', hack: 'scout', desc: 'Hacking: once per hack, briefly show the whole map and pulse antivirus, keys and gates. Does not change the puzzle. Does nothing on normal calls.', },
   floodlight2: { name: 'Floodlight ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 1] },
   toolbelt: { name: 'Toolbelt', desc: 'A gadget for every gap: +1 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 1; c.st[o[1]] += 1; } },
   juryrig: { name: 'Jury-Rig', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
@@ -1160,7 +1173,8 @@ const POWERS = {
   kindwords: { name: 'Kind Words', desc: 'Team XP +15% on calls she joins.', xpBoost: 0.15 },
   soothe2: { name: 'Soothe ✦', signature: true, desc: 'MK II: solo travel and work x0.5, and +3 Presence and +2 Wits when sent solo.', solo: true, soloMult: 0.5, smallTeam: { max: 1, add: [0, 0, 0, 3, 2] } },
   gambit: { name: 'Gambit', desc: 'Aura: calls the plays, teammates get +1 Wits (doesn\'t stack with the same aura).', aura: [0, 0, 0, 0, 1] },
-  fork: { name: 'Fork', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
+  fork: { name: 'Fork', slotBonus: true, desc: '(Retired) Slot bonus (calls with 3+ slots): +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
+  routeghost: { name: 'Route Ghost', kind: 'hack', hack: 'ghost', desc: 'Hacking: once per hack, show a short ghost path toward the exit for a few seconds. Hint only. Does nothing on normal calls.', },
   castle: { name: 'Castle', desc: 'Always has an escape: can never be Downed.', noDown: true },
   gambit2: { name: 'Gambit ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Might (doesn\'t stack with the same aura).', aura: [1, 0, 0, 0, 1] },
   updraft: { name: 'Updraft', desc: 'Glides over traffic: travel time x0.6.', travelMult: 0.6 },
@@ -1174,7 +1188,7 @@ const POWERS = {
   headtime: { name: 'Head Time', desc: 'Skips the boring bits: rests half as long between calls.', restMult: 0.5 },
   rewind: { name: 'Rewind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
   earlybird: { name: 'Early Bird', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
-  headtime2: { name: 'Head Time ✦', signature: true, desc: 'MK II: rests 70% less, and once per shift adds +8 s to a call that is about to expire (while he is on shift).', restMult: 0.3, extendExpiry: true },
+  headtime2: { name: 'Head Time ✦', signature: true, desc: 'MK II: rests 70% less; once per shift adds +8 s to a call about to expire; and once per hack adds +10 s to the hack timer while he is on the roster.', restMult: 0.3, extendExpiry: true, hackBorrowed: true },
   tripwire: { name: 'Tripwire', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Agility in slot 2, +1 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 2; if (c.slot === 2) c.st[4] += 1; } },
   netgun: { name: 'Net Gun', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
   lure: { name: 'Lure', desc: 'Baits the target out: reveals call requirements in the briefing when assigned.', preview: true },
@@ -1197,11 +1211,11 @@ const POWERS = {
 };
 /* v1.10: every power declares where it acts: stat (pentagon -> coverage -> %), cap (acts on the roll itself: re-roll), time (travel/work/expiry),
    rest, xp, injury, info. Explicit `kind` wins; otherwise it is derived from the hooks so a new power can never be left without one. */
-const POWER_KINDS = ['stat', 'cap', 'time', 'rest', 'xp', 'injury', 'info'];
+const POWER_KINDS = ['stat', 'cap', 'time', 'rest', 'xp', 'injury', 'info', 'hack'];
 function powerKindOf(P) { if (P.kind) return P.kind; if (P.onCompute || P.smallTeam || P.aura || P.illusion || P.spread || P.swap || P.supernova || P.respecOncePerShift || P.extraSlot) return 'stat'; if (P.retry) return 'cap';
-  if (P.travelMult || P.solo || P.extendExpiry || P.flies || P.workMult || P.portalAfterHeal) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.preview || P.previewMeta || P.visionAfterHeal) return 'info'; return 'info'; }
+  if (P.travelMult || P.solo || P.extendExpiry || P.flies || P.workMult || P.portalAfterHeal) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.hack) return 'hack'; if (P.preview || P.previewMeta || P.visionAfterHeal) return 'info'; return 'info'; }
 for (const k in POWERS) POWERS[k].kind = powerKindOf(POWERS[k]);
-const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground', silvertongue: 'longrangeillusion', covenpay: 'visions', lastrites: 'portalritual', eavesdrop: 'talkshit', nightowl: 'batshit', musclememory: 'harderhead', runningtab: 'squeezein', lightfeet: 'alaseconde' }; // v1.10 + v1.12 Dispatch parity migrations
+const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground', silvertongue: 'longrangeillusion', covenpay: 'visions', lastrites: 'portalritual', eavesdrop: 'talkshit', nightowl: 'batshit', musclememory: 'harderhead', runningtab: 'squeezein', lightfeet: 'alaseconde', flashbang: 'consolescout', fork: 'routeghost', fineprint: 'codewhisper', chopshop: 'softreboot' }; // v1.10 + v1.12 + v1.19.0 hack-power migrations
 
 /* ================= CALL TEMPLATES ================= */
 // req order: CMB END AGI PRS WIT. Text keywords: [[word|STAT]]
@@ -1554,19 +1568,25 @@ class HackGame {
       this.av = this.find('V').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0 })).concat(this.find('H').map(([x, y]) => ({ x, y, hx: x, hy: y, alive: true, t: 0, hunter: true })));
       this.tools = 0; this.broken = {}; this.keys = 0; this.qopen = {}; this.arrowKnown = !this.hasTerminal; this.arrowOpen = false; this.alarm = false; this.picked = {}; this.seenK = {}; }
     this.mode = null; this.input = []; this.keyShow = 0; this.keyText = ''; this.hold = 0; this.holding = false;
-    if (!first) { this.resets++; this.lives = this.attempts ? Math.max(0, this.attempts - this.resets) : 0;
-      const left = this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '';
-      this.msg = why === 'reboot' ? 'Section rebooted: items, gates and antiviruses restored. ' + left : 'Caught! ' + left + 'Back to the section start.';
-      if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = why === 'reboot' ? 'Rebooted on your last life. Connection lost.' : 'Caught by the antivirus. No lives left.'; } }
+    if (!first) {
+      if (why === 'soft') { // v1.19.0 Soft Reboot: restore section, no life cost, timer unchanged
+        this.msg = 'Soft Reboot: section restored (no life spent). Timer still running.';
+      } else {
+        this.resets++; this.lives = this.attempts ? Math.max(0, this.attempts - this.resets) : 0;
+        const left = this.attempts ? this.lives + (this.lives === 1 ? ' life' : ' lives') + ' left. ' : '';
+        this.msg = why === 'reboot' ? 'Section rebooted: items, gates and antiviruses restored. ' + left : 'Caught! ' + left + 'Back to the section start.';
+        if (this.attempts && this.resets >= this.attempts) { this.status = 'fail'; this.msg = why === 'reboot' ? 'Rebooted on your last life. Connection lost.' : 'Caught by the antivirus. No lives left.'; }
+      }
+    }
     this._stSig = null;
     this.reveal();
   }
   checkpoint() { // v1.16.0: 'P' tiles save the section start (position + puzzle state); antiviruses go home on a reset
     this.cp = { px: this.px, py: this.py, charge: this.charge, used: Object.assign({}, this.used), bulb: this.bulb, tog: Object.assign({}, this.tog), lockOpen: this.lockOpen, av: this.av.map(a => ({ hx: a.hx, hy: a.hy, alive: a.alive, hunter: a.hunter })),
       tools: this.tools, broken: Object.assign({}, this.broken), keys: this.keys, qopen: Object.assign({}, this.qopen), arrowKnown: this.arrowKnown, arrowOpen: this.arrowOpen, alarm: this.alarm, picked: Object.assign({}, this.picked), seenK: Object.assign({}, this.seenK || {}) }; }
-  reboot() { // v1.18.1 ↻ Reboot section: back to the section start (or the ⚑ checkpoint) with that moment's items, gates, antiviruses and alarm restored.
-    // Costs one life exactly like being caught (Unlimited setting: free); the timer keeps running (no refill).
-    if (this.status !== 'play') return false; this.reset(false, 'reboot'); this.fx = 'reboot'; return true; }
+  reboot(free) { // v1.18.1 ↻ Reboot section; v1.19.0 free=true = Soft Reboot (no life)
+    // Costs one life exactly like being caught unless free (Unlimited setting: free anyway); the timer keeps running (no refill).
+    if (this.status !== 'play') return false; this.reset(false, free ? 'soft' : 'reboot'); this.fx = 'reboot'; return true; }
   stuckSig() { return [this.charge, this.bulb, Object.keys(this.used).length, this.av.map(a => +a.alive).join(''), this.tools, this.keys, Object.keys(this.broken).length, Object.keys(this.qopen).length, +this.tog.B, +this.tog.N, +this.lockOpen, +this.arrowOpen, +this.arrowKnown, Object.keys(this.picked).length].join('|'); }
   isStuck() { // true only when the route planner has PROVEN there is no way to the exit from here (antiviruses ignored); a budget cut-off never counts as stuck
     if (this.status !== 'play') return false; const sig = this.stuckSig(); if (sig === this._stSig) return this._stuck; this._stSig = sig;
@@ -1675,7 +1695,7 @@ class HackGame {
     const x0 = Math.max(0, Math.floor(-ox / cs)), x1 = Math.min(this.W - 1, Math.ceil((w - ox) / cs)), y0 = Math.max(0, Math.floor(-oy / cs)), y1 = Math.min(this.H - 1, Math.ceil((h - oy) / cs));
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const c = this.ch(x, y); const [sx, sy] = P(x, y); const pass = this.passable(x, y);
-      if (this.isHidden(x, y)) { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = '#0d1428'; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
+      if (this.isHidden(x, y) && !(this.scoutUntil && performance.now() < this.scoutUntil)) { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = '#0d1428'; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
       if (c === '#') { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = HT.wallLine; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
       ctx.fillStyle = pass ? HT.floor : HT.closed; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2);
       if (this.inZone(x, y)) { ctx.fillStyle = 'rgba(239,68,68,.32)'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); }
@@ -1706,6 +1726,17 @@ class HackGame {
     for (const a of this.av) { if (!a.alive) continue; if (a.hunter) { const [sx, sy] = P(a.x, a.y); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : 'rgba(244,114,182,.45)'; ctx.beginPath(); const r = cs * (on ? 0.36 * (1 + 0.1 * Math.sin(t * 12)) : 0.3); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.fill(); if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
       const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * ((this.L.avZone || CONFIG.hack.avZone) + 0.5), 0, 7); ctx.stroke();
       const [sx, sy] = P(a.x, a.y); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); }
+    // v1.19.0 Route Ghost / Console Scout overlays (read-only; no puzzle state)
+    if (this.ghostPath && this.ghostUntil && performance.now() < this.ghostUntil) {
+      ctx.fillStyle = 'rgba(148,163,184,.55)'; ctx.strokeStyle = 'rgba(226,232,240,.9)'; ctx.lineWidth = Math.max(2, cs * 0.08);
+      let x = this.px, y = this.py; const steps = this.ghostPath.slice(0, 10);
+      for (const act of steps) { if (typeof act !== 'string' || !DIRS[act]) break; const [dx, dy] = DIRS[act]; x += dx; y += dy; const [sx, sy] = P(x, y); ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.22, 0, 7); ctx.fill(); ctx.stroke(); }
+      ctx.lineWidth = 1;
+    }
+    if (this.scoutUntil && performance.now() < this.scoutUntil) {
+      const pulse = 0.35 + 0.25 * Math.sin(t * 10); const marks = { V: '#ef4444', H: '#f472b6', K: '#fff', k: '#fff', U: '#ffd23f', G: '#ffd23f', R: '#67e8f9', L: '#fff', A: '#67e8f9', C: '#ffd23f', Z: '#fca5a5' };
+      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) { const c = this.ch(x, y); if (!marks[c]) continue; const [sx, sy] = P(x, y); ctx.strokeStyle = marks[c]; ctx.globalAlpha = pulse; ctx.lineWidth = 2; ctx.strokeRect(sx + 2, sy + 2, cs - 4, cs - 4); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
+    }
     const [px, py] = P(this.px, this.py); const m = cs * 0.2 + (this.bump ? 2 : 0);
     ctx.fillStyle = this.charge ? HT.playerCh : HT.player; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m); ctx.shadowBlur = 0;
     ctx.fillStyle = '#081020'; ctx.beginPath(); ctx.arc(px + cs / 2, py + cs / 2, cs * 0.07, 0, 7); ctx.fill();
@@ -2122,7 +2153,15 @@ function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) re
 function removeVolunteer(c, id) { if (c.volunteer && c.volunteer === id) { c.volunteer = null; c.volunteerRemoved = true; } }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c))))); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV119(migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c)))))); }
+function migrateV119(c) { // v1.19.0 hack-power train swaps via RETIRED_POWERS (flashbang/fork/fineprint/chopshop)
+  for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {};
+    h.powers = (h.powers || []).map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]);
+    h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
+    if (h.trainedChoice) h.trainedChoice = RETIRED_POWERS[h.trainedChoice] || h.trainedChoice;
+    if (h.trainedChoice && !POWERS[h.trainedChoice]) h.trainedChoice = null;
+    if (!h.trainedChoice) h.trainedChoice = (d.train || []).find(p => h.powers.includes(p)) || null;
+  } return c; }
 function migrateV114(c) { // v1.14.0: extra heroes + save rules (2c)
   if (!c.rulesVersion) { // a v1.13.0 (or older) save
     if ((c.shiftIdx || 0) === CONFIG.campaignShifts - 1 && c.phase !== 'end' && c.rollNonceFor === c.shiftIdx && c.rollNonce !== undefined) c.v113Finale = true; // in-progress Shift 8 (shift-start snapshot) keeps v1.13.0 rules until an explicit restart
@@ -3835,28 +3874,63 @@ function openHackBrief(c) {
     `<button class="btn ghost" data-a="close">LATER</button><button class="btn pri" data-a="go">TAKE THE CONSOLE</button>`);
     P.F.querySelector('[data-a=close]').onclick = () => closeModal(); P.F.querySelector('[data-a=go]').onclick = () => { closeModal(); startHack(c); }; });
 }
+function rosterHackHelpers(camp) { // v1.19.0: active roster heroes with a hack-kind train/signature power
+  const out = []; if (!camp || !camp.roster) return out;
+  for (const id of camp.roster) { const h = camp.heroes[id]; if (!h || h.state === 'downed') continue;
+    for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.hack) continue; out.push({ id, hero: h, power: p, P, kind: P.hack }); } }
+  return out;
+}
 function startHack(c, layout, disrupt) {
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
+  const helpers = rosterHackHelpers(UI.camp); const spent = {};
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
   if (/R/.test(L.rows.join('')) && L.arrowMemo) tutorial('hackR', '⌨ Terminals flash the arrow code for the ⇄ lock only for a few seconds. Memorize it!');
   if (L.invisible || L.inverted) tutorial('hackG', '👁 Invisible paths: floor tiles only show next to you. ⇅ Red zones invert your controls while you stand in them.');
   if (L.rows.join('').indexOf('V') >= 0 || /[UG]/.test(L.rows.join(''))) tutorial('hackRb', '⚡ An antivirus takes a held charge when it touches you. Each map has a spare ⚡ for every antivirus before the gates it guards. If you ever have no way forward, tap ↻ REBOOT: the section is restored for one life (the timer keeps running).');
+  // v1.19.0 Head Time ✦ Borrowed Seconds: passive once per hack if Sundial (or anyone with hackBorrowed) is on the roster
+  const borrow = helpers.find(x => x.P.hackBorrowed || x.kind === 'borrowed' || x.P.hackBorrowed === true);
+  // hackBorrowed is on headtime2 which uses extendExpiry+hackBorrowed flags, not hack:'borrowed'
+  const borrowH = (UI.camp.roster || []).map(id => UI.camp.heroes[id]).find(h => h && h.state !== 'downed' && hasPower(h, 'hackBorrowed'));
+  if (borrowH && !game.unlimited) { const add = CONFIG.hackBorrowedSeconds || 10; game.timeLeft += add; game.time += add; game.msg = borrowH.codename + ': +' + add + ' s (Head Time ✦)'; toast('⏳ ' + borrowH.codename + ': +' + add + ' s on this hack'); }
+  if (helpers.some(x => x.kind === 'scout' || x.kind === 'ghost' || x.kind === 'code' || x.kind === 'softreboot')) tutorial('hackPw', 'A hero power chip appears above the grid when a roster hero trained a hacking power. Tap it once per hack.');
+  renderHackPowers();
   renderHackBtns();
   renderHackPanels();
 }
-function renderHackBtns() { const H = UI.hack, b = $('hReboot'); if (!H || !b) return; const g = H.game; // v1.18.1 ↻ Reboot section: label shows the cost
-  if (H.rbArm) { b.classList.add('armed'); b.innerHTML = g.attempts && g.lives <= 1 ? 'TAP AGAIN: <b>last ♥</b>' : 'TAP AGAIN'; b.setAttribute('aria-label', 'Tap again to reboot the section' + (g.attempts ? ' for one life' : '')); }
-  else { b.classList.remove('armed'); b.innerHTML = '↻ REBOOT' + (g.attempts ? ' <b>−1♥</b>' : ''); b.setAttribute('aria-label', 'Reboot section' + (g.attempts ? ': costs one life' : '') + ', the timer keeps running'); }
+function renderHackPowers() { // v1.19.0 POWER chips (active helpers only; Borrowed Seconds is passive)
+  const H = UI.hack, box = $('hPowers'); if (!H || !box) return;
+  const active = (H.helpers || []).filter(x => x.kind === 'scout' || x.kind === 'ghost' || x.kind === 'code' || x.kind === 'softreboot');
+  if (!active.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = active.map(x => { const used = !!H.spent[x.power]; const soft = x.kind === 'softreboot' && H.softArmed; const label = x.kind === 'scout' ? '💡 Scout' : x.kind === 'ghost' ? '♜ Ghost' : x.kind === 'code' ? '🧾 Code' : (soft ? '🔧 Free reboot ready' : '🔧 Soft Reboot');
+    return `<button class="hpwr${soft ? ' armed' : ''}" data-hp="${x.power}" ${used && x.kind !== 'softreboot' ? 'disabled' : (used && x.kind === 'softreboot' && !H.softArmed ? 'disabled' : '')} aria-label="${esc(x.P.name)} (${esc(x.hero.codename)})">${label}</button>`; }).join('');
+  box.querySelectorAll('[data-hp]').forEach(b => b.onclick = () => useHackPower(b.dataset.hp));
+}
+function useHackPower(pid) { const H = UI.hack; if (!H || H.game.status !== 'play') return; const x = (H.helpers || []).find(h => h.power === pid); if (!x) return; const g = H.game;
+  if (x.kind === 'scout') { if (H.spent[pid]) return; H.spent[pid] = true; g.scoutUntil = performance.now() + 2800; H.zoom = true; clearTimeout(H.scoutT); H.scoutT = setTimeout(() => { if (UI.hack === H) { H.zoom = false; renderHackPowers(); } }, 2800); g.msg = x.hero.codename + ': Console Scout — map lit.'; Sfx.chime(); toast('💡 Console Scout'); renderHackPowers(); return; }
+  if (x.kind === 'ghost') { if (H.spent[pid]) return; const info = {}; const plan = hackPlan(g, { ignoreAv: true, maxStates: 20000, info }); if (!plan || info.budget) { g.msg = 'Route Ghost: no clear path right now (try Reboot if stuck).'; Sfx.alarm(); return; }
+    H.spent[pid] = true; const steps = plan.filter(a => typeof a === 'string' && (a === 'up' || a === 'down' || a === 'left' || a === 'right')).slice(0, 10); g.ghostPath = steps; g.ghostUntil = performance.now() + 3500; g.msg = x.hero.codename + ': Route Ghost — follow the pale marks.'; Sfx.blip(); toast('♜ Route Ghost'); renderHackPowers(); return; }
+  if (x.kind === 'code') { if (H.spent[pid]) return; H.spent[pid] = true; let text = '';
+    if (!g.lockOpen && g.code) text = 'LOCK CODE: ' + g.code;
+    if (!g.arrowOpen && g.arrowCode && g.arrowCode.length) text = (text ? text + ' · ' : '') + 'ARROW: ' + g.arrowCode.map(d => ARROW[d]).join('');
+    if (!text) text = 'No lock or arrow code left on this map.';
+    g.keyText = text; g.keyShow = Math.max(g.keyShow, 4.5); g.msg = x.hero.codename + ': Code Whisper.'; Sfx.key ? Sfx.blip() : Sfx.blip(); toast('🧾 Code Whisper'); renderHackPowers(); return; }
+  if (x.kind === 'softreboot') { if (H.spent[pid] && !H.softArmed) return; if (H.softArmed) return; H.spent[pid] = true; H.softArmed = true; g.msg = x.hero.codename + ': Soft Reboot armed — next ↻ is free.'; Sfx.click(); toast('🔧 Soft Reboot ready'); renderHackPowers(); renderHackBtns(); return; }
+}
+function renderHackBtns() { const H = UI.hack, b = $('hReboot'); if (!H || !b) return; const g = H.game; // v1.18.1 ↻ Reboot; v1.19.0 Soft Reboot free arm
+  const free = !!H.softArmed;
+  if (H.rbArm) { b.classList.add('armed'); b.innerHTML = free ? 'TAP AGAIN: <b>free</b>' : (g.attempts && g.lives <= 1 ? 'TAP AGAIN: <b>last ♥</b>' : 'TAP AGAIN'); b.setAttribute('aria-label', 'Tap again to reboot the section' + (free ? ' for free' : (g.attempts ? ' for one life' : ''))); }
+  else { b.classList.remove('armed'); b.innerHTML = '↻ REBOOT' + (free ? ' <b>FREE</b>' : (g.attempts ? ' <b>−1♥</b>' : '')); b.setAttribute('aria-label', 'Reboot section' + (free ? ': Soft Reboot (no life cost)' : (g.attempts ? ': costs one life' : '')) + ', the timer keeps running'); }
   b.classList.toggle('stuck', !!H.stuck && !H.rbArm); }
 function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game, now = performance.now(); if (e) e.preventDefault();
   if (g.status !== 'play' || (H.rbLast && now - H.rbLast < 450)) return; H.rbLast = now; // ghost-click / double-tap guard: a second tap within 450 ms is ignored
   if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
-  H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; g.reboot(); hackFx(); renderHackBtns(); renderHackPanels(); }
-function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); $('hack').classList.add('hidden');
+  const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
+function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) { pw.classList.add('hidden'); pw.innerHTML = ''; } $('hack').classList.add('hidden');
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); return; }
   const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
@@ -3875,10 +3949,10 @@ function renderHackPanels() {
 function hackFrame(dt) {
   const H = UI.hack; const g = H.game; g.update(dt); H.t += dt; hackFx();
   const cv = $('hcv'), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr); }
-  if (!H.cam) H.cam = { init: false }; H.view = hackCamera(H.cam, g, w, hh, dt, !!H.zoom);
+  if (!H.cam) H.cam = { init: false }; const scoutOn = !!(g.scoutUntil && performance.now() < g.scoutUntil); H.view = hackCamera(H.cam, g, w, hh, dt, !!(H.zoom || scoutOn));
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t, H.view);
   $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hTimer').classList.toggle('low', !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm)); $('hCharge').textContent = (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
-  if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (g.attempts ? ' (costs 1 life).' : '.'); renderHackBtns(); } }
+  if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (H.softArmed ? ' (Soft Reboot: free).' : (g.attempts ? ' (costs 1 life).' : '.')); renderHackBtns(); } }
   if (H.rbLives !== g.lives) { H.rbLives = g.lives; renderHackBtns(); }
   const k = $('hKey'); if (g.keyShow > 0) { k.classList.remove('hidden'); k.textContent = g.keyText; } else k.classList.add('hidden');
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
