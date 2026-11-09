@@ -875,7 +875,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.20.4';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.21.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -912,7 +912,7 @@ const CONFIG = {
   injuryOnFail: { easy: 0, normal: 0.2, hard: 0.5 },
   injuryRiskyCompeting: 0.35,
   // v1.8 mission set
-  deckJitter: 0.2, followUpDelay: 3, bossRespawn: 20, rogueFirstAt: 20, finaleCityHit: 8, finaleCityFollowUp: 4, sabotageTimer: 12, routeMult: 0.85, routeMax: 3,
+  deckJitter: 0.2, followUpDelay: 3, bossRespawn: 40, rogueFirstAt: 75, finaleCityHit: 9, finaleCityFollowUp: 5, finaleLastBossHour: 1, sabotageTimer: 12, routeMult: 0.85, routeMax: 3, // v1.21.0: boss spacing + last boss ≥1am; Shift 8 city dmg ~+15% (8→9, 4→5)
   // v1.11.0: internal used-mission bag (not player-visible); sample deck sizes keep Dispatch pacing after pool expansion
   missionBagReset: 0.9,
   deckTarget: [10, 14, 24, 29, 30, 17, 14, 32], // v1.17.0: +1 per added hack mission (hacks are required units), so the other calls stay the same
@@ -2287,7 +2287,7 @@ function startShift(camp) {
     nextSpawn: CONFIG.spawnFirst, stats: { success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0 }, tools: { medkit: 0, jump: 0 }, injuryLog: [],
     online: plan.blackout ? [1, 4] : [0, 1, 2, 3, 4, 5], hackQueue: [], pairShift: {}, over: false, log: [], usedTemplates: {} };
   S.deckMode = camp.missionSet === 'v1.8' && !!MISSIONS_BY_SHIFT[idx];
-  S.seconds = S.deckMode && plan.seconds ? plan.seconds : CONFIG.shiftSeconds; S.spawnStopAt = CONFIG.spawnStopAt * S.seconds / CONFIG.shiftSeconds;
+  S.seconds = plan.seconds || CONFIG.shiftSeconds; S.spawnStopAt = CONFIG.spawnStopAt * S.seconds / CONFIG.shiftSeconds; // v1.21.0: finale plan.seconds (450) applies in every mode so the 1am last boss still has time
   S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0; S.heroFails = 0;
   if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
   if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); if (S.solsticeAtStart) solsticeJoin(camp, S, 'campaign'); return S; }
@@ -2331,7 +2331,9 @@ function spawnCall(camp, S, tpl, extra) {
   else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); c.requestHero = cand[Math.floor(rng() * cand.length)]; }
   if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && camp.heroes[tpl.autoHero].state === 'available' && rng() < 0.5) { c.autoHero = tpl.autoHero; c.assigned[0] = tpl.autoHero; }
   c.willDisrupt = tpl.mission ? !!(tpl.disruption && tpl.disruption.always) : !!(tpl.disruption && S.idx + 1 >= CONFIG.disruptionsFromShift && rng() < CONFIG.disruptionChance);
-  S.calls.push(c); if (camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c); Bus.emit('spawn', c);
+  S.calls.push(c); if (camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c);
+  if (tpl.boss && S.finale && S.t + 1e-9 >= finaleLastBossT(S)) S.finale.lateBossSpawned = true; // v1.21.0
+  Bus.emit('spawn', c);
   return c;
 }
 function afList(tpl) { const a = tpl.autoFailHero; return !a ? [] : Array.isArray(a) ? a : [a]; }
@@ -2383,7 +2385,8 @@ function setupRogueFinale(camp, S) { const r = ensureRogueBoss(camp); let tpls, 
   else { tpls = buildRogueBossTemplates(camp, r); hp = rogueBossHP(heroDef(r.id).stats[1]); }
   if (!tpls.length) return;
   camp.finale = { city: 100, bossHP: hp, bossMax: hp, bossId: r.fallback ? null : r.id, rogue: !r.fallback }; S.finale = camp.finale; S.bossTpls = tpls; S.legacyFinale = true;
-  S.followQ.push({ t: CONFIG.rogueFirstAt, id: tpls[0].id, respawn: true, first: true }); }
+  const firstAt = Math.max(CONFIG.rogueFirstAt, (S.seconds || CONFIG.shiftSeconds) / 6); // v1.21.0: ≥ ~21:00
+  S.followQ.push({ t: firstAt, id: tpls[0].id, respawn: true, first: true }); }
 function bossName(S) { const F = S && S.finale; if (F && F.rogue && F.bossId) { const d = heroDef(F.bossId); if (d) return d.codename; } return 'Night Mayor'; }
 function tickLegacyFinale(camp, S) { if (!S.finale || S.finale.won) return;
   for (const f of S.followQ) { if (f.done || S.t < f.t) continue; if (pendingCalls(S).length >= CONFIG.maxPending) break; f.done = true;
@@ -3250,9 +3253,23 @@ function buildDeck(camp, S) { // v1.11.0: sample typical deck size from bag-filt
     hacks.filter(h => !h.hack || h.hack.restoresDistrict === undefined).forEach((h, i, a) => deck.push({ t: S.spawnStopAt * (i + 1) / (a.length + 1), tpls: [h], hack: true })); }
   else hacks.forEach((h, i) => deck.push({ t: S.spawnStopAt * (i + 1) / (hacks.length + 1), tpls: [h], hack: true }));
   deck.sort((a, b) => a.t - b.t); S.deck = deck; S.expected = deck.length; S.plan = Object.assign({}, S.plan, { expected: deck.length });
+  if (S.plan.finale) retargetFinaleBossDeck(S); // v1.21.0: spread Night Mayor pins; last at/after 1am
   missionBagMark(bag, 'v18', S.idx, chosen.map(u => u.key));
   if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
   return deck; }
+function retargetFinaleBossDeck(S) {
+  // v1.21.0: spread the Night Mayor deck pins across the evening; leave the ≥1am wave to queueBoss
+  const bosses = (S.deck || []).filter(e => e.tpls && e.tpls.some(t => t.boss));
+  if (bosses.length < 1) return;
+  const lastT = finaleLastBossT(S);
+  const lo = Math.max(CONFIG.spawnFirst || 3, (S.seconds || CONFIG.shiftSeconds) / 6); // ~21:00
+  const hi = Math.max(lo + 1, lastT - Math.max(CONFIG.bossRespawn || 40, 45)); // ~00:00, before 1am
+  for (let i = 0; i < bosses.length; i++) {
+    const u = bosses.length === 1 ? 0.5 : i / (bosses.length - 1);
+    bosses[i].t = lo + u * (hi - lo);
+  }
+  S.deck.sort((a, b) => a.t - b.t);
+}
 function tickDeck(camp, S, dt) {
   if (S.finale && S.finale.won) return;
   const open = () => pendingCalls(S).filter(c => !(c.tpl.training)).length;
@@ -3281,10 +3298,33 @@ function missionFailed(camp, S, c, how) { // fail or miss: follow-up, finale Cit
     if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } }
   if (t.boss && S.finale && S.finale.bossHP > 0) queueBoss(S, c);
 }
+function finaleLastBossT(S) { // v1.21.0: in-game 1:00 AM (or CONFIG.finaleLastBossHour) as real seconds into the shift
+  const hour = (CONFIG.finaleLastBossHour !== undefined) ? CONFIG.finaleLastBossHour : 1;
+  const hoursFromStart = (hour - CONFIG.startHour + 24) % 24;
+  return (hoursFromStart / CONFIG.shiftHours) * (S.seconds || CONFIG.shiftSeconds);
+}
+function bossRespawnAt(S) { // stretch remaining boss waves so the last one lands at/after 1am; never tighter than bossRespawn
+  const base = CONFIG.bossRespawn || 20;
+  if (!S.finale || !(S.finale.bossHP > 0)) return S.t + base;
+  const lastT = finaleLastBossT(S);
+  // Final remaining hit: never before 1am (and not before base delay)
+  if (S.finale.bossHP === 1 && !S.finale.lateBossSpawned) return Math.max(S.t + base, lastT);
+  const need = S.finale.bossHP;
+  const stretch = (lastT - S.t) / Math.max(1, need);
+  return S.t + Math.max(base, stretch);
+}
 function queueBoss(S, c) { if (S.followQ.some(f => f.respawn && !f.done) || S.calls.some(x => x !== c && x.tpl.boss && x.stage !== 'closed' && !x.reviewed)) return; const bosses = S.bossTpls || MISSIONS_BY_SHIFT[S.idx].filter(t => t.boss); const next = bosses[(bosses.indexOf(c.tpl) + 1) % bosses.length] || c.tpl;
-  S.followQ.push({ t: S.t + CONFIG.bossRespawn, id: next.id, district: c.district, respawn: true }); }
-function bossDamage(camp, S, c, n) { if (!S.finale || S.finale.bossHP <= 0) return; S.finale.bossHP = Math.max(0, S.finale.bossHP - n); Bus.emit('bossHit', { call: c, hp: S.finale.bossHP });
-  if (S.finale.bossHP === 0) { S.finale.won = true; for (const x of S.calls) if (x.stage === 'pending') { x.stage = 'closed'; x.result = 'dropped'; } S.followQ.forEach(f => f.done = true); Bus.emit('bossDown', S.finale); } }
+  S.followQ.push({ t: bossRespawnAt(S), id: next.id, district: c.district, respawn: true }); } // v1.21.0: spaced + last ≥ 1am
+function bossDamage(camp, S, c, n) {
+  if (!S.finale || S.finale.bossHP <= 0) return;
+  let next = Math.max(0, S.finale.bossHP - n);
+  // v1.21.0: cannot finish the boss before the ≥1am wave has actually spawned
+  const lastT = finaleLastBossT(S);
+  if (next <= 0 && !S.finale.lateBossSpawned && S.t + 1e-9 < lastT) { next = 1; S.finale.heldForLate = true; }
+  S.finale.bossHP = next;
+  Bus.emit('bossHit', { call: c, hp: S.finale.bossHP });
+  if (S.finale.bossHP === 0) { S.finale.won = true; for (const x of S.calls) if (x.stage === 'pending') { x.stage = 'closed'; x.result = 'dropped'; } S.followQ.forEach(f => f.done = true); Bus.emit('bossDown', S.finale); }
+}
 function missionReviewed(camp, S, call, R, out) {
   const t = call.tpl;
   if (!R.success) missionFailed(camp, S, call, 'fail');
