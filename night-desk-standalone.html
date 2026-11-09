@@ -870,7 +870,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.19.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.20.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3497,7 +3497,7 @@ function drawRadar(cv, opts) {
 
 /* ---------- map ---------- */
 const MapV = { w: 0, h: 0, bld: null };
-function mapResize() { const c = $('map'), dpr = Math.min(2, devicePixelRatio || 1); const w = c.clientWidth, hh = c.clientHeight; if (!w || !hh) return; if (c.width !== Math.round(w * dpr) || c.height !== Math.round(hh * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(hh * dpr); } MapV.w = w; MapV.h = hh; MapV.dpr = dpr; }
+function mapResize() { const c = $('map'), dpr = Math.min(2, devicePixelRatio || 1); const w = c.clientWidth, hh = c.clientHeight; if (!w || !hh) return; const changed = c.width !== Math.round(w * dpr) || c.height !== Math.round(hh * dpr); if (changed) { c.width = Math.round(w * dpr); c.height = Math.round(hh * dpr); if (typeof mapStyleInvalidate === 'function') mapStyleInvalidate(); } MapV.w = w; MapV.h = hh; MapV.dpr = dpr; }
 function buildings() { if (MapV.bld) return MapV.bld; const r = mulberry32(42); const out = []; for (const d of DISTRICTS) for (let i = 0; i < 16; i++) { const bw = 0.03 + r() * 0.05, bh = 0.04 + r() * 0.08; out.push({ d: d.id, u: d.r[0] + 0.01 + r() * (d.r[2] - bw - 0.02), v: d.r[1] + 0.05 + r() * (d.r[3] - bh - 0.06), w: bw, h: bh, lit: r() }); } return MapV.bld = out; }
 function mapPos(u, v) { return [u * MapV.w, v * MapV.h]; }
 function pathPoint(pin, p) { const a = mapPos(HQ.u, HQ.v), b = mapPos(pin.u, HQ.v), c = mapPos(pin.u, pin.v); const l1 = Math.abs(b[0] - a[0]), l2 = Math.abs(c[1] - b[1]); const L = l1 + l2 || 1; let d = clamp(p, 0, 1) * L; if (d <= l1) return [a[0] + Math.sign(b[0] - a[0]) * d, a[1]]; d -= l1; return [b[0], b[1] + Math.sign(c[1] - b[1]) * d]; }
@@ -3505,21 +3505,37 @@ function pinRadius() { return Math.max(17, Math.min(24, MapV.w / 26)); }
 function drawMap(t) {
   mapResize(); const c = $('map'); if (!MapV.w) return; const g = c.getContext('2d'); g.setTransform(MapV.dpr, 0, 0, MapV.dpr, 0, 0);
   const W = MapV.w, H = MapV.h, S = UI.S, camp = UI.camp; const T = lookTheme(), LV = lookLive();
-  g.fillStyle = T.bg; g.fillRect(0, 0, W, H);
-  // roads
-  g.fillStyle = T.road; g.fillRect(0, H * 0.47, W, H * 0.06); g.fillRect(W * 0.33, 0, W * 0.015, H); g.fillRect(W * 0.655, 0, W * 0.015, H);
-  g.strokeStyle = T.dash; g.setLineDash([8, 8]); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H * 0.5); g.lineTo(W, H * 0.5); g.stroke(); g.setLineDash([]);
-  for (const d of DISTRICTS) {
-    const [x, y] = mapPos(d.r[0], d.r[1]), w = d.r[2] * W, hh = d.r[3] * H; const on = !S || S.online.includes(d.id);
-    g.fillStyle = d.col; g.fillRect(x, y, w, hh); g.strokeStyle = on ? T.dline : '#222'; g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1);
-    for (const b of buildings()) if (b.d === d.id) { const [bx, by] = mapPos(b.u, b.v); g.fillStyle = T.bld; g.fillRect(bx, by, b.w * W, b.h * H); if (on) { g.fillStyle = b.lit > 0.5 ? T.winA : T.winB; for (let k = 0; k < 4; k++) if (!LV || Math.sin(t * 0.7 + b.u * 97 + b.v * 53 + k * 1.9) > -0.93) g.fillRect(bx + 3 + (k % 2) * (b.w * W / 2), by + 3 + Math.floor(k / 2) * (b.h * H / 2), 2, 2); } }
-    g.fillStyle = on ? T.label : '#555'; g.font = '600 11px system-ui,sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(d.name.toUpperCase(), x + 6, y + 5);
-    if (!on) { g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x, y, w, hh); g.fillStyle = '#ff4d5e'; g.font = '800 13px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚠ OFFLINE', x + w / 2, y + hh / 2); }
+  // v1.20.0: static city layer (Classic procedural or Blueprint/Night City art), dynamics redraw each frame
+  const online = S ? S.online : [0, 1, 2, 3, 4, 5];
+  const sc = (typeof mapStyleStaticCanvas === 'function') ? mapStyleStaticCanvas(W, H, T, online) : null;
+  if (sc) g.drawImage(sc, 0, 0); else { g.fillStyle = T.bg; g.fillRect(0, 0, W, H); }
+  // Classic keeps twinkling windows on the live layer when Look effects are on
+  if ((typeof mapStyleIsArt !== 'function' || !mapStyleIsArt()) && LV && S) {
+    for (const b of buildings()) {
+      if (!online.includes(b.d)) continue;
+      const [bx, by] = mapPos(b.u, b.v);
+      g.fillStyle = b.lit > 0.5 ? T.winA : T.winB;
+      for (let k = 0; k < 4; k++) if (Math.sin(t * 0.7 + b.u * 97 + b.v * 53 + k * 1.9) > -0.93)
+        g.fillRect(bx + 3 + (k % 2) * (b.w * W / 2), by + 3 + Math.floor(k / 2) * (b.h * H / 2), 2, 2);
+    }
   }
-  const [hx, hy] = mapPos(HQ.u, HQ.v); if (T.tint !== 'transparent') { g.fillStyle = T.tint; g.fillRect(0, 0, W, H); } g.fillStyle = T.hqfill; g.strokeStyle = T.hq; g.lineWidth = 2; g.shadowColor = T.hq; g.shadowBlur = 12; g.fillRect(hx - 20, hy - 14, 40, 28); g.strokeRect(hx - 20, hy - 14, 40, 28); g.shadowBlur = 0;
+  const [hx, hy] = mapPos(HQ.u, HQ.v);
+  // HQ always redrawn so Look colors apply on top of art
+  g.fillStyle = T.hqfill; g.strokeStyle = T.hq; g.lineWidth = 2; g.shadowColor = T.hq; g.shadowBlur = 12;
+  g.beginPath(); const hqR = 6;
+  g.moveTo(hx - 22 + hqR, hy - 15); g.arcTo(hx + 22, hy - 15, hx + 22, hy + 15, hqR); g.arcTo(hx + 22, hy + 15, hx - 22, hy + 15, hqR); g.arcTo(hx - 22, hy + 15, hx - 22, hy - 15, hqR); g.arcTo(hx - 22, hy - 15, hx + 22, hy - 15, hqR); g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
   g.fillStyle = T.hq; g.font = '800 12px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HQ', hx, hy);
   if (!S) return;
   const R = pinRadius();
+  // Art styles: glowing building cluster under pending/active call pins
+  if (typeof mapStyleIsArt === 'function' && mapStyleIsArt()) {
+    for (const cl of S.calls) {
+      if (cl.stage === 'closed' || cl.stage === 'return') continue;
+      const [cx, cy] = mapPos(cl.pos.u, cl.pos.v);
+      const col = cl.difficulty === 'hard' ? T.hard : cl.difficulty === 'normal' ? T.normal : T.easy;
+      if (typeof paintCallCluster === 'function') paintCallCluster(g, cx, cy, cl.stage === 'pending' ? col : T.busy);
+    }
+  }
   // routes + tokens
   for (const cl of S.calls) {
     if (!['travel', 'work', 'return', 'review'].includes(cl.stage) || (cl.returnDone)) continue;
@@ -4114,11 +4130,12 @@ function openPause() {
       `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('classicCalls', '🎲 Classic random calls (legacy draw; applies from the next shift)', UI.camp.missionSet === 'legacy')}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
-       <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
+       <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
     P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else if (k === 'classicCalls') { UI.settings.classicCalls = UI.camp.missionSet !== 'legacy'; UI.camp.missionSet = UI.settings.classicCalls ? 'legacy' : 'v1.8'; saveSettings(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
+    P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
     P.B.querySelector('[data-a=music]').onclick = () => openMusic(true);
     P.B.querySelector('[data-a=restart]').onclick = () => { if (confirm('Restart this shift from the beginning? Same calls, fresh dice.')) { closeModal(); restartShift(); } };
     P.B.querySelector('[data-a=quit]').onclick = () => { if (!confirm("Quit to title and lose this shift's progress? (Stat points you spent from points banked before the shift are kept.)")) return; closeModal(); UI.camp = JSON.parse(UI.snapshot); UI.S = null; showRevertNote(UI.camp); saveCamp(); showTitle(); };
@@ -4318,7 +4335,7 @@ function showTitle() {
    ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span></button>` : ''}
    <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
    <div class="card"><h3>Seed (optional)</h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
-   <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
+   <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
    <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
    ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
    <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>
@@ -4326,6 +4343,7 @@ function showTitle() {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
     s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); const v = parseInt($('seedIn').value, 10); showNewCampaign(isNaN(v) ? ((Math.random() * 1e9) >>> 0) : v, false, !!save); };
     s.querySelector('[data-a=look]').onclick = () => { Sfx.init(); Sfx.click(); openLooks(); };
+    s.querySelector('[data-a=map]').onclick = () => { Sfx.init(); Sfx.click(); openMapStyle(); };
     s.querySelector('[data-a=music]').onclick = () => { Sfx.init(); Sfx.click(); openMusic(); };
     s.querySelector('[data-a=credits]').onclick = () => { Sfx.init(); Sfx.click(); openCredits(); };
     s.querySelector('[data-a=codex]').onclick = () => { Sfx.init(); Sfx.click(); openCodex(); };
@@ -4698,6 +4716,114 @@ function rogueIntroHTML(camp) { const r = ensureRogueBoss(camp); if (r.fallback 
   const d = heroDef(r.id), hp = rogueBossHP(d.stats[1]);
   return `<div class="note warn rogue-intro" style="border-left:6px solid ${d.color}"><div class="rogue-h"><span class="e" aria-hidden="true">${d.emoji}</span> <b>☠ ROGUE HERO: ${esc(d.codename)}</b></div><div>${esc(r.motive)}</div><div><small>FINALE: protect the City bar (fails and misses cost ${CONFIG.finaleCityHit}). Win the ☠ ${esc(d.codename)} calls to take their resolve from ${hp} to 0 (resolve = ${ROGUE_BOSS_HP_BASE} + END ${d.stats[1]} × ${ROGUE_BOSS_HP_PER_END}, rounded).</small></div></div>`; }
 
+/* ---------- v1.20.0 Map styles: Classic / Blueprint / Night City (visual only) ---------- */
+const MAP_STYLE_KEY = 'nightdesk.mapstyle.v1';
+const MAP_STYLES = [
+  { id: 'nightcity', name: 'Night City', desc: 'Lit satellite city — glowing streets and landmarks.', art: 'map/nightcity.webp', fallback: 'map/nightcity.jpg' },
+  { id: 'blueprint', name: 'Blueprint', desc: 'Teal hologram city — wireframe towers and grid.', art: 'map/blueprint.webp', fallback: 'map/blueprint.jpg' },
+  { id: 'classic', name: 'Classic', desc: 'Original Night Desk district boxes.', art: null }
+];
+var MapStyle = { id: 'nightcity', imgs: {}, ready: {}, static: null, staticKey: '', fail: {} };
+function mapStyleLoad() {
+  let v = null; try { v = JSON.parse(localStorage.getItem(MAP_STYLE_KEY)); } catch (e) { }
+  MapStyle.id = (v && MAP_STYLES.some(s => s.id === v.id)) ? v.id : 'nightcity';
+}
+function mapStyleSave() { try { localStorage.setItem(MAP_STYLE_KEY, JSON.stringify({ id: MapStyle.id })); } catch (e) { } }
+function mapStyleGet() { return MAP_STYLES.find(s => s.id === MapStyle.id) || MAP_STYLES[0]; }
+function mapStyleIsArt() { const s = mapStyleGet(); return !!(s && s.art); }
+function mapStyleInvalidate() { if (!MapStyle) return; MapStyle.static = null; MapStyle.staticKey = ''; }
+function mapStyleSet(id) {
+  if (!MAP_STYLES.some(s => s.id === id)) return;
+  MapStyle.id = id; mapStyleSave(); mapStyleInvalidate();
+  mapStyleEnsure(id);
+}
+function mapStyleEnsure(id) {
+  const s = MAP_STYLES.find(x => x.id === id); if (!s || !s.art) return;
+  if (MapStyle.imgs[id] && MapStyle.ready[id]) return;
+  if (MapStyle.imgs[id]) return; // loading
+  const img = new Image(); MapStyle.imgs[id] = img;
+  const trySrc = (src, next) => {
+    img.onload = () => { MapStyle.ready[id] = true; MapStyle.fail[id] = false; mapStyleInvalidate(); };
+    img.onerror = () => { if (next) trySrc(next, null); else { MapStyle.fail[id] = true; MapStyle.ready[id] = false; } };
+    img.src = src;
+  };
+  // Prefer webp; jpg fallback. Standalone build may lack files — fail soft to classic draw.
+  trySrc(s.art, s.fallback);
+}
+function mapStylePreviewHTML(id) {
+  const s = MAP_STYLES.find(x => x.id === id) || MAP_STYLES[0];
+  const bg = id === 'blueprint' ? 'linear-gradient(160deg,#04121c,#0a3a48)' : id === 'nightcity' ? 'linear-gradient(160deg,#05070f,#1a1428)' : 'linear-gradient(160deg,#04060d,#121a30)';
+  return `<div class="lk-prev ms-prev" data-ms="${id}" style="background:${bg}"><span class="lpin" style="left:72%;top:28%"></span></div>`;
+}
+function openMapStyle(fromPause) {
+  openModal('mapstyle', m => { const render = () => {
+    const P = sheetParts(m, '<h2>🗺 City Map</h2><span class="pill">Visual only</span>',
+      `<p class="txt">Choose how the city looks. Gameplay, call positions and your save are not affected. Works with every 🎨 Look (pins, HQ and trails follow the Look; art styles keep their city paint and may get a light Look tint).</p>
+       <div class="lk-grid">${MAP_STYLES.map(s => `<button class="lk-card ${s.id === MapStyle.id ? 'on' : ''}" data-ms-id="${s.id}" aria-pressed="${s.id === MapStyle.id}">${mapStylePreviewHTML(s.id)}<b>${s.name}</b><small>${s.desc}</small></button>`).join('')}</div>`,
+      '<button class="btn pri" data-a="done">DONE</button>');
+    P.B.querySelectorAll('[data-ms-id]').forEach(b => b.onclick = () => { mapStyleSet(b.dataset.msId); try { Sfx.click(); } catch (e) { } render(); });
+    P.F.querySelector('[data-a=done]').onclick = () => { closeModal(); if (fromPause && UI.S) openPause(); };
+  }; render(); });
+}
+/** Build or reuse the static city canvas (base art or classic procedural). */
+function mapStyleStaticCanvas(W, H, T, online) {
+  const look = (typeof LookState !== 'undefined' && LookState.look) || 'current';
+  const onSig = (online && online.length) ? online.slice().sort().join('') : 'all';
+  const key = MapStyle.id + '|' + look + '|' + W + 'x' + H + '|' + onSig + '|' + (MapStyle.ready[MapStyle.id] ? 'r' : 'w');
+  if (MapStyle.static && MapStyle.staticKey === key) return MapStyle.static;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  if (mapStyleIsArt() && MapStyle.ready[MapStyle.id] && MapStyle.imgs[MapStyle.id]) {
+    g.drawImage(MapStyle.imgs[MapStyle.id], 0, 0, W, H);
+    // Soft Look tint (art styles keep their paint; Looks nudge palette)
+    if (T.tint && T.tint !== 'transparent') { g.fillStyle = T.tint; g.fillRect(0, 0, W, H); }
+  } else {
+    paintClassicCity(g, W, H, T, online);
+  }
+  // Offline district overlays (same hit regions)
+  if (online) {
+    for (const d of DISTRICTS) {
+      if (online.includes(d.id)) continue;
+      const x = d.r[0] * W, y = d.r[1] * H, w = d.r[2] * W, hh = d.r[3] * H;
+      g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(x, y, w, hh);
+      g.fillStyle = '#ff4d5e'; g.font = '800 13px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('⚠ OFFLINE', x + w / 2, y + hh / 2);
+    }
+  }
+  MapStyle.static = cv; MapStyle.staticKey = key; return cv;
+}
+function paintClassicCity(g, W, H, T, online) {
+  g.fillStyle = T.bg; g.fillRect(0, 0, W, H);
+  g.fillStyle = T.road; g.fillRect(0, H * 0.47, W, H * 0.06); g.fillRect(W * 0.33, 0, W * 0.015, H); g.fillRect(W * 0.655, 0, W * 0.015, H);
+  g.strokeStyle = T.dash; g.setLineDash([8, 8]); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H * 0.5); g.lineTo(W, H * 0.5); g.stroke(); g.setLineDash([]);
+  // reuse MapV.bld via buildings() if available
+  const blds = (typeof buildings === 'function') ? buildings() : [];
+  for (const d of DISTRICTS) {
+    const x = d.r[0] * W, y = d.r[1] * H, w = d.r[2] * W, hh = d.r[3] * H;
+    const on = !online || online.includes(d.id);
+    g.fillStyle = d.col; g.fillRect(x, y, w, hh); g.strokeStyle = on ? T.dline : '#222'; g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1);
+    for (const b of blds) if (b.d === d.id) {
+      const bx = b.u * W, by = b.v * H; g.fillStyle = T.bld; g.fillRect(bx, by, b.w * W, b.h * H);
+      if (on) { g.fillStyle = b.lit > 0.5 ? T.winA : T.winB; for (let k = 0; k < 4; k++) g.fillRect(bx + 3 + (k % 2) * (b.w * W / 2), by + 3 + Math.floor(k / 2) * (b.h * H / 2), 2, 2); }
+    }
+    g.fillStyle = on ? T.label : '#555'; g.font = '600 11px system-ui,sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(d.name.toUpperCase(), x + 6, y + 5);
+  }
+}
+/** Orange call-site building cluster under a pin (art styles). */
+function paintCallCluster(g, x, y, col) {
+  g.save();
+  g.shadowColor = col; g.shadowBlur = 18;
+  const boxes = [[-20, -12, 28, 18], [8, -16, 24, 16], [-6, 8, 22, 14], [16, 4, 18, 12], [-26, 2, 16, 10]];
+  for (const [dx, dy, w, h] of boxes) {
+    g.fillStyle = col; g.globalAlpha = 0.85;
+    g.fillRect(x + dx, y + dy, w, h);
+    g.strokeStyle = '#ffd080'; g.lineWidth = 1.5; g.globalAlpha = 1; g.strokeRect(x + dx, y + dy, w, h);
+  }
+  g.restore();
+}
+mapStyleLoad();
+for (const s of MAP_STYLES) if (s.art) mapStyleEnsure(s.id);
+
 /* ---------- v1.9.0 Looks: visual only. Stored apart from the save (nightdesk.look.v1). ---------- */
 const LOOK_KEY = 'nightdesk.look.v1';
 const LOOKS = [
@@ -4714,7 +4840,7 @@ function lookLoad() { let v = null; try { v = JSON.parse(localStorage.getItem(LO
 function lookSave() { try { localStorage.setItem(LOOK_KEY, JSON.stringify({ look: LookState.look, reduceEffects: LookState.reduceEffects })); } catch (e) { } }
 function applyLook(id, rfx) { if (id !== undefined) LookState.look = LOOKS.some(l => l.id === id) ? id : 'current'; if (rfx !== undefined) LookState.reduceEffects = !!rfx;
   const r = document.documentElement; if (LookState.look === 'current') r.removeAttribute('data-look'); else r.setAttribute('data-look', LookState.look);
-  r.classList.toggle('reduce-fx', LookState.reduceEffects); LookState._theme = LookState._hack = null; }
+  r.classList.toggle('reduce-fx', LookState.reduceEffects); LookState._theme = LookState._hack = null; if (typeof mapStyleInvalidate === 'function') mapStyleInvalidate(); }
 function lookTheme() { if (LookState._theme) return LookState._theme; const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue('--' + n).trim();
   return LookState._theme = { bg: v('map-bg'), road: v('map-road'), dash: v('map-dash'), dline: v('map-dline'), bld: v('map-bld'), winA: v('map-win-a'), winB: v('map-win-b'), label: v('map-label'), hq: v('map-hq'), hqfill: v('map-hqfill'),
     route: v('map-route'), tint: v('map-tint') || 'transparent', hard: v('pin-hard'), normal: v('pin-normal'), easy: v('pin-easy'), hack: v('pin-hack'), disrupt: v('pin-disrupt'), review: v('pin-review'), busy: v('pin-busy'),

@@ -1,6 +1,6 @@
 // Night Desk service worker: cache-first, fully offline. Music lives in its own cache (nd-music-v1), kept across updates.
-const CACHE='nd-v1.19.0', MUSIC_CACHE='nd-music-v1';
-const ASSETS=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./fonts/bangers.woff2','./fonts/inter.woff2','./fonts/rajdhani.woff2','./fonts/vt323.woff2'];
+const CACHE='nd-v1.20.0', MUSIC_CACHE='nd-music-v1';
+const ASSETS=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./map/blueprint.webp','./map/blueprint.jpg','./map/nightcity.webp','./map/nightcity.jpg','./fonts/bangers.woff2','./fonts/inter.woff2','./fonts/rajdhani.woff2','./fonts/vt323.woff2'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==MUSIC_CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 async function musicResp(req){const c=await caches.open(MUSIC_CACHE);const key=req.url.split('?')[0];const r=await c.match(key);if(!r)return fetch(req);
