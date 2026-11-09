@@ -875,7 +875,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.20.3';
+<script>window.ND_VERSION='nd-v1.20.4';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3516,6 +3516,95 @@ function drawRadar(cv, opts) {
   return { cx, cy, R };
 }
 
+
+/* ---------- v1.20.4 hero map tokens (shape/contrast; no emoji-font soft-fail) ---------- */
+function heroTokenInk(col) {
+  // luminance of #rrggbb (or rgb()) → dark ink on light discs, light ink on dark discs
+  let r = 20, g = 20, b = 20;
+  if (col && col[0] === '#' && col.length >= 7) {
+    r = parseInt(col.slice(1, 3), 16); g = parseInt(col.slice(3, 5), 16); b = parseInt(col.slice(5, 7), 16);
+  }
+  const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return L > 0.58 ? '#0b1020' : '#ffffff';
+}
+function heroMapGlyphPath(g, id, x, y, s, ink, disc) {
+  // Path-drawn stand-ins for glyphs that are monochrome Unicode or missing on phone emoji fonts.
+  // s ≈ token radius; drawings stay inside ~0.85s.
+  g.save(); g.translate(x, y); g.strokeStyle = ink; g.fillStyle = ink; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.lineWidth = Math.max(1.2, s * 0.14);
+  const u = s / 10;
+  if (id === 'rook') {
+    // Chess rook silhouette ♜
+    g.beginPath();
+    g.moveTo(-4.2 * u, 5 * u); g.lineTo(4.2 * u, 5 * u); g.lineTo(3.4 * u, 2.2 * u); g.lineTo(-3.4 * u, 2.2 * u); g.closePath(); g.fill();
+    g.fillRect(-3.1 * u, -1.2 * u, 6.2 * u, 3.6 * u);
+    g.beginPath();
+    g.moveTo(-4.4 * u, -1.2 * u); g.lineTo(-4.4 * u, -5.2 * u); g.lineTo(-2.2 * u, -5.2 * u); g.lineTo(-2.2 * u, -3.6 * u);
+    g.lineTo(-0.7 * u, -3.6 * u); g.lineTo(-0.7 * u, -5.2 * u); g.lineTo(0.7 * u, -5.2 * u); g.lineTo(0.7 * u, -3.6 * u);
+    g.lineTo(2.2 * u, -3.6 * u); g.lineTo(2.2 * u, -5.2 * u); g.lineTo(4.4 * u, -5.2 * u); g.lineTo(4.4 * u, -1.2 * u); g.closePath(); g.fill();
+  } else if (id === 'brightwire') {
+    // Lightning bolt
+    g.beginPath(); g.moveTo(1.2 * u, -5.5 * u); g.lineTo(-2.8 * u, 0.4 * u); g.lineTo(0.2 * u, 0.4 * u); g.lineTo(-1.2 * u, 5.5 * u);
+    g.lineTo(2.8 * u, -0.2 * u); g.lineTo(-0.2 * u, -0.2 * u); g.closePath(); g.fill();
+  } else if (id === 'brasstack') {
+    // Gear (no destination-out — that would punch the token disc)
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4; g.save(); g.rotate(a);
+      g.fillRect(-1.1 * u, -5.4 * u, 2.2 * u, 3.2 * u); g.restore();
+    }
+    g.beginPath(); g.arc(0, 0, 3.4 * u, 0, 7); g.fill();
+    g.fillStyle = disc || '#000'; g.beginPath(); g.arc(0, 0, 1.35 * u, 0, 7); g.fill();
+    g.fillStyle = ink;
+  } else if (id === 'sundial') {
+    // Hourglass
+    g.beginPath(); g.moveTo(-3.6 * u, -5 * u); g.lineTo(3.6 * u, -5 * u); g.lineTo(0.4 * u, 0); g.lineTo(3.6 * u, 5 * u);
+    g.lineTo(-3.6 * u, 5 * u); g.lineTo(-0.4 * u, 0); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(-2.2 * u, -4.2 * u); g.lineTo(2.2 * u, -4.2 * u); g.lineTo(0, -0.6 * u); g.closePath(); g.fill();
+  } else if (id === 'solstice') {
+    // Sun
+    g.beginPath(); g.arc(0, 0, 2.6 * u, 0, 7); g.fill();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4; g.beginPath();
+      g.moveTo(Math.cos(a) * 3.4 * u, Math.sin(a) * 3.4 * u);
+      g.lineTo(Math.cos(a) * 5.2 * u, Math.sin(a) * 5.2 * u); g.stroke();
+    }
+  } else if (id === 'matron') {
+    // Shield
+    g.beginPath(); g.moveTo(0, -5.2 * u); g.lineTo(4.2 * u, -3.2 * u); g.lineTo(4.2 * u, 0.4 * u);
+    g.quadraticCurveTo(4.2 * u, 3.8 * u, 0, 5.4 * u); g.quadraticCurveTo(-4.2 * u, 3.8 * u, -4.2 * u, 0.4 * u);
+    g.lineTo(-4.2 * u, -3.2 * u); g.closePath(); g.stroke(); g.globalAlpha = 0.9; g.fill(); g.globalAlpha = 1;
+  } else if (id === 'snare') {
+    // Web diamond
+    g.beginPath(); g.moveTo(0, -5 * u); g.lineTo(5 * u, 0); g.lineTo(0, 5 * u); g.lineTo(-5 * u, 0); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(0, -2.6 * u); g.lineTo(2.6 * u, 0); g.lineTo(0, 2.6 * u); g.lineTo(-2.6 * u, 0); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(0, -5 * u); g.lineTo(0, 5 * u); g.moveTo(-5 * u, 0); g.lineTo(5 * u, 0); g.stroke();
+  } else if (id === 'halogen') {
+    // Light bulb
+    g.beginPath(); g.arc(0, -1.2 * u, 3.4 * u, Math.PI * 0.15, Math.PI * 0.85, true); g.stroke();
+    g.strokeRect(-1.6 * u, 2.2 * u, 3.2 * u, 2.4 * u);
+    g.beginPath(); g.moveTo(-1.4 * u, 1.8 * u); g.lineTo(1.4 * u, 1.8 * u); g.stroke();
+  } else {
+    g.restore(); return false;
+  }
+  g.restore(); return true;
+}
+function drawHeroMapToken(g, x, y, hh) {
+  const r = 10;
+  g.fillStyle = hh.color; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  // dark rim so light-coloured heroes still read on bright map art
+  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 1.25; g.stroke();
+  const ink = heroTokenInk(hh.color);
+  if (heroMapGlyphPath(g, hh.id, x, y, r, ink, hh.color)) return;
+  // Colour emoji (or any non-shape hero): contrast fill + ink outline so monochrome fallbacks never vanish into the disc
+  g.font = '12px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.lineWidth = 2.5;
+  g.strokeStyle = ink === '#ffffff' ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.55)';
+  g.fillStyle = ink;
+  try { g.strokeText(hh.emoji, x, y + 1); } catch (e) { }
+  g.fillText(hh.emoji, x, y + 1);
+}
+
 /* ---------- map ---------- */
 const MapV = { w: 0, h: 0, bld: null };
 function mapResize() { const c = $('map'), dpr = Math.min(2, devicePixelRatio || 1); const w = c.clientWidth, hh = c.clientHeight; if (!w || !hh) return; const changed = c.width !== Math.round(w * dpr) || c.height !== Math.round(hh * dpr); if (changed) { c.width = Math.round(w * dpr); c.height = Math.round(hh * dpr); if (typeof mapStyleInvalidate === 'function') mapStyleInvalidate(); } MapV.w = w; MapV.h = hh; MapV.dpr = dpr; }
@@ -3564,7 +3653,7 @@ function drawMap(t) {
     g.strokeStyle = T.route; g.lineWidth = 2; g.beginPath(); const a = mapPos(HQ.u, HQ.v), b = mapPos(pin.u, HQ.v), e = mapPos(pin.u, pin.v); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(e[0], e[1]); g.stroke();
     cl.team.forEach((id, i) => { const hh = camp.heroes[id]; let [x, y] = pathPoint(pin, p); const off = (i - (cl.team.length - 1) / 2) * 13; if (cl.stage === 'work') { const an = t * 1.5 + i * 2; x += Math.cos(an) * (R + 8); y += Math.sin(an) * (R + 8); } else { x += off * 0.5; y += off * 0.5; }
       if (LV && cl.stage !== 'work') { const q = clamp(cl.stage === 'travel' ? p - 0.06 : p + 0.06, 0, 1); let [tx, ty] = pathPoint(pin, q); tx += off * 0.5; ty += off * 0.5; g.strokeStyle = T.trail; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(tx, ty); g.lineTo(x, y); g.stroke(); g.lineCap = 'butt'; }
-      g.fillStyle = hh.color; g.beginPath(); g.arc(x, y, 10, 0, 7); g.fill(); g.font = '12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(hh.emoji, x, y + 1); });
+      drawHeroMapToken(g, x, y, hh); });
   }
   // linked competing pairs: dashed line between the two pins
   for (const cl of S.calls) if (cl.pairUid && cl.stage === 'pending' && cl.uid < cl.pairUid) { const o = S.calls.find(x => x.uid === cl.pairUid); if (!o || o.stage !== 'pending') continue; const [x1, y1] = mapPos(cl.pos.u, cl.pos.v), [x2, y2] = mapPos(o.pos.u, o.pos.v); g.strokeStyle = T.pair; g.setLineDash([6, 5]); g.lineWidth = 2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]); }
