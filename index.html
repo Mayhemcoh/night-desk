@@ -875,7 +875,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.20.2';
+<script>window.ND_VERSION='nd-v1.20.3';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1141,7 +1141,7 @@ const POWERS = {
   audittrail: { name: 'Audit Trail', desc: 'Follows the money: +1 Wits to the team on calls that need Wits 5+.', onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 1; } },
   compound: { name: 'Compound Interest', desc: 'Team XP +20% on calls she joins, and her paperwork reveals the call requirements in the briefing when assigned.', xpBoost: 0.20, preview: true },
   fineprint: { name: 'Fine Print', slotBonus: true, desc: '(Retired) Slot bonus (calls with 3+ slots): +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } }, // kept for old saves until migrate
-  codewhisper: { name: 'Code Whisper', kind: 'hack', hack: 'code', desc: 'Hacking: once per hack, re-show the lock or arrow code you need (no walking back). Does nothing on normal calls.', },
+  codewhisper: { name: 'Code Whisper', kind: 'hack', hack: 'code', desc: 'Hacking: once per hack, re-show a lock or arrow code you already read (no walking back). Does nothing on normal calls.', },
   audittrail2: { name: 'Audit Trail ✦', signature: true, desc: 'MK II: +2 Wits to the team on calls that need Wits 5+, and team XP +15% on her calls.', xpBoost: 0.15, onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 2; } },
   headliner: { name: 'Headliner', slotBonus: true, desc: 'Slot bonus (calls with 3+ slots): +2 Presence in slot 1.', onCompute(c) { if (c.slot === 0) c.st[3] += 2; } },
   ovation: { name: 'Standing Ovation', desc: 'Team XP +20% on calls he joins.', xpBoost: 0.20 },
@@ -1541,6 +1541,13 @@ function genProceduralLayout(rng, size) {
   return { name: 'Generated ' + size + 'x' + size, time: Math.min(CONFIG.hack.timeMax, 40 + size * 2), seq: 6, rows: g.map(r => r.join('')), generated: true };
 }
 
+const HK_INK = '#070b16'; // v1.20.3 token / outline ink (dark on every Look)
+const HK_SCOUT = { V: '#ef4444', H: '#f472b6', K: '#ffffff', k: '#ffffff', U: '#ffd23f', G: '#ffd23f', R: '#67e8f9', L: '#ffffff', A: '#67e8f9', C: '#ffd23f', Z: '#fca5a5',
+  T: '#e9d5ff', Y: '#fbbf24', Q: '#fbbf24', W: '#c4b5fd', D: '#ffcc66', E: '#22d3ee', F: '#ffffff', B: '#7dd3fc', N: '#f0abfc', P: '#9ae6b4', X: '#4ade80' };
+function hackTerminalGlyph(ctx, sx, sy, cs, col) { // ⌨ terminal drawn with shapes: a monitor with a prompt over a keyboard bar
+  const u = cs / 20, x = sx + cs / 2, y = sy + cs / 2; ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(1.2, u * 1.5);
+  ctx.strokeRect(x - 6 * u, y - 6 * u, 12 * u, 8 * u); ctx.fillRect(x - 4 * u, y - 4 * u, 2.5 * u, 1.6 * u); ctx.fillRect(x - 1 * u, y - 1.5 * u, 4 * u, 1.4 * u);
+  ctx.fillRect(x - 7 * u, y + 3.5 * u, 14 * u, 3 * u); ctx.restore(); }
 const HACK_THEME_DEFAULT = { bg: '#050814', wall: '#03050d', wallLine: '#141c38', floor: '#1d3a7a', closed: '#070b18', player: '#4fb3ff', playerCh: '#ffd23f' };
 class HackGame {
   constructor(layout, rng, opts) {
@@ -1598,6 +1605,10 @@ class HackGame {
     const info = {}; const p = hackPlan(this, { ignoreAv: true, maxStates: 20000, info }); this._stuck = !p && !info.budget; return this._stuck; }
   reveal() { if (!this.invisible) return; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!dx || !dy) this.seen.add((this.px + dx) + ',' + (this.py + dy)); }
   inZone(x, y) { return this.zone.has(x + ',' + y); }
+  liveItem(x, y) { // v1.20.3: a tool / task / gate / exit that is still on the map (never fogged, always Scout-highlighted)
+    const c = this.ch(x, y), k = x + ',' + y; if (!HK_SCOUT[c]) return false;
+    if (c === 'C') return !this.used[k]; if (c === 'T' || c === 'Y') return !this.picked[k]; if (c === 'F') return !this.files[k];
+    if ('DWQEG'.includes(c)) return !this.passable(x, y); if (c === 'V' || c === 'H') return false; return true; }
   isHidden(x, y) { return this.invisible && !this.seen.has(x + ',' + y) && this.ch(x, y) !== 'X' && this.ch(x, y) !== 'S'; }
   passable(x, y) {
     const c = this.ch(x, y);
@@ -1700,20 +1711,24 @@ class HackGame {
     const x0 = Math.max(0, Math.floor(-ox / cs)), x1 = Math.min(this.W - 1, Math.ceil((w - ox) / cs)), y0 = Math.max(0, Math.floor(-oy / cs)), y1 = Math.min(this.H - 1, Math.ceil((h - oy) / cs));
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const c = this.ch(x, y); const [sx, sy] = P(x, y); const pass = this.passable(x, y);
-      if (this.isHidden(x, y) && !(this.scoutUntil && performance.now() < this.scoutUntil)) { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = '#0d1428'; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
-      if (c === '#') { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = HT.wallLine; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
-      ctx.fillStyle = pass ? HT.floor : HT.closed; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2);
-      if (this.inZone(x, y)) { ctx.fillStyle = 'rgba(239,68,68,.32)'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); }
+      const fog = this.isHidden(x, y) && !(this.scoutUntil && performance.now() < this.scoutUntil);
+      if (fog) { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = '#0d1428'; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); if (!this.liveItem(x, y)) continue; } // v1.20.3: 👁 fog hides floor only, never a tool / task
+      else if (c === '#') { ctx.fillStyle = HT.wall; ctx.fillRect(sx, sy, cs, cs); ctx.strokeStyle = HT.wallLine; ctx.strokeRect(sx + 0.5, sy + 0.5, cs - 1, cs - 1); continue; }
+      if (!fog) { ctx.fillStyle = pass ? HT.floor : HT.closed; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); }
+      if (this.inZone(x, y) && !fog) { ctx.fillStyle = 'rgba(239,68,68,.32)'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); }
       if ('abcd'.includes(c) && !pass) { ctx.strokeStyle = '#334'; ctx.setLineDash([3, 3]); ctx.strokeRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.setLineDash([]); }
+      const gateBack = col => { ctx.fillStyle = HK_INK; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.strokeRect(sx + 2, sy + 2, cs - 4, cs - 4); ctx.lineWidth = 1; };
+      if ('DWQEG'.includes(c) && !pass) gateBack({ D: '#ffcc66', W: '#c4b5fd', Q: '#fbbf24', E: '#22d3ee', G: '#ffd23f' }[c]);
       if (c === 'D' && !pass) { ctx.fillStyle = '#7a4b12'; ctx.fillRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.fillStyle = '#ffcc66'; ctx.font = `${cs * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▣', sx + cs / 2, sy + cs / 2); }
-      if (c === 'W' && !pass) { ctx.fillStyle = '#3a2f4a'; ctx.fillRect(sx + 1, sy + 1, cs - 2, cs - 2); ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + cs * 0.3, sy + 3); ctx.lineTo(sx + cs * 0.55, sy + cs * 0.45); ctx.lineTo(sx + cs * 0.4, sy + cs * 0.6); ctx.lineTo(sx + cs * 0.7, sy + cs - 3); ctx.stroke(); ctx.lineWidth = 1; }
+      if (c === 'W' && !pass) { ctx.fillStyle = '#3a2f4a'; ctx.fillRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = Math.max(2, cs * 0.08); ctx.beginPath(); ctx.moveTo(sx + cs * 0.3, sy + 3); ctx.lineTo(sx + cs * 0.55, sy + cs * 0.45); ctx.lineTo(sx + cs * 0.4, sy + cs * 0.6); ctx.lineTo(sx + cs * 0.7, sy + cs - 3); ctx.stroke(); ctx.lineWidth = 1; }
       if (c === 'Q' && !pass) { ctx.fillStyle = '#5b3a0e'; ctx.fillRect(sx + 3, sy + 3, cs - 6, cs - 6); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); ctx.lineWidth = 1; }
       if (c === 'E' && !pass) { ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(sx + 3, sy + i * cs / 4); ctx.lineTo(sx + cs - 3, sy + i * cs / 4); ctx.stroke(); } ctx.lineWidth = 1; }
       if (c === 'G' && !pass) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(sx + i * cs / 4, sy + 3); ctx.lineTo(sx + i * cs / 4, sy + cs - 3); ctx.stroke(); } ctx.lineWidth = 1; }
-      const icon = (txt, col) => { ctx.fillStyle = col; ctx.font = `bold ${Math.floor(cs * 0.55)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx + cs / 2, sy + cs / 2 + 1); };
+      const tok = col => { const r = cs * 0.43, cx = sx + cs / 2, cy = sy + cs / 2; ctx.fillStyle = HK_INK; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, cs * 0.075); ctx.stroke(); ctx.lineWidth = 1; }; // v1.20.3: every tool / task sits on a dark token with a bright ring, so it reads on any Look's floor (Comic's cream floor hid the white ⌨)
+      const icon = (txt, col) => { tok(col); ctx.fillStyle = col; ctx.font = `bold ${Math.floor(cs * 0.55)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx + cs / 2, sy + cs / 2 + 1); };
       const k = x + ',' + y;
-      if (c === 'X') { ctx.fillStyle = '#22c55e'; ctx.beginPath(); for (let i = 0; i < 6; i++) { const an = Math.PI / 3 * i + t; ctx.lineTo(sx + cs / 2 + Math.cos(an) * cs * 0.4, sy + cs / 2 + Math.sin(an) * cs * 0.4); } ctx.fill(); }
-      if (c === 'C') icon(this.used[k] ? '·' : '⚡', this.used[k] ? '#445' : '#ffd23f');
+      if (c === 'X') { tok('#4ade80'); ctx.fillStyle = '#22c55e'; ctx.beginPath(); for (let i = 0; i < 6; i++) { const an = Math.PI / 3 * i + t; ctx.lineTo(sx + cs / 2 + Math.cos(an) * cs * 0.4, sy + cs / 2 + Math.sin(an) * cs * 0.4); } ctx.fill(); }
+      if (c === 'C') { if (this.used[k]) { ctx.fillStyle = '#556'; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, Math.max(1, cs * 0.06), 0, 7); ctx.fill(); } else icon('⚡', '#ffd23f'); }
       if (c === 'U') icon(this.bulb >= (this.L.bulbNeed || 1) ? '💡' : '○' + (this.L.bulbNeed > 1 ? this.bulb + '/' + this.L.bulbNeed : ''), '#ffd23f');
       if (c === 'K' || c === 'k') icon('🔑', '#fff');
       if (c === 'L') icon(this.lockOpen ? '🔓' : '🔒', '#fff');
@@ -1722,15 +1737,15 @@ class HackGame {
       if (c === 'Y' && !this.picked[k]) icon('🗝', '#fbbf24');
       if (c === 'Q' && !pass) icon('🗝', '#fde68a');
       if (c === 'F' && !this.files[k]) icon('📁', '#fff');
-      if (c === 'R') icon('⌨', this.arrowKnown ? '#67e8f9' : '#fff');
+      if (c === 'R') { const col = this.arrowKnown ? '#67e8f9' : '#ffffff'; tok(col); hackTerminalGlyph(ctx, sx, sy, cs, col); } // v1.20.3: drawn as shapes (no font / emoji dependency)
       if (c === 'A') icon(this.arrowOpen ? '✓' : '⇄', '#67e8f9');
       if (c === 'Z') icon('⚠', this.alarm ? '#ef4444' : '#fca5a5');
       if (c === 'P') icon('⚑', this.cp && this.cp.px === x && this.cp.py === y ? '#22c55e' : '#9ab');
     }
     if (pv) { ctx.lineWidth = 2; ctx.setLineDash([4, 3]); for (const [x, y] of pv.appear) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#22c55e'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } for (const [x, y] of pv.vanish) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#ef4444'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } ctx.setLineDash([]); ctx.lineWidth = 1; }
-    for (const a of this.av) { if (!a.alive) continue; if (a.hunter) { const [sx, sy] = P(a.x, a.y); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : 'rgba(244,114,182,.45)'; ctx.beginPath(); const r = cs * (on ? 0.36 * (1 + 0.1 * Math.sin(t * 12)) : 0.3); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.fill(); if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
+    for (const a of this.av) { if (!a.alive) continue; if (a.hunter) { const [sx, sy] = P(a.x, a.y); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : '#f472b6'; ctx.beginPath(); const r = cs * (on ? 0.4 * (1 + 0.1 * Math.sin(t * 12)) : 0.36); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.closePath(); ctx.fill(); ctx.strokeStyle = HK_INK; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.stroke(); ctx.lineWidth = 1; if (!on) { ctx.fillStyle = HK_INK; ctx.font = `bold ${Math.floor(cs * 0.32)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', sx + cs / 2, sy + cs / 2 + 1); } if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
       const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * ((this.L.avZone || CONFIG.hack.avZone) + 0.5), 0, 7); ctx.stroke();
-      const [sx, sy] = P(a.x, a.y); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); }
+      const [sx, sy] = P(a.x, a.y); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = HK_INK; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.fill(); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.stroke(); ctx.lineWidth = 1; }
     // v1.19.0 Route Ghost / Console Scout overlays (read-only; no puzzle state)
     if (this.ghostPath && this.ghostUntil && performance.now() < this.ghostUntil) {
       ctx.fillStyle = 'rgba(148,163,184,.55)'; ctx.strokeStyle = 'rgba(226,232,240,.9)'; ctx.lineWidth = Math.max(2, cs * 0.08);
@@ -1739,8 +1754,9 @@ class HackGame {
       ctx.lineWidth = 1;
     }
     if (this.scoutUntil && performance.now() < this.scoutUntil) {
-      const pulse = 0.35 + 0.25 * Math.sin(t * 10); const marks = { V: '#ef4444', H: '#f472b6', K: '#fff', k: '#fff', U: '#ffd23f', G: '#ffd23f', R: '#67e8f9', L: '#fff', A: '#67e8f9', C: '#ffd23f', Z: '#fca5a5' };
-      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) { const c = this.ch(x, y); if (!marks[c]) continue; const [sx, sy] = P(x, y); ctx.strokeStyle = marks[c]; ctx.globalAlpha = pulse; ctx.lineWidth = 2; ctx.strokeRect(sx + 2, sy + 2, cs - 4, cs - 4); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
+      const pulse = 0.8 + 0.2 * Math.sin(t * 10), lw = Math.max(2, cs * 0.09);
+      for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) { const c = this.ch(x, y), col = HK_SCOUT[c]; if (!col || !this.liveItem(x, y)) continue; const [sx, sy] = P(x, y); ctx.globalAlpha = pulse;
+        ctx.strokeStyle = HK_INK; ctx.lineWidth = lw + 2; ctx.strokeRect(sx + 1.5, sy + 1.5, cs - 3, cs - 3); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.strokeRect(sx + 1.5, sy + 1.5, cs - 3, cs - 3); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
     }
     const [px, py] = P(this.px, this.py); const m = cs * 0.2 + (this.bump ? 2 : 0);
     ctx.fillStyle = this.charge ? HT.playerCh : HT.player; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m); ctx.shadowBlur = 0;
@@ -2023,7 +2039,7 @@ function genHackForShift(seed, idx, features, opts) { const k = hackGenKey(seed,
   if (!L) { L = genHackForShiftRaw(seed, idx, features, opts); hackCachePut(k, L); } return Object.assign({}, L); }
 function hackCachePut(k, L) { HACK_GEN_CACHE.set(k, L); HACK_GEN_PENDING.delete(k); if (HACK_GEN_CACHE.size > 60) HACK_GEN_CACHE.delete(HACK_GEN_CACHE.keys().next().value); }
 function hackWorkerSrc() { const J = JSON.stringify;
-  return ['const CONFIG={hack:' + J(CONFIG.hack) + '};', 'const DIRS=' + J(DIRS) + ';', 'const ARROW=' + J(ARROW) + ';', 'const HACK_THEME_DEFAULT=' + J(HACK_THEME_DEFAULT) + ';', 'const HACK_ROOMS=' + J(HACK_ROOMS) + ';', 'const HACK_PACE=' + J(HACK_PACE) + ';', 'const HACK_CURVE=' + J(HACK_CURVE) + ';', 'const HACK_TUTORIAL=' + J(HACK_TUTORIAL) + ';',
+  return ['const CONFIG={hack:' + J(CONFIG.hack) + '};', 'const DIRS=' + J(DIRS) + ';', 'const ARROW=' + J(ARROW) + ';', 'const HACK_THEME_DEFAULT=' + J(HACK_THEME_DEFAULT) + ';', 'const HK_INK=' + J(HK_INK) + ';', 'const HK_SCOUT=' + J(HK_SCOUT) + ';', 'const HACK_ROOMS=' + J(HACK_ROOMS) + ';', 'const HACK_PACE=' + J(HACK_PACE) + ';', 'const HACK_CURVE=' + J(HACK_CURVE) + ';', 'const HACK_TUTORIAL=' + J(HACK_TUTORIAL) + ';',
     'const HACK_SAFETY=' + J(HACK_SAFETY) + ';', 'const HACK_HUMAN=' + J(HACK_HUMAN) + ';', 'const HACK_FALLBACK=' + J(HACK_FALLBACK) + ';',
     HackGame, hackPlan, hackRng32, hackSeed, hackRoomTpl, hackFeatCfg, genHackMap, hackSimulate, hackAvReach, hackSafetyKey, hackSafetyProj, hackSafety, hackProfile, hackHumanBudget, hackTimeFor, hackFallbackLayout, genProceduralLayout, genHackForShiftRaw, hackTutorialLayout].map(String).join('\n') +
     '\nonmessage=e=>{const d=e.data;let L=null;try{L=genHackForShiftRaw(d.seed,d.idx,d.features,d.opts);}catch(err){}postMessage({k:d.k,L});};'; }
@@ -3935,10 +3951,12 @@ function useHackPower(pid) { const H = UI.hack; if (!H || H.game.status !== 'pla
   if (x.kind === 'scout') { if (H.spent[pid]) return; H.spent[pid] = true; g.scoutUntil = performance.now() + 2800; H.zoom = true; clearTimeout(H.scoutT); H.scoutT = setTimeout(() => { if (UI.hack === H) { H.zoom = false; renderHackPowers(); } }, 2800); g.msg = x.hero.codename + ': Console Scout — map lit.'; Sfx.chime(); toast('💡 Console Scout'); renderHackPowers(); return; }
   if (x.kind === 'ghost') { if (H.spent[pid]) return; const info = {}; const plan = hackPlan(g, { ignoreAv: true, maxStates: 20000, info }); if (!plan || info.budget) { g.msg = 'Route Ghost: no clear path right now (try Reboot if stuck).'; Sfx.alarm(); return; }
     H.spent[pid] = true; const steps = plan.filter(a => typeof a === 'string' && (a === 'up' || a === 'down' || a === 'left' || a === 'right')).slice(0, 10); g.ghostPath = steps; g.ghostUntil = performance.now() + 3500; g.msg = x.hero.codename + ': Route Ghost — follow the pale marks.'; Sfx.blip(); toast('♜ Route Ghost'); renderHackPowers(); return; }
-  if (x.kind === 'code') { if (H.spent[pid]) return; H.spent[pid] = true; let text = '';
-    if (!g.lockOpen && g.code) text = 'LOCK CODE: ' + g.code;
-    if (!g.arrowOpen && g.arrowCode && g.arrowCode.length) text = (text ? text + ' · ' : '') + 'ARROW: ' + g.arrowCode.map(d => ARROW[d]).join('');
-    if (!text) text = 'No lock or arrow code left on this map.';
+  if (x.kind === 'code') { if (H.spent[pid]) return; let text = ''; const kn = g.seenK || {}; // v1.20.3: RE-shows only codes already read (🔑 node / ⌨ terminal); never reveals an unread one
+    const lockLeft = !g.lockOpen && !!g.code && g.find('L').length > 0, arrowLeft = !g.arrowOpen && !!(g.arrowCode && g.arrowCode.length) && g.find('A').length > 0;
+    if (lockLeft && (kn.K || kn.k)) text = 'LOCK CODE: ' + (!g.split ? g.code : (kn.K ? g.code.slice(0, 2) : '__') + (kn.k ? g.code.slice(2) : '__'));
+    if (arrowLeft && g.arrowKnown) text = (text ? text + ' · ' : '') + 'ARROW: ' + g.arrowCode.map(d => ARROW[d]).join('');
+    if (!text && (lockLeft || arrowLeft)) { g.msg = x.hero.codename + ': nothing to re-show yet. Read the ' + (arrowLeft && !g.arrowKnown ? '⌨ terminal' : '🔑 code') + ' first.'; toast('🧾 Code Whisper: read the code first'); return; } // not spent
+    H.spent[pid] = true; if (!text) text = 'No lock or arrow code left on this map.';
     g.keyText = text; g.keyShow = Math.max(g.keyShow, 4.5); g.msg = x.hero.codename + ': Code Whisper.'; Sfx.key ? Sfx.blip() : Sfx.blip(); toast('🧾 Code Whisper'); renderHackPowers(); return; }
   if (x.kind === 'softreboot') { if (H.spent[pid] && !H.softArmed) return; if (H.softArmed) return; H.spent[pid] = true; H.softArmed = true; g.msg = x.hero.codename + ': Soft Reboot armed — next ↻ is free.'; Sfx.click(); toast('🔧 Soft Reboot ready'); renderHackPowers(); renderHackBtns(); return; }
 }
