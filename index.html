@@ -875,7 +875,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.20.1';
+<script>window.ND_VERSION='nd-v1.20.2';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3535,7 +3535,7 @@ function drawMap(t) {
   // Art styles: glowing building cluster under pending/active call pins
   if (typeof mapStyleIsArt === 'function' && mapStyleIsArt()) {
     for (const cl of S.calls) {
-      if (cl.stage === 'closed' || cl.stage === 'return') continue;
+      if (cl.stage === 'closed' || cl.stage === 'return' || (cl.reviewed && cl.returnDone)) continue;
       const [cx, cy] = mapPos(cl.pos.u, cl.pos.v);
       const col = cl.difficulty === 'hard' ? T.hard : cl.difficulty === 'normal' ? T.normal : T.easy;
       if (typeof paintCallCluster === 'function') paintCallCluster(g, cx, cy, cl.stage === 'pending' ? col : T.busy);
@@ -3554,7 +3554,7 @@ function drawMap(t) {
   for (const cl of S.calls) if (cl.pairUid && cl.stage === 'pending' && cl.uid < cl.pairUid) { const o = S.calls.find(x => x.uid === cl.pairUid); if (!o || o.stage !== 'pending') continue; const [x1, y1] = mapPos(cl.pos.u, cl.pos.v), [x2, y2] = mapPos(o.pos.u, o.pos.v); g.strokeStyle = T.pair; g.setLineDash([6, 5]); g.lineWidth = 2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]); }
   // pins
   for (const cl of S.calls) {
-    if (cl.stage === 'closed') continue; let [x, y] = mapPos(cl.pos.u, cl.pos.v); const tpl = cl.tpl;
+    if (cl.stage === 'closed' || (cl.reviewed && cl.returnDone)) continue; let [x, y] = mapPos(cl.pos.u, cl.pos.v); const tpl = cl.tpl;
     let col = cl.difficulty === 'hard' ? T.hard : cl.difficulty === 'normal' ? T.normal : T.easy; let icon = callIcon(cl);
     let frac = null, urgent = false, label = null;
     if (cl.stage === 'pending') { const rem = cl.expiresAt - S.t; frac = rem / (cl.expiresAt - cl.spawnedAt); urgent = rem <= CONFIG.alarmSeconds; if (tpl.type === 'hack') col = T.hack; }
@@ -3574,7 +3574,7 @@ function drawMap(t) {
   }
   if (UI.debug) { $('dbg').classList.remove('hidden'); $('dbg').textContent = `t=${S.t.toFixed(1)}s seed=${S.seed}\npending=${pendingCalls(S).length} calls=${S.calls.length}\nnextSpawn=${S.nextSpawn.toFixed(1)} speed=${S.speed}x`; } else $('dbg').classList.add('hidden');
 }
-function mapHit(px, py) { if (!UI.S) return null; const R = pinRadius() + 10; let best = null, bd = 1e9; for (const cl of UI.S.calls) { if (cl.stage === 'closed') continue; const [x, y] = mapPos(cl.pos.u, cl.pos.v); const d = Math.hypot(px - x, py - y); if (d < R && d < bd) { bd = d; best = cl; } } return best; }
+function mapHit(px, py) { if (!UI.S) return null; const R = pinRadius() + 10; let best = null, bd = 1e9; for (const cl of UI.S.calls) { if (cl.stage === 'closed' || (cl.reviewed && cl.returnDone)) continue; const [x, y] = mapPos(cl.pos.u, cl.pos.v); const d = Math.hypot(px - x, py - y); if (d < R && d < bd) { bd = d; best = cl; } } return best; }
 
 /* ---------- roster & queue & top ---------- */
 function buildRoster() {
