@@ -540,6 +540,32 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .hpowers .hpwr.armed{border-color:var(--yel);color:var(--yel);background:#2a2610}
 .hpowers .hpwr b{color:var(--cyan)}
 
+
+/* ===== v1.22.0 Campaign call-mode (Story / Random) ===== */
+.start-modes{display:flex;flex-direction:column;gap:10px;margin:10px 0 6px;width:100%}
+.start-modes .btn{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 14px;text-align:left;letter-spacing:.2px;line-height:1.15}
+.start-modes .btn .sm-ico{font-size:26px;flex:0 0 auto;width:34px;text-align:center}
+.start-modes .btn .sm-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.start-modes .btn .sm-txt b{font-size:14px;letter-spacing:.6px}
+.start-modes .btn .sm-txt small{font-size:11px;opacity:.78;font-weight:500;letter-spacing:0;white-space:normal}
+.start-modes .btn.start-random{background:linear-gradient(180deg,#173052,#0f2038);border:1px solid var(--cyan);color:#d9f6ff;box-shadow:0 0 0 1px rgba(80,200,255,.12) inset}
+.start-modes .btn.start-random:hover{filter:brightness(1.08)}
+.start-modes .btn.start-story{/* uses .btn.pri */ }
+.callmode-pill{background:rgba(120,160,255,.12);border:1px solid rgba(140,180,255,.35);color:var(--text)}
+.callmode-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.callmode-row{opacity:.92}
+.cont-callmode{opacity:.85;font-weight:600}
+@media(min-width:720px){
+  .start-modes{flex-direction:row;align-items:stretch}
+  .start-modes .btn{flex:1;min-height:72px}
+}
+@media(max-width:420px){
+  .start-modes .btn{min-height:58px;padding:10px 12px;gap:10px}
+  .start-modes .btn .sm-ico{font-size:22px;width:28px}
+  .start-modes .btn .sm-txt b{font-size:12.5px;letter-spacing:.4px}
+  .start-modes .btn .sm-txt small{font-size:10.5px}
+}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -875,7 +901,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.21.0';
+<script>window.ND_VERSION='nd-v1.22.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2117,7 +2143,7 @@ function newCampaign(seed, opts) {
   const pool = opts.mode === 'selection' ? validatePool(opts.pool) : opts.pool ? validatePool(opts.pool) : opts.mode === 'classic' ? LEGACY_POOL.slice() : pickRoster(seed);
   const rm = opts.mode === 'selection' ? 'selection' : opts.pool ? (opts.pool.join() === LEGACY_POOL.join() ? 'classic' : 'custom') : opts.mode === 'classic' ? 'classic' : 'random';
   const c = { v: 5, mode: rm === 'custom' ? 'selection' : rm, wildQueue: [], pool, rosterMode: rm, wildGiven: 0, seenLevelUp: {}, levelQueue: [], seed, shiftIdx: 0, heroes: {}, roster: [], totals: { success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0, score: 0 }, grades: [], rankPts: 0, rank: 1,
-    conflictWins: {}, conflictNeutral: {}, pendingWild: 0, trainingDone: [], phase: 'briefing', history: [], blackoutDone: false, layoutIdx: 0, missionSet: opts.missionSet || 'v1.8',
+    conflictWins: {}, conflictNeutral: {}, pendingWild: 0, trainingDone: [], phase: 'briefing', history: [], blackoutDone: false, layoutIdx: 0, missionSet: opts.missionSet || 'v1.8', callModeLocked: true,
     missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag(), rulesVersion: 'nd-v1.14.0', heroFails: 0, drizzle: { skips: 0, volunteering: false }, solstice: { joined: false } };
   for (const id of pool) c.heroes[id] = makeHero(heroDef(id));
   ensureRogueBoss(c); // v1.13.0: seeded + saved now, revealed only on Shift 8 (Classic random calls)
@@ -2174,7 +2200,11 @@ function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) re
 function removeVolunteer(c, id) { if (c.volunteer && c.volunteer === id) { c.volunteer = null; c.volunteerRemoved = true; } }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV119(migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c)))))); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV122(migrateV119(migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c))))))); }
+function migrateV122(c) { // v1.22.0: lock Classic-random-calls choice as campaign call-mode (Story=v1.8 / Random=legacy). Keep existing missionSet; never flip it here.
+  if (c.missionSet !== 'legacy') c.missionSet = 'v1.8';
+  c.callModeLocked = true;
+  return c; }
 function migrateV119(c) { // v1.19.0 hack-power train swaps via RETIRED_POWERS (flashbang/fork/fineprint/chopshop)
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {};
     h.powers = (h.powers || []).map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]);
@@ -4262,7 +4292,7 @@ function openDispatcherFile() {
     const P = sheetParts(m, `<h2>🗂 Dispatcher File</h2><span class="pill">Seed ${camp.seed}</span>`,
       `<div class="card"><h3>Rank ${camp.rank}: ${esc(CONFIG.rankNames[camp.rank - 1])}</h3><div class="bar" style="height:10px"><i style="width:${hi ? 100 * clamp((pts - lo) / (hi - lo), 0, 1) : 100}%"></i></div><div style="font:12px ui-monospace,monospace;margin-top:4px">${hi ? `${pts} / ${hi} rank points to ${esc(CONFIG.rankNames[camp.rank])}` : `${pts} rank points · top rank`}</div><small style="color:var(--dim)">Rank points = successful calls + shift grade bonus (S +5, A +3, B +1).</small><div class="thr">${ranks}</div></div>
        <div class="card" style="margin-top:8px"><h3>Rewards</h3>${rew}<div class="note"><b>🎲 Wildcard points:</b> ${camp.wildGiven || 0} given · ${wq} waiting · ${wildLeft} left of ${CONFIG.maxWildcards}${camp.wildDiscarded ? ` · ${camp.wildDiscarded} discarded` : ''}. The stat is rolled first; then you pick who gets it. None on the final shift.</div></div>
-       <div class="card" style="margin-top:8px"><h3>Roster</h3><p class="txt" style="font-size:13px"><b class="df-mode">${modeLabel(camp.mode)}</b>${camp.mode === 'random' ? ` (seed ${camp.seed})` : ''}: ${(camp.pool || []).map(id => heroDef(id).emoji + ' ' + esc(heroDef(id).codename)).join(', ')}</p>${camp.mode === 'selection' ? `<div class="df-order">${camp.pool.map((id, i) => `<span class="pill">${i + 1}. ${heroDef(id).emoji} ${esc(heroDef(id).codename)} · ${SLOT_LABEL(i)}</span>`).join(' ')}</div>` : ''}</div><div class="card" style="margin-top:8px"><h3>Lifetime totals</h3><table class="sum"><tr><td>Shifts completed</td><td>${camp.grades.length}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries}</td></tr><tr><td>Hero XP earned</td><td>${t.xp}</td></tr><tr><td>Score</td><td>${t.score}</td></tr><tr><td>Grades</td><td>${camp.grades.join(' ') || '—'}</td></tr></table></div>`,
+       <div class="card" style="margin-top:8px"><h3>Roster</h3><p class="txt" style="font-size:13px"><b class="df-mode">${modeLabel(camp.mode)}</b> · <b class="df-callmode">${callModeIcon(camp.missionSet)} ${callModeLabel(camp.missionSet)}</b>${camp.mode === 'random' ? ` (seed ${camp.seed})` : ''}: ${(camp.pool || []).map(id => heroDef(id).emoji + ' ' + esc(heroDef(id).codename)).join(', ')}</p>${camp.mode === 'selection' ? `<div class="df-order">${camp.pool.map((id, i) => `<span class="pill">${i + 1}. ${heroDef(id).emoji} ${esc(heroDef(id).codename)} · ${SLOT_LABEL(i)}</span>`).join(' ')}</div>` : ''}</div><div class="card" style="margin-top:8px"><h3>Lifetime totals</h3><table class="sum"><tr><td>Shifts completed</td><td>${camp.grades.length}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries}</td></tr><tr><td>Hero XP earned</td><td>${t.xp}</td></tr><tr><td>Score</td><td>${t.score}</td></tr><tr><td>Grades</td><td>${camp.grades.join(' ') || '—'}</td></tr></table></div>`,
       `<button class="btn pri">CLOSE</button>`); P.F.querySelector('button').onclick = () => closeModal(); });
 }
 function openTools() {
@@ -4279,12 +4309,12 @@ function togRow(key, label, val) { return `<div class="tglrow"><span>${label}</s
 function openPause() {
   const S = UI.S; openModal('pause', m => { const render = () => {
     const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
-      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('classicCalls', '🎲 Classic random calls (legacy draw; applies from the next shift)', UI.camp.missionSet === 'legacy')}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
        <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
-    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else if (k === 'classicCalls') { UI.settings.classicCalls = UI.camp.missionSet !== 'legacy'; UI.camp.missionSet = UI.settings.classicCalls ? 'legacy' : 'v1.8'; saveSettings(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
+    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
     P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
@@ -4484,7 +4514,7 @@ function showScreen(html, after) { UI.screen = 'menu'; $('game').classList.add('
 function showTitle() {
   const save = loadCamp(); UI.S = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null;
   showScreen(`<div class="logo">NIGHT<span>DESK</span></div><div class="tag">Dispatch reformed ex-villains. Save the city. Survive the shift.</div>
-   ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span></button>` : ''}
+   ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span> · <span class="cont-callmode">${callModeIcon(save.missionSet)} ${callModeLabel(save.missionSet)}</span></button>` : ''}
    <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
    <div class="card"><h3>Seed (optional)</h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
    <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
@@ -4505,6 +4535,17 @@ function showTitle() {
   });
 }
 function modeLabel(mode) { const m = CAMPAIGN_MODES[mode] || CAMPAIGN_MODES.random; return `${m.icon} ${m.label}`; }
+/* v1.22.0: campaign call-mode (was the Classic random calls toggle). Story = v1.8 deck; Random Calls = legacy draw. Locked for the whole campaign. */
+function callModeLabel(ms) { return ms === 'legacy' ? 'Random Calls Mode' : 'Story Mode'; }
+function callModeIcon(ms) { return ms === 'legacy' ? '🎲' : '📘'; }
+function callModePill(ms) { return `<span class="pill callmode-pill">${callModeIcon(ms)} ${callModeLabel(ms)}</span>`; }
+function startModeButtons(disabled) {
+  const dis = disabled ? ' disabled' : '';
+  return `<div class="start-modes" role="group" aria-label="Choose campaign call mode">
+    <button class="btn pri start-story" data-a="start-story"${dis}><span class="sm-ico">📘</span><span class="sm-txt"><b>START STORY CAMPAIGN</b><small>Scripted nights · training calls · Night Mayor finale</small></span></button>
+    <button class="btn start-random" data-a="start-random"${dis}><span class="sm-ico">🎲</span><span class="sm-txt"><b>START RANDOM CAMPAIGN</b><small>Classic random calls · linked pairs · Rogue finale</small></span></button>
+  </div>`;
+}
 function showNewCampaign(seed, mode, hadSave) {
   if (mode === true) mode = 'classic'; else if (!CAMPAIGN_MODES[mode]) mode = (UI.settings && CAMPAIGN_MODES[UI.settings.lastMode]) ? UI.settings.lastMode : 'random'; // v1.4 boolean shim
   seed = (seed >>> 0) || 1; UI.ncMode = mode;
@@ -4518,20 +4559,33 @@ function showNewCampaign(seed, mode, hadSave) {
     showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">YOUR NIGHT CREW</div>${modes}<p class="tag">${classic ? 'The Original 8, as in earlier versions.' : `8 of ${HERO_DEFS.length} heroes, drafted with seed ${seed}.`} Five start tonight, one joins on shift 2 and two on shift 4.</p>
     <div class="cx-cover">${STATS.map((s, j) => `<div style="--c:${STAT_COLORS[s]}"><b>${STAT_NAMES[s]}</b><span>${chk.totals[j]}</span><small>${best[j].emoji} ${esc(best[j].codename)} ${best[j].stats[j]}</small></div>`).join('')}</div>
     ${classic ? '' : `<div class="row"><button class="btn" data-a="reroll">🎲 REROLL</button></div>`}
-    <button class="btn pri" data-a="start">START CAMPAIGN</button><button class="btn ghost" data-a="title">BACK</button>
+    ${startModeButtons(false)}<button class="btn ghost" data-a="title">BACK</button>
     <div class="nc-grid">${pool.map(id => heroCardHTML(heroDef(id), { cls: 'nc' })).join('')}</div>
     ${chk.pairs ? `<div class="note good">🔗 ${SYNERGY_PAIRS.filter(([a, b]) => pool.includes(a) && pool.includes(b)).map(([a, b]) => heroDef(a).codename + ' + ' + heroDef(b).codename).join(' · ')}</div>` : ''}`, s => {
       bindNC(s); s.querySelectorAll('canvas[data-r]').forEach(cv => drawRadar(cv, { team: heroDef(cv.dataset.r).stats, mini: true }));
       s.querySelectorAll('.nc').forEach(b => b.onclick = () => openCodex(b.dataset.id));
       const rr = s.querySelector('[data-a=reroll]'); if (rr) rr.onclick = () => { Sfx.click(); showNewCampaign((Math.random() * 1e9) >>> 0, 'random', hadSave); };
-      s.querySelector('[data-a=start]').onclick = () => startCampaignWith(seed, classic ? { mode: 'classic' } : {}, mode, hadSave); });
+      const boot = (ms) => startCampaignWith(seed, classic ? { mode: 'classic' } : {}, mode, hadSave, ms);
+      s.querySelector('[data-a=start-story]').onclick = () => boot('v1.8');
+      s.querySelector('[data-a=start-random]').onclick = () => boot('legacy'); });
     UI.ncPool = pool; }
   function bindNC(s) { s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showNewCampaign(seed, b.dataset.mode, hadSave); });
     s.querySelector('[data-a=title]').onclick = showTitle; const ch = s.querySelector('[data-a=choose]'); if (ch) ch.onclick = () => { Sfx.click(); showHeroSelect(seed, hadSave); }; }
   UI.ncSeed = seed;
 }
-function startCampaignWith(seed, opts, mode, hadSave) { const go = () => { UI.camp = newCampaign(seed, Object.assign({ missionSet: UI.settings.classicCalls ? 'legacy' : 'v1.8', missionBag: cloneMissionBag(UI.missionBag || loadMissionBag()) }, opts)); UI.settings.lastMode = mode; saveSettings(); saveCamp(); routeCamp(); };
-  if (hadSave) confirmBox('Replace saved campaign?', 'Starting a new campaign replaces your saved progress.', 'START', go); else go(); }
+function startCampaignWith(seed, opts, mode, hadSave, missionSet) {
+  // v1.22.0: missionSet chosen by the start button (Story=v1.8 / Random=legacy); locked on the save for every shift
+  const ms = missionSet === 'legacy' ? 'legacy' : 'v1.8';
+  const go = () => {
+    UI.camp = newCampaign(seed, Object.assign({ missionSet: ms, missionBag: cloneMissionBag(UI.missionBag || loadMissionBag()) }, opts));
+    UI.camp.callModeLocked = true;
+    UI.settings.lastMode = mode;
+    UI.settings.classicCalls = ms === 'legacy'; // remembered only as a preference; never toggled mid-campaign
+    saveSettings(); saveCamp(); routeCamp();
+  };
+  const label = ms === 'legacy' ? 'START RANDOM' : 'START STORY';
+  if (hadSave) confirmBox('Replace saved campaign?', `Starting a new ${callModeLabel(ms)} campaign replaces your saved progress.`, label, go); else go();
+}
 /* ---------- v1.5 Hero Selection ---------- */
 const SLOT_LABEL = i => i < 5 ? 'START' : i === 5 ? 'SHIFT 2' : 'SHIFT 4'; // DESIGN: slot order = join order (CONFIG.shifts joins 5/1/0/2)
 function showHeroSelect(seed, hadSave) {
@@ -4561,7 +4615,7 @@ function renderHeroSelect() {
      ${con.length ? `<div class="note warn">⚡ Friction: ${con.map(([a, b]) => heroDef(a).codename + ' vs ' + heroDef(b).codename).join(' · ')} (conflicts start on shift ${CONFIG.conflictsFromShift})</div>` : ''}
      ${adv.map(w => `<div class="note warn sel-adv">⚠ ${esc(w)}</div>`).join('')}${adv.length ? '<small style="color:var(--dim)">Advice only: you can still start.</small>' : ''}</div>
     <div class="row"><button class="btn ghost" data-a="clear" ${n ? '' : 'disabled'}>CLEAR</button><button class="btn" data-a="fill" ${n < 8 ? '' : 'disabled'}>🎲 FILL RANDOMLY</button></div>
-    <button class="btn pri" data-a="start" ${n === 8 ? '' : 'disabled'}>${n === 8 ? 'START CAMPAIGN' : `Pick ${8 - n} more`}</button><button class="btn ghost" data-a="back">BACK</button></div>
+    ${n === 8 ? startModeButtons(false) : `<button class="btn pri" disabled>Pick ${8 - n} more</button>`}<button class="btn ghost" data-a="back">BACK</button></div>
    <div class="sel-main"><div class="cx-chips">${['ALL', ...STATS].map((s, i) => `<button class="cx-chip ${st.sort === i - 1 ? 'on' : ''}" data-sort="${i - 1}" ${i ? `style="--c:${STAT_COLORS[s]}"` : ''}>${i ? STAT_NAMES[s] : 'All'}</button>`).join('')}</div>
     <div class="cx-chips"><button class="cx-chip ${st.only5 ? 'on' : ''}" data-a="only5" ${st.sort >= 0 ? '' : 'disabled'}>only ≥5${st.sort >= 0 ? ' ' + STATS[st.sort] : ''}</button>${['all', 'picked', 'unpicked'].map(k => `<button class="cx-chip ${st.show === k ? 'on' : ''}" data-show="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
     <div class="cx-grid sel-grid">${list.map(d => { const k = p.indexOf(d.id); return heroCardHTML(d, { cls: 'sel-card' + (k >= 0 ? ' picked' : ''), attrs: `aria-pressed="${k >= 0}"`, extra: k >= 0 ? `<span class="sel-badge">✔ ${k + 1}</span>` : '' }); }).join('') || '<p class="txt">No heroes match.</p>'}</div></div></div>`;
@@ -4576,7 +4630,9 @@ function renderHeroSelect() {
   root.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { Sfx.click(); selRemove(+b.dataset.rm); });
   root.querySelector('[data-a=clear]').onclick = () => { const go = () => { UI.selPicks = []; st.swap = null; closeModal(); renderHeroSelect(); }; if (n > 2) confirmBox('Clear your crew?', `Remove all ${n} picked heroes?`, 'CLEAR', go); else go(); };
   root.querySelector('[data-a=fill]').onclick = () => { UI.selPicks = fillSelection(p, st.seed ^ (++st.fills * 0x9e37)); st.swap = null; re(); };
-  root.querySelector('[data-a=start]').onclick = () => { if (UI.selPicks.length !== 8) return; startCampaignWith(st.seed, { mode: 'selection', pool: UI.selPicks.slice() }, 'selection', st.hadSave); };
+  const bootSel = (ms) => { if (UI.selPicks.length !== 8) return; startCampaignWith(st.seed, { mode: 'selection', pool: UI.selPicks.slice() }, 'selection', st.hadSave, ms); };
+  const ss = root.querySelector('[data-a=start-story]'); if (ss) ss.onclick = () => bootSel('v1.8');
+  const sr = root.querySelector('[data-a=start-random]'); if (sr) sr.onclick = () => bootSel('legacy');
   root.querySelector('[data-a=back]').onclick = () => showNewCampaign(st.seed, 'selection', st.hadSave);
   $('screen').scrollTop = sc;
 }
@@ -4620,13 +4676,13 @@ function showBrief() { if (UI.camp && UI.camp.revertNote) setTimeout(() => showR
   showScreen(`<div class="logo" style="font-size:34px;margin-top:2vh">SHIFT ${idx + 1}<span>/${CONFIG.campaignShifts}</span></div>
    <div class="card"><h3>Briefing</h3><p class="txt">${esc(shiftBlurb(camp, idx))}</p>${comp ? `<div class="note req">🦅 Corporate is nervous about your numbers. <b>The Comptroller</b> joins tonight as a safety net (fixed stats, no XP).</div>` : ''}
    ${camp.missionSet === 'v1.8' && (missionBlurbs()[idx] || []).length ? `<div class="note good mblurb"><b>📘 New tonight</b>${missionBlurbs()[idx].map(b => `<div>${esc(b)}</div>`).join('')}</div>` : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'v1.8' ? '<div class="note warn">☠ FINALE: protect the City bar and take the Night Mayor\'s signal from 5 to 0.</div>' : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'legacy' ? rogueIntroHTML(camp) : ''}
-   <div class="tglrow"><span>🎲 Classic random calls</span><button class="tgl ${camp.missionSet === 'legacy' ? 'on' : ''}" data-a="classic"></button></div>
+   <div class="note callmode-note">${callModePill(camp.missionSet)} <small style="color:var(--dim)">Locked for this campaign — start a new campaign to change it.</small></div>
    <div class="note">Agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}${toolUnlocked(camp, 'medkit') ? ' · 🩹 Med Kit' : ''}${toolUnlocked(camp, 'jump') ? ' · ⚡ Jump Start' : ''}</div></div>
    <div class="card"><h3>Tonight's roster</h3><div class="grid2">${ids.map(id => { const hh = camp.heroes[id]; return `<div class="mini" style="border-color:${hh.color}66"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small><small>${hh.powers.map(p => POWERS[p].name).join(', ')}${hh.nextMorale ? (hh.nextMorale > 0 ? ' · 😊' : ' · 😠') : ''}</small></div></div>`; }).join('')}</div></div>
    ${idx === CONFIG.extraJoinShiftIdx && !camp.v113Finale && camp.heroes.zenith ? `<div class="card newhires"><h3>Two new hires: Zenith and Drizzle</h3><div class="grid2">${['zenith', 'drizzle'].map(id => { const hh = camp.heroes[id]; return `<div class="mini" style="border-color:${hh.color}66"><span class="e">${hh.emoji}</span><div><b>${esc(hh.codename)}</b> <span class="pill">arrived at LV ${hh.joinLevel || heroLevel(hh)}</span><small>${hh.stats.map((v, i) => STATS[i] + v).join(' ')}</small><small>${hh.powers.map(p => POWERS[p].name).join(', ')}</small></div></div>`; }).join('')}</div></div>` : ''}
    ${camp.v113Finale ? `<div class="note warn">This save was in the middle of the Shift 8 finale from v1.13.0. Resume it with the old rules (no Zenith, Drizzle or Solstice), or restart Shift 8 with the new rules.</div><button class="btn pri" data-a="go">Resume Finale (v1.13.0 rules)</button><button class="btn" data-a="newrules">Restart Shift 8 (new rules)</button>` : '<button class="btn pri" data-a="go">START SHIFT</button>'}<button class="btn ghost" data-a="title">TITLE</button>`, s => {
     s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); beginShift(); };
-    const nr = s.querySelector('[data-a=newrules]'); if (nr) nr.onclick = () => confirmBox('Restart Shift 8 (new rules)', 'Shift 8 restarts from 20:00 with v1.14.0 rules: Zenith and Drizzle join first (spend their points), and Solstice can arrive. You cannot go back to the v1.13.0 rules for this finale.', 'RESTART', () => { restartFinaleNewRules(camp); saveCamp(); showBrief(); }); s.querySelector('[data-a=classic]').onclick = () => { camp.missionSet = camp.missionSet === 'legacy' ? 'v1.8' : 'legacy'; UI.settings.classicCalls = camp.missionSet === 'legacy'; saveSettings(); saveCamp(); showBrief(); }; s.querySelector('[data-a=title]').onclick = showTitle; });
+    const nr = s.querySelector('[data-a=newrules]'); if (nr) nr.onclick = () => confirmBox('Restart Shift 8 (new rules)', 'Shift 8 restarts from 20:00 with v1.14.0 rules: Zenith and Drizzle join first (spend their points), and Solstice can arrive. You cannot go back to the v1.13.0 rules for this finale.', 'RESTART', () => { restartFinaleNewRules(camp); saveCamp(); showBrief(); }); s.querySelector('[data-a=title]').onclick = showTitle; });
 }
 function beginShift() {
   const rn = UI.camp.revertNote; delete UI.camp.revertNote; UI.shiftPicks = {}; UI.replay = UI.camp.pickMemory || {}; delete UI.camp.pickMemory; UI.earnedMem = {}; UI.bankedAtStart = {}; for (const id in UI.camp.heroes) UI.bankedAtStart[id] = UI.camp.heroes[id].unspentPoints || 0;
