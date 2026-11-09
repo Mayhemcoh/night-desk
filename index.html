@@ -566,6 +566,22 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
   .start-modes .btn .sm-txt small{font-size:10.5px}
 }
 
+
+/* ===== v1.23.0 slot-stat tints + Mirrorlark illusion ghost (UI only) ===== */
+.slot.slot-tint{border-color:var(--tint)!important;background:color-mix(in srgb, var(--tint) 22%, #0a1024)!important;box-shadow:0 0 0 1px color-mix(in srgb, var(--tint) 55%, transparent),0 0 14px color-mix(in srgb, var(--tint) 35%, transparent);color:var(--txt);transition:border-color .08s,background .08s,box-shadow .08s}
+.slot.slot-tint-flash{animation:slotTintFlash .2s ease-out}
+@keyframes slotTintFlash{0%{filter:brightness(1.25)}100%{filter:none}}
+.slot.illus-ghost{border-style:dashed!important;border-color:color-mix(in srgb, var(--hc, #b9a7ff) 55%, #3a4a85)!important;background:repeating-linear-gradient(-45deg, color-mix(in srgb, var(--hc, #b9a7ff) 10%, #0a1024), color-mix(in srgb, var(--hc, #b9a7ff) 10%, #0a1024) 6px, #0a1024 6px, #0a1024 12px);color:var(--dim);opacity:.72}
+.slot.illus-ghost.solid{opacity:.9;border-style:solid!important;border-color:color-mix(in srgb, var(--hc, #b9a7ff) 70%, #3a4a85)!important;background:color-mix(in srgb, var(--hc, #b9a7ff) 16%, #0a1024)}
+.slot.illus-ghost .e{opacity:.55;filter:grayscale(.25)}
+.slot.illus-ghost.solid .e{opacity:.85;filter:none}
+.slot.illus-ghost .n{opacity:.85;font-style:italic}
+.slot.illus-ghost .illus-badge{position:absolute;top:2px;right:4px;font-size:14px;line-height:1;filter:drop-shadow(0 0 4px #b9a7ff)}
+.slot.illus-ghost .illus-tag{font-size:9px;line-height:1.15;margin-top:2px;padding:0 3px;opacity:.9;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot.illus-ghost.drop{border-color:var(--grn)!important;box-shadow:0 0 10px #4cd97b66}
+.sheet.bfix .bdock .slot.illus-ghost{justify-content:flex-start;padding-top:16px}
+@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.illus-ghost .illus-tag{display:none}}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -901,7 +917,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.22.0';
+<script>window.ND_VERSION='nd-v1.23.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3855,6 +3871,75 @@ function hotkeyLabel(i) { return i < 9 ? String(i + 1) : ['0', '-', '='][i - 9] 
 function hotkeyIndex(k) { if (/^[1-9]$/.test(k)) return +k - 1; const j = ['0', '-', '='].indexOf(k); return j < 0 ? -1 : 9 + j; }
 function volunteerBoostText(hh) { const ord = [0, 1, 2, 3, 4].sort((a, b) => hh.stats[b] - hh.stats[a] || a - b); const b = hh.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost;
   return `+${b} ${STAT_NAMES[STATS[ord[0]]]}` + (hh.powers.includes('eagermop2') ? `, +1 ${STAT_NAMES[STATS[ord[1]]]}` : ''); }
+
+/* ---------- v1.23.0 slot-stat tints + Mirrorlark illusion ghost (UI only; never mutates assigned[] / odds) ---------- */
+const SLOT_TINT_FLASH_MS = 200;
+let _slotTintFlashTimer = null;
+function slotBonusPowerKnown(h, pid) {
+  const def = heroDef(h.id) || {};
+  if (pid === def.power) return baseRevealed(h) || !!(h.signature && h.powers.includes(SIGNATURES[def.power]));
+  return h.powers.includes(pid);
+}
+function slotTintMapForHero(h, nSlots) {
+  if (!h || !nSlots || nSlots < (CONFIG.slotBonusMinSlots || 3)) return null;
+  const owned = h.powers.filter(pid => { const P = POWERS[pid]; return P && P.slotBonus && P.onCompute && slotBonusPowerKnown(h, pid); });
+  if (!owned.length) return null;
+  const map = {};
+  for (let s = 0; s < nSlots; s++) {
+    const st = [0, 0, 0, 0, 0];
+    const ctx = { slot: s, st, hero: h, req: [0, 0, 0, 0, 0], teamSize: nSlots, markAs: null };
+    for (const pid of owned) POWERS[pid].onCompute(ctx);
+    let best = -1, bestV = 0;
+    for (let i = 0; i < 5; i++) if (st[i] > bestV) { bestV = st[i]; best = i; }
+    if (best >= 0) map[s] = { stat: best, code: STATS[best], color: STAT_COLORS[STATS[best]], delta: bestV };
+  }
+  return Object.keys(map).length ? map : null;
+}
+function clearSlotTints() {
+  if (_slotTintFlashTimer) { clearTimeout(_slotTintFlashTimer); _slotTintFlashTimer = null; }
+  document.querySelectorAll('.slot.slot-tint').forEach(el => {
+    el.classList.remove('slot-tint', 'slot-tint-flash');
+    el.style.removeProperty('--tint');
+  });
+}
+function applySlotTints(map) {
+  clearSlotTints();
+  if (!map) return;
+  document.querySelectorAll('.sheet.bfix .bdock .slot[data-slot]').forEach(el => {
+    const t = map[+el.dataset.slot];
+    if (!t) return;
+    el.classList.add('slot-tint');
+    el.style.setProperty('--tint', t.color);
+  });
+}
+function flashSlotTints(map) {
+  if (!map) return;
+  applySlotTints(map);
+  document.querySelectorAll('.slot.slot-tint').forEach(el => el.classList.add('slot-tint-flash'));
+  _slotTintFlashTimer = setTimeout(() => { _slotTintFlashTimer = null; clearSlotTints(); }, SLOT_TINT_FLASH_MS);
+}
+function illusionGhostKnown(h) {
+  if (!h || !hasPower(h, 'illusion')) return false;
+  const def = heroDef(h.id) || {};
+  if (h.powers.some(p => POWERS[p] && POWERS[p].illusion && p !== def.power)) return true;
+  return baseRevealed(h);
+}
+function illusionGhostRatio(h) {
+  return Math.max(0, ...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRatio) || 0)) || 0.5;
+}
+/** Returns ghost HTML for empty slot i, or '' . Cosmetic only — assigned[i] stays null. */
+function illusionGhostSlotHTML(camp, assigned, i, selOn) {
+  if (i < 1 || i >= assigned.length || assigned[i]) return '';
+  const mlId = assigned[i - 1]; if (!mlId) return '';
+  const ml = camp.heroes[mlId]; if (!illusionGhostKnown(ml)) return '';
+  const srcId = i >= 2 ? assigned[i - 2] : null; if (!srcId || !camp.heroes[srcId]) return '';
+  const src = camp.heroes[srcId];
+  const ratio = illusionGhostRatio(ml);
+  const solid = ratio >= 0.999;
+  const pct = Math.round(ratio * 100);
+  return `<div class="slot illus-ghost ${solid ? 'solid' : 'half'}${selOn ? ' sel' : ''}" data-slot="${i}" data-illus="1" style="--hc:${src.color}" aria-label="Illusion: ${pct}% copy of ${esc(src.codename)} (empty slot — drop a hero to replace)"><span class="illus-badge" aria-hidden="true">🪞</span><div class="e">${src.emoji}</div><div class="n">${esc(src.codename)}</div><div class="illus-tag">${solid ? 'Perfect Copy' : pct + '% copy'} · not a real hero</div></div>`;
+}
+
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
   sanitizeAssigned(camp, c);
@@ -3897,7 +3982,7 @@ function openBriefing(c) {
       let baseTeam = null; for (const id of c.assigned.filter(Boolean)) { const hh = camp.heroes[id], v = injuryView(camp, hh); if (!v.injured || info.healed.includes(id)) continue;
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
-      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; const hh = camp.heroes[id]; const st = info.per[i];
+      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = illusionGhostSlotHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
@@ -3927,16 +4012,19 @@ function openBriefing(c) {
       P.F.querySelector('[data-a=go]').onclick = () => doDispatch();
       m.keyHero = i => { const id = camp.roster[i]; if (id) assign(id, null); }; m.enter = () => doDispatch();
     };
-    const assign = (id, slotIdx) => { if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; } if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); let i = slotIdx !== null && slotIdx !== undefined ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; c.assigned[i] = id; sel = null; Sfx.click(); render(); };
+    const assign = (id, slotIdx) => { if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; } if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined; let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; const tintMap = tapAssign ? slotTintMapForHero(camp.heroes[id], c.assigned.length) : null; c.assigned[i] = id; sel = null; Sfx.click(); render(); if (tintMap) flashSlotTints(tintMap); };
     const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean) || c.stage !== 'pending') return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
     render(); m.render = render;
+    m.onClose = () => { clearSlotTints(); if (UI.slotTintCtx && UI.slotTintCtx.modal === m) UI.slotTintCtx = null; };
+    UI.slotTintCtx = { modal: m, mapFor: (hid) => slotTintMapForHero(camp.heroes[hid], (c.assigned || []).length) };
   });
 }
 function attachDrag(btn, onDrop) {
   let sx, sy, ghost = null, id = null;
-  btn.addEventListener('pointerdown', e => { if (btn.disabled) return; sx = e.clientX; sy = e.clientY; id = e.pointerId; btn.setPointerCapture(id); });
+  btn.addEventListener('pointerdown', e => { if (btn.disabled) return; sx = e.clientX; sy = e.clientY; id = e.pointerId; btn.setPointerCapture(id);
+    const ctx = UI.slotTintCtx; if (ctx && btn.dataset.hero) applySlotTints(ctx.mapFor(btn.dataset.hero)); });
   btn.addEventListener('pointermove', e => { if (id !== e.pointerId) return; if (!ghost && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) { ghost = h('div', 'ghostdrag', btn.querySelector('.e').textContent); document.body.appendChild(ghost); } if (ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) s.classList.add('drop'); } });
-  const end = e => { if (id !== e.pointerId) return; id = null; if (ghost) { ghost.remove(); ghost = null; const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) onDrop(+s.dataset.slot); else document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); } else if (e.type === 'pointerup') onDrop(null); };
+  const end = e => { if (id !== e.pointerId) return; id = null; clearSlotTints(); if (ghost) { ghost.remove(); ghost = null; const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) onDrop(+s.dataset.slot); else document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); } else if (e.type === 'pointerup') onDrop(null); };
   btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
 }
 
@@ -3949,15 +4037,20 @@ let trayG = null, traySuppressUntil = 0;
 function trayGestureEnd(e, cancel) {
   const g = trayG; if (!g || (e && e.pointerId !== g.id)) return; trayG = null; clearTimeout(g.timer);
   g.tr.classList.remove('hs-armed'); if (g.cue) g.cue.remove(); document.querySelectorAll('.slot.drop').forEach(s => s.classList.remove('drop'));
-  if (g.mode === 'drag') { g.ghost.remove(); if (!cancel && e && e.type === 'pointerup' && g.chip.isConnected) { const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) g.chip.__onDrop(+s.dataset.slot); } }
+  // v1.23.0: clear drag tints; tap-assign flashes inside assign()
+  if (g.mode !== 'pending') clearSlotTints();
+  else if (cancel) clearSlotTints();
+  if (g.mode === 'drag') { g.ghost.remove(); if (!cancel && e && e.type === 'pointerup' && g.chip.isConnected) { const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) g.chip.__onDrop(+s.dataset.slot); } clearSlotTints(); }
   else if (g.mode === 'pending' && !cancel && e && e.type === 'pointerup' && g.ok && g.chip.isConnected) g.chip.__onDrop(null);
+  else clearSlotTints();
   traySuppressUntil = performance.now() + 400; }
 document.addEventListener('pointerdown', e => {
   const tr = e.target.closest && e.target.closest('.sheet.bfix .bdock .tray'); if (!tr || e.target.closest('.hinfo') || e.button > 0) return;
   if (trayG) trayGestureEnd(null, true);
   const chip = e.target.closest('.chip'); const g = trayG = { tr, chip, ok: !!(chip && !chip.disabled && chip.__onDrop), id: e.pointerId, x0: e.clientX, y0: e.clientY, sl0: tr.scrollLeft, mode: 'pending', ghost: null, cue: null };
   try { tr.setPointerCapture(e.pointerId); } catch (_) {}
-  g.timer = setTimeout(() => { if (trayG !== g || g.mode !== 'pending') return; g.mode = 'scroll'; tr.classList.add('hs-armed');
+  if (g.ok && chip && chip.dataset.hero && UI.slotTintCtx) applySlotTints(UI.slotTintCtx.mapFor(chip.dataset.hero));
+  g.timer = setTimeout(() => { if (trayG !== g || g.mode !== 'pending') return; g.mode = 'scroll'; clearSlotTints(); tr.classList.add('hs-armed');
     const c = h('div', 'hs-cue', '⇆ slide to scroll'); const r = tr.getBoundingClientRect(); c.style.left = (r.left + r.width / 2) + 'px'; c.style.top = (r.top - 6) + 'px'; document.body.appendChild(c); g.cue = c;
     try { if (navigator.vibrate) navigator.vibrate(15); } catch (_) {} }, TRAY_HOLD_MS);
   e.preventDefault(); }, true);
