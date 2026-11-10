@@ -585,6 +585,26 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .slot.illus-ghost.spread-ghost .e{transform:scale(.78);transform-origin:center center}
 .slot.illus-ghost.spread-ghost .n{font-size:10px}
 
+/* ===== v1.25.0 first-time power reveal + LV8 Mk II offer on the level-up card ===== */
+.sheet[data-kind=powerreveal] .reveal-pw{margin-top:8px;padding:10px 12px;font-size:15px}
+.sheet[data-kind=powerreveal] .reveal-pw b{font-size:18px;display:inline}
+.sheet[data-kind=powerreveal] .reveal-pw small{margin-top:6px;font-size:14px;line-height:1.45;color:var(--txt)}
+.mk2-offer{margin:0 0 10px;padding:8px 10px;border:1px solid #3a4a85;border-radius:12px;background:#0a1024;flex:none}
+.mk2-offer summary{cursor:pointer;font-weight:800;color:#ffd23f;list-style:none}
+.mk2-offer summary::-webkit-details-marker{display:none}
+.mk2-offer summary::before{content:'▶ ';font-size:12px}
+.mk2-offer[open] summary::before{content:'▼ '}
+.mk2-offer[open] summary{margin-bottom:4px}
+.mk2-offer .mk2-actions,.mk2-offer .mk2-confirm{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+.mk2-offer .mk2-confirm[hidden],.mk2-offer .hidden{display:none!important}
+@media (max-width:400px){
+  .sheet[data-kind=levelup] .radarbox canvas{width:140px;height:140px;max-height:22vh}
+  .mk2-offer .txt{font-size:12px;margin:4px 0!important}
+  .mk2-offer .pw small{font-size:12px}
+  .mk2-offer .pw{margin:4px 0}
+  .mk2-offer .btn.small{min-height:40px}
+}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -920,7 +940,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.24.1';
+<script>window.ND_VERSION='nd-v1.25.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2164,7 +2184,7 @@ function newCampaign(seed, opts) {
   const rm = opts.mode === 'selection' ? 'selection' : opts.pool ? (opts.pool.join() === LEGACY_POOL.join() ? 'classic' : 'custom') : opts.mode === 'classic' ? 'classic' : 'random';
   const c = { v: 5, mode: rm === 'custom' ? 'selection' : rm, wildQueue: [], pool, rosterMode: rm, wildGiven: 0, seenLevelUp: {}, levelQueue: [], seed, shiftIdx: 0, heroes: {}, roster: [], totals: { success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0, score: 0 }, grades: [], rankPts: 0, rank: 1,
     conflictWins: {}, conflictNeutral: {}, pendingWild: 0, trainingDone: [], phase: 'briefing', history: [], blackoutDone: false, layoutIdx: 0, missionSet: opts.missionSet || 'v1.8', callModeLocked: true,
-    missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag(), rulesVersion: 'nd-v1.14.0', heroFails: 0, drizzle: { skips: 0, volunteering: false }, solstice: { joined: false } };
+    missionBag: opts.missionBag ? cloneMissionBag(opts.missionBag) : emptyMissionBag(), rulesVersion: 'nd-v1.14.0', heroFails: 0, drizzle: { skips: 0, volunteering: false }, solstice: { joined: false }, seenBaseReveal: {}, seenBaseRevealInit: true };
   for (const id of pool) c.heroes[id] = makeHero(heroDef(id));
   ensureRogueBoss(c); // v1.13.0: seeded + saved now, revealed only on Shift 8 (Classic random calls)
   return c;
@@ -2185,7 +2205,7 @@ function extraJoinXP(camp, h) { const L = extraJoinLevel(camp); if (L <= heroLev
 /* Arrival (2b): grants the median-level XP as BANKED points (normal level-up queue, the player allocates), reveals the base power. Idempotent. */
 function extraOnboardBegin(camp) { if (!extrasDue(camp)) return []; ensureExtraHeroes(camp); const ids = [];
   for (const d of EXTRA_HEROES) { if (d.joinShiftIdx === undefined || camp.shiftIdx < d.joinShiftIdx) continue; const h = camp.heroes[d.id]; if (!h || h.joinXPGiven) continue;
-    h.joinXPGiven = true; h.joinLevel = extraJoinLevel(camp); h.revealed = h.revealed || {}; h.revealed[d.power] = true;
+    h.joinXPGiven = true; h.joinLevel = extraJoinLevel(camp); h.revealed = h.revealed || {}; h.revealed[d.power] = true; camp.seenBaseReveal = camp.seenBaseReveal || {}; camp.seenBaseReveal[h.id] = true; // arrived already revealed: no first-use pop-up
     addXP(camp, h, extraJoinXP(camp, h), null, { call: 'Hired with experience (Downtown branch)', reason: 'late hire' }); ids.push(d.id); }
   camp.extraOnboard = camp.extraOnboard || { step: 'levels' }; if (ids.length && typeof Bus !== 'undefined') Bus.emit('extraJoined', { ids }); return ids; }
 function extraOnboardPending(camp) { if (!extrasDue(camp)) return null; const ids = EXTRA_HEROES.filter(d => d.joinShiftIdx !== undefined && camp.shiftIdx >= d.joinShiftIdx).map(d => d.id);
@@ -2193,7 +2213,7 @@ function extraOnboardPending(camp) { if (!extrasDue(camp)) return null; const id
   if (hs.some(h => h.unspentPoints > 0)) return 'levels'; if (hs.some(h => canTrain(h))) return 'train'; return null; }
 function campaignFailCount(camp, S) { return (camp.heroFails || 0) + ((S && S.heroFails) || 0); } // fails + missed hero calls (boss calls included); hack-console fails/timeouts excluded
 function solsticeJoin(camp, S, reason) { if (camp.v113Finale || (camp.solstice && camp.solstice.joined) || camp.heroes.solstice) return false;
-  const h = camp.heroes.solstice = makeHeroV114(heroDef('solstice')); h.joined = CONFIG.campaignShifts; camp.solstice = Object.assign(camp.solstice || {}, { joined: true, reason, t: S ? S.t : 0 });
+  const h = camp.heroes.solstice = makeHeroV114(heroDef('solstice')); h.joined = CONFIG.campaignShifts; camp.solstice = Object.assign(camp.solstice || {}, { joined: true, reason, t: S ? S.t : 0 }); camp.seenBaseReveal = camp.seenBaseReveal || {}; camp.seenBaseReveal.solstice = true;
   if (!camp.roster.includes('solstice')) camp.roster.push('solstice'); if (S && S.roster && !S.roster.includes('solstice')) S.roster.push('solstice');
   Bus.emit('solsticeJoined', { reason, hero: h }); return true; }
 function noteCallFailed(camp, S, call, how) { if (!S || !call || call.tpl.type === 'hack' || call.noted) return; call.noted = true;
@@ -2220,7 +2240,10 @@ function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) re
 function removeVolunteer(c, id) { if (c.volunteer && c.volunteer === id) { c.volunteer = null; c.volunteerRemoved = true; } }
 
 /* ---------- Save migration ---------- */
-function migrateCamp(c) { c = migrateCampCore(c); return migrateV122(migrateV119(migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c))))))); }
+function migrateCamp(c) { c = migrateCampCore(c); return migrateV125(migrateV122(migrateV119(migrateV114(migrateV113(migrateV112(migrateV110(migrateV18(c)))))))); }
+function migrateV125(c) { // v1.25.0: persist first-time base-power reveal pop-ups; already-revealed powers on old saves are marked seen so they do not spam
+  if (!c.seenBaseRevealInit) { c.seenBaseReveal = c.seenBaseReveal || {}; for (const id in c.heroes) { const h = c.heroes[id]; if (h && baseRevealed(h)) c.seenBaseReveal[id] = true; } c.seenBaseRevealInit = true; }
+  c.seenBaseReveal = c.seenBaseReveal || {}; return c; }
 function migrateV122(c) { // v1.22.0: lock Classic-random-calls choice as campaign call-mode (Story=v1.8 / Random=legacy). Keep existing missionSet; never flip it here.
   if (c.missionSet !== 'legacy') c.missionSet = 'v1.8';
   c.callModeLocked = true;
@@ -2645,6 +2668,14 @@ function powerContribution(info, e) { if (!info || !info.rawTeam || !info.req ||
   return { before: covWo, after: info.coverage, pts: (info.coverage - covWo) * 100 }; }
 function contribText(info, e) { const c = powerContribution(info, e); if (!c) return ''; return ` (coverage ${Math.round(c.before * 100)}% → ${Math.round(c.after * 100)}%, ${c.pts >= 0 ? '+' : '−'}${Math.abs(c.pts).toFixed(1)} pts)`; }
 function powerEvText(camp, e) { const h = camp.heroes[e.hero]; return `${h ? h.codename : e.hero}: ${POWERS[e.power] ? POWERS[e.power].name : e.power} activated ${e.text}`; }
+function shouldAnnounceBaseReveal(camp, heroId, power) {
+  if (!camp || !heroId || !power) return false;
+  const h = camp.heroes[heroId], d = heroDef(heroId) || {};
+  if (!h || power !== d.power) return false; // only the starting (???) base power
+  camp.seenBaseReveal = camp.seenBaseReveal || {};
+  return !camp.seenBaseReveal[heroId];
+}
+function markBaseRevealSeen(camp, heroId) { if (!camp || !heroId) return; camp.seenBaseReveal = camp.seenBaseReveal || {}; camp.seenBaseReveal[heroId] = true; }
 function revealPower(camp, heroId, power) { const h = camp && camp.heroes && camp.heroes[heroId]; if (!h || !power) return false; h.revealed = h.revealed || {}; if (h.revealed[power]) return false; h.revealed[power] = true; Bus.emit('powerRevealed', { hero: h, power }); return true; }
 function powerEv(camp, S, e) { e.text = e.text || (e.delta ? deltaText(e.delta) : ''); e.msg = powerEvText(camp, e); if (!e.noEffect) revealPower(camp, e.hero, e.power); if (S) { (S.powerLog = S.powerLog || []).push(e); e.t = S.t; } Bus.emit('power', e); return e; }
 function traceEventText(camp, e, info) { const ct = info ? contribText(info, e) : '';
@@ -3583,7 +3614,7 @@ function openModal(kind, build) {
   const sheet = h('div', 'sheet'); sheet.dataset.kind = kind; wrap.innerHTML = ''; wrap.appendChild(sheet);
   const m = { kind, sheet, onClose: null }; UI.modals = [m]; build(m); return m;
 }
-function closeModal() { if (UI.heroCard && typeof closeHeroCard === 'function') closeHeroCard(); const m = UI.modals.pop(); if (m && m.onClose) m.onClose(); $('modal').classList.add('hidden'); $('modal').innerHTML = ''; UI.modals = []; }
+function closeModal() { if (UI.heroCard && typeof closeHeroCard === 'function') closeHeroCard(); const m = UI.modals.pop(); if (m && m.onClose) m.onClose(); $('modal').classList.add('hidden'); $('modal').innerHTML = ''; UI.modals = []; if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); }
 function sheetParts(m, head, body, foot) { m.sheet.innerHTML = `<div class="sh-h">${head}</div><div class="sh-b">${body}</div><div class="sh-f">${foot}</div>`; return { H: m.sheet.querySelector('.sh-h'), B: m.sheet.querySelector('.sh-b'), F: m.sheet.querySelector('.sh-f') }; }
 
 /* ---------- radar ---------- */
@@ -4253,10 +4284,11 @@ function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game,
   if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
   const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
 function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) { pw.classList.add('hidden'); pw.innerHTML = ''; } $('hack').classList.add('hidden');
-  if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); return; }
-  if (quit) { toast('You stepped away from the console. The call is still waiting.'); return; }
+  const _afterHack = () => { if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
+  if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); _afterHack(); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); _afterHack(); return; }
+  if (quit) { toast('You stepped away from the console. The call is still waiting.'); _afterHack(); return; }
   const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
-  finishHack(UI.camp, UI.S, H.c, win); if (win) { Sfx.fanfare(); toast('⌘ Hack cleared! +' + CONFIG.score.hack + (hb && hb.speed ? ' · speed +' + hb.speed : '') + (hb && hb.files ? ' · 📁 +' + hb.files : '')); } else { Sfx.thud(); shake(); toast('⌘ Hack failed.'); } }
+  finishHack(UI.camp, UI.S, H.c, win); if (win) { Sfx.fanfare(); toast('⌘ Hack cleared! +' + CONFIG.score.hack + (hb && hb.speed ? ' · speed +' + hb.speed : '') + (hb && hb.files ? ' · 📁 +' + hb.files : '')); } else { Sfx.thud(); shake(); toast('⌘ Hack failed.'); } _afterHack(); }
 function hackStep(d) { const H = UI.hack; if (!H) return; const g = H.game; const before = g.resets; g.step(d); if (g.resets > before) { Sfx.thud(); } else Sfx.click(); hackFx(); renderHackPanels(); }
 function hackFx() { const g = UI.hack && UI.hack.game; if (!g || !g.fx) return; (({ zap: () => Sfx.chime(), caught: () => { Sfx.thud(); shake(); }, charge: () => Sfx.tone(900, .15, 'triangle', .1), key: () => Sfx.blip(), bridge: () => Sfx.chime(), err: () => Sfx.alarm(), reboot: () => { Sfx.thud(); } })[g.fx] || (() => {}))(); g.fx = null; }
 function renderHackPanels() {
@@ -4461,11 +4493,43 @@ function helpHTML() { return `<ul class="help">
 <li>⌘ Hack calls: you play a maze on the console. D-pad or swipe, ACT for nodes, HOLD at the exit.</li>
 <li>😊 Morale (per hero, XP only): +1 = 2× base XP, −1 = ½ base XP; it never changes odds or stats. Granting a 🙋 request: +1 for the rest of this shift and next shift. Refusing the same hero twice: −1 next shift. The 3rd reviewed call in a shift with a 🔗 synergy pair together: +1 each; with a ⚡ friction pair (Shift 4+, until resolved): −1 each. Pair morale lasts until the shift ends.</li>
 <li>📈 XP comes only from successes and is split evenly across the team (solo = biggest share). Riskier sends (lower chance) pay up to +25%, ★ thresholds ×2, perfect picks +33%. Each point at 1000, 1300, 1600… XP raises the hero's LV (max LV 10); after that XP is wasted. Veterans earn a little less per call.</li>
-<li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked.</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 4 a hero can train one of two powers (permanent choice); at LV 8 their starting power becomes a Signature. Tap the rank bar for your Dispatcher File.</li>
+<li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked. At LV 8, if a trained hero can take the optional Mk II upgrade, that choice appears on the same card (stat and upgrade are confirmed separately; skip it and it stays available from the hero card).</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 4 a hero can train one of two powers (permanent choice); at LV 8 their starting power can be upgraded to Mk II. Tap the rank bar for your Dispatcher File.</li><li>⚡ Starting powers are hidden (???) until first used. The first time a hero's base power actually triggers, a pop-up names them and explains the power. It stays until you close it (time is paused). Each hero's reveal is shown once per campaign.</li>
 <li>⌨ Optional keys: Space pause, 1–9 pick hero, Enter dispatch, Esc close, D debug. Hacking: WASD/arrows, E act, hold Space.</li></ul>`; }
 function openHelp() { const prev = UI.modals[0]; openModal('help', m => { const P = sheetParts(m, '<h2>How to play</h2>', helpHTML(), '<button class="btn pri">GOT IT</button>'); P.F.querySelector('button').onclick = () => { closeModal(); if (prev && prev.kind === 'pause') openPause(); }; }); }
 
 const reducedMotion = () => document.documentElement.classList.contains('reduce-fx') || !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+/* v1.25.0: first-time base-power reveal pop-up. Queued so it never replaces review / level-up / hack / briefing sheets. openModal pauses the clock (same as every other modal). */
+const RevealPop = { q: [] };
+function revealModalBlocking() {
+  if (UI.hack || UI.heroCard) return true;
+  const k = UI.modals[0] && UI.modals[0].kind;
+  return !!k; // any open sheet, including this pop-up, blocks the next one
+}
+function enqueueBaseReveal(hero, power) {
+  if (UI.sim) return;
+  const camp = UI.camp; if (!camp || !hero) return;
+  if (!shouldAnnounceBaseReveal(camp, hero.id, power)) return;
+  if (RevealPop.q.some(x => x.heroId === hero.id)) return;
+  RevealPop.q.push({ heroId: hero.id, power: power });
+  if (UI.auto) { markBaseRevealSeen(camp, hero.id); RevealPop.q = RevealPop.q.filter(x => x.heroId !== hero.id); if (typeof saveCamp === 'function') saveCamp(); return; }
+  kickRevealQueue();
+}
+function kickRevealQueue() {
+  if (UI.sim || UI.auto || !RevealPop.q.length) return;
+  if (revealModalBlocking()) return;
+  const item = RevealPop.q[0]; const camp = UI.camp; const h = camp && camp.heroes[item.heroId]; const Pw = POWERS[item.power];
+  if (!h || !Pw) { RevealPop.q.shift(); kickRevealQueue(); return; }
+  openModal('powerreveal', m => {
+    const P = sheetParts(m, `<span style="font-size:32px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill">POWER REVEALED</span>`,
+      `<p class="txt" style="margin:0 0 8px">Their starting power is no longer hidden.</p><div class="pw reveal-pw" style="border-left-color:${h.color}"><b>${esc(Pw.name)}</b> <span class="pill">BASE</span><small>${esc(Pw.desc)}</small></div>`,
+      `<button class="btn pri" data-a="ok">GOT IT</button>`);
+    const close = () => { Sfx.click(); closeModal(); };
+    P.F.querySelector('[data-a=ok]').onclick = close;
+    m.enter = close; m.esc = close; // player-closed only; no timer
+    m.onClose = () => { const it = RevealPop.q.shift(); if (it && UI.camp) { markBaseRevealSeen(UI.camp, it.heroId); saveCamp(); } };
+  });
+}
+
 function openLevelUpChoice(onDone) {
   const camp = UI.camp; pruneLevelQueue(camp); let lastHero = null, sel = -1, idx = 0, total = camp.levelQueue.length, busy = false;
   const save = () => { saveCamp(); };
@@ -4477,15 +4541,25 @@ function openLevelUpChoice(onDone) {
     const render = () => { const q = camp.levelQueue, e = q[0], h = camp.heroes[e.heroId], f = levelEntryFlags(camp, e);
       if (e.heroId !== lastHero) { lastHero = e.heroId; Sfx.fanfare(); if (!reducedMotion()) FX.burst(); }
       const N = idx + q.length, more = h.unspentPoints - 1;
+      const d0 = heroDef(h.id) || {}, sig0 = SIGNATURES[d0.power], mk2Ready = !!(f.mk2 && sig0 && POWERS[sig0] && POWERS[d0.power]);
+      const mk2Html = !mk2Ready ? (h.signature && e.level === CONFIG.signatureLevel ? `<div class="note good">✦ Mk II already unlocked: ${esc(POWERS[SIGNATURES[d0.power]].name)}.</div>` : '') : `<details class="mk2-offer" open><summary>✦ Mk II upgrade available (optional)</summary><div class="mk2-body"><p class="txt" style="margin:6px 0">At LV ${CONFIG.signatureLevel}, ${esc(h.codename)} can replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>. Optional and permanent. The stat pick below is a separate choice — upgrade now, pick a stat, both, or skip and upgrade later from the hero card.</p><div class="pw" style="border-left-color:${h.color}"><b>${esc(POWERS[sig0].name)}</b> <span class="pill">MK II</span><small>${esc(POWERS[sig0].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div></details>`;
       const tiles = STATS.map((s, i) => { const v = h.stats[i], mx = v >= CONFIG.statMax; return `<button class="lvtile ${sel === i ? 'sel' : ''} ${mx ? 'max' : ''}" data-s="${i}" ${mx ? 'disabled' : ''} style="--c:${STAT_COLORS[s]}"><span class="k">${i + 1}</span><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}</small><span class="vv">${mx ? 'MAX' : `${v} → <em>${v + 1}</em>`}</span></button>`; }).join('');
       const P = sheetParts(m, `<span style="font-size:28px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill lvbadge" style="background:${h.color}">LEVEL UP! LV ${e.level}</span>${N > 1 ? `<span class="pill lvcount">${idx + 1} of ${N}</span>` : ''}`,
-        `<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
-         ${f.training ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.mk2 ? `<div class="note good">✦ Mk II available (optional): ${esc(POWERS[SIGNATURES[heroDef(h.id).power]].name)}. Upgrade from the hero info panel.</div>` : ''}${f.training && !f.revealedBase ? '' : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
+        `${mk2Html}<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
+         ${f.training ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
          ${more > 0 ? `<div class="note">+${more} more banked · <button class="lnk" data-a="all">SPEND ALL…</button></div>` : ''}${q.length >= 2 ? `<div style="text-align:center;margin-top:6px"><button class="lnk" data-a="skipall">SKIP ALL (bank ${q.length})</button></div>` : ''}</div></div>`,
         `<button class="btn ghost" data-a="later">DECIDE LATER</button><button class="btn pri" data-a="ok" ${sel < 0 ? 'disabled' : ''}>CONFIRM +1 STAT</button>`);
       drawRadar(P.B.querySelector('.rad'), { team: h.stats, preview: sel >= 0 ? h.stats.map((v, i) => v + (i === sel ? 1 : 0)) : null });
       P.B.querySelectorAll('[data-s]').forEach(b => b.onclick = () => select(+b.dataset.s));
       P.F.querySelector('[data-a=later]').onclick = later; P.F.querySelector('[data-a=ok]').onclick = confirm;
+      const offer = P.B.querySelector('.mk2-offer');
+      if (offer) {
+        const showConfirm = on => { const c = offer.querySelector('.mk2-confirm'); const a = offer.querySelector('.mk2-actions'); if (c) { c.classList.toggle('hidden', !on); c.hidden = !on; } if (a) a.classList.toggle('hidden', on); };
+        const go = offer.querySelector('[data-a=mk2go]'); if (go) go.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); showConfirm(true); };
+        const no = offer.querySelector('[data-a=mk2no]'); if (no) no.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); showConfirm(false); };
+        const laterMk = offer.querySelector('[data-a=mk2later]'); if (laterMk) laterMk.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); offer.open = false; };
+        const yes = offer.querySelector('[data-a=mk2yes]'); if (yes) yes.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (!upgradeMk2(camp, h.id)) { toast('Upgrade is not available.'); return; } Sfx.fanfare(); save(); toast(`✦ ${esc(h.codename)}: ${esc(POWERS[SIGNATURES[heroDef(h.id).power]].name)}`); render(); };
+      }
       const sk = P.B.querySelector('[data-a=skipall]'); if (sk) sk.onclick = () => { Sfx.click(); camp.levelQueue.length = 0; finishAll(); };
       const al = P.B.querySelector('[data-a=all]'); if (al) al.onclick = () => { Sfx.click(); openAllocate(h.id, () => { pruneLevelQueue(camp); if (camp.levelQueue.length) openLevelUpChoice(onDone); else finishAll(); }); };
     };
@@ -4929,11 +5003,12 @@ Bus.on('districtOnline', d => { if (UI.sim) return; toast('💡 ' + DISTRICTS[d]
 Bus.on('skillPoint', d => { if (UI.sim) return; });
 Bus.on('levelUp', d => { if (UI.sim) return; if (UI.S && UI.camp) replayPick(d.hero, d.level); { const sl = UI.camp.seenLevelUp = UI.camp.seenLevelUp || {}; if ((sl[d.hero.id] || 1) < d.level) { sl[d.hero.id] = d.level; Celebrate.fired++; } } // v1.2: no banners; the point is queued in camp.levelQueue
   if (UI.auto && UI.S) { const h = d.hero; const ord = [0, 1, 2, 3, 4].filter(i => h.stats[i] < CONFIG.statMax).sort((a, b) => h.stats[a] - h.stats[b]); if (ord.length) allocate(UI.camp, h.id, ord[0]); pruneLevelQueue(UI.camp); } });
-Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'mk2' ? `✦ ${esc(d.hero.codename)} can upgrade to ${esc(POWERS[d.power].name)} (optional, hero info).` : d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
+Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'mk2' ? `✦ ${esc(d.hero.codename)} can upgrade to ${esc(POWERS[d.power].name)} (optional: LEVEL UP card or hero info).` : d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
 Bus.on('injured', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; if (!hh) return; injToast(d.id, d.downed ? `✚ ${esc(hh.codename)} is DOWNED` : `🩹 ${esc(hh.codename)} injured (−1 all)`); if (UI.S) radio(d.id, d.downed ? "I'm down. Seriously down. Tag someone else in." : 'Ow. Still walking. Mostly.'); });
 Bus.on('healed', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; injToast(d.id + 'h', `💚 ${esc(hh.codename)} healed${d.source === 'medkit' ? ' (Med Kit)' : d.by ? ' by ' + esc(UI.camp.heroes[d.by].codename) : ''}`); });
 Bus.on('revived', d => { if (UI.sim || !UI.camp) return; injToast(d.id + 'r', `⚡ ${esc(UI.camp.heroes[d.id].codename)} is back in action`); });
 Bus.on('power', e => { if (UI.sim || !UI.camp || !UI.S) return; pulsePower(e.hero); radioLog(e.hero, '⚡ ' + POWERS[e.power].name + ' activated ' + e.text, 'pfx-log'); });
+Bus.on('powerRevealed', d => { if (UI.sim || !UI.camp || !d || !d.hero) return; enqueueBaseReveal(d.hero, d.power); });
 Bus.on('solsticeJoined', d => { if (UI.sim || !UI.camp) return; Sfx.fanfare(); FX.burst(); finBanner('☀️ SOLSTICE ARRIVES<br><small>Team of ' + UI.camp.roster.length + '. Her light blocks one injury per hero.</small>');
   radio('solstice', "Torrance — I mean, Night Desk — I'm here. Stay in my light."); toast('☀️ Solstice joined: ' + (d.reason === 'boss' ? '2 boss calls failed' : '5 failures this campaign')); if (UI.S) { buildRoster(); updateRoster(); } });
 Bus.on('volunteered', d => { if (UI.sim || !UI.S) return; radioLog('drizzle', `💧 Drizzle volunteered for "${d.call.tpl.title}". Tap his slot in the briefing to take him off.`); });
@@ -4955,8 +5030,11 @@ function frame(now) {
       drawMap(now / 1000);
       if (now - lastDom > 100) { lastDom = now; updateRoster(); updateQueue(); updateTop(); }
       Sfx.musicUpdate(pendingCalls(S).length, !isPaused());
-      if (UI.shiftOverPending && !UI.modals.length && !UI.hack) { UI.shiftOverPending = false; showSummary(); }
-      else if (UI.shiftOverPending && UI.modals.length && UI.modals[0].kind !== 'review' && UI.modals[0].kind !== 'levelup') { closeModal(); }
+      if (UI.shiftOverPending && !UI.modals.length && !UI.hack) {
+        if (typeof kickRevealQueue === 'function' && RevealPop && RevealPop.q.length) { kickRevealQueue(); }
+        else { UI.shiftOverPending = false; showSummary(); }
+      }
+      else if (UI.shiftOverPending && UI.modals.length && UI.modals[0].kind !== 'review' && UI.modals[0].kind !== 'levelup' && UI.modals[0].kind !== 'powerreveal') { closeModal(); }
     }
     if (UI.hack) hackFrame(dt);
     FX.update(dt);
