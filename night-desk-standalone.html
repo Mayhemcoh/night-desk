@@ -945,7 +945,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.27.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.27.1';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1278,10 +1278,10 @@ const POWERS = {
   prescription: { name: 'Prescription', kind: 'rest', desc: 'Bad-mood rest is 20 s instead of 45 s. Otherwise still 2 s. Still flies.', gloomRest: 20 },
   peptalk: { name: 'Pep Talk', kind: 'rest', desc: 'If a call he is on succeeds, his teammates\' rest is ×0.5.', teamRestOnSuccess: 0.5 },
   moodswing2: { name: 'Mood Swing ✦', kind: 'rest', signature: true, desc: 'MK II: no more bad moods. Rest is always 2 s. Still flies.', flies: true, restFlat: 'zenith', noGloom: true },
-  eagermop: { name: 'Eager Mop', kind: 'stat', desc: 'Counts missions you send without him. After 3, he volunteers: he puts himself in an empty slot on each new call until you send him. While volunteering he gets +1 to his highest stat on that call (shown in the %). You can take him off. The count resets only when you send him.', volunteer: true, volunteerBoost: 1, onCompute(c) { drizzleBoost(c); } },
-  supersoaker: { name: 'Super Soaker', kind: 'stat', desc: 'Eager Mop volunteer bonus is +3 to his highest stat instead of +1.', volunteerBoost: 3 },
-  holywater: { name: 'Holy Water', kind: 'stat', desc: 'Stops volunteering. Heals up to 2 injured teammates on calls he is sent on, and gets +1 to his highest stat on every call.', heal: true, healCount: 2, noVolunteer: true, alwaysBoost: 1 },
-  eagermop2: { name: 'Eager Mop ✦', kind: 'stat', signature: true, desc: 'MK II: his bonus also adds +1 to his second-highest stat.', volunteer: true, volunteerBoost: 1, secondBoost: 1, onCompute(c) { drizzleBoost(c); } },
+  eagermop: { name: 'Eager Mop', kind: 'stat', desc: 'Counts missions you send without him. After 3, he volunteers: he puts himself in an empty slot on each new call until you send him. While volunteering he gets +1 to the mission\'s highest required stat on that call (shown in the %). You can take him off. The count resets only when you send him.', volunteer: true, volunteerBoost: 1, onCompute(c) { drizzleBoost(c); } },
+  supersoaker: { name: 'Super Soaker', kind: 'stat', desc: 'Eager Mop volunteer bonus is +3 to the mission\'s highest required stat instead of +1.', volunteerBoost: 3 },
+  holywater: { name: 'Holy Water', kind: 'stat', desc: 'Stops volunteering. Heals up to 2 injured teammates on calls he is sent on, and gets +1 to the mission\'s highest required stat on every call.', heal: true, healCount: 2, noVolunteer: true, alwaysBoost: 1 },
+  eagermop2: { name: 'Eager Mop ✦', kind: 'stat', signature: true, desc: 'MK II: his bonus also adds +1 to the mission\'s second-highest required stat.', volunteer: true, volunteerBoost: 1, secondBoost: 1, onCompute(c) { drizzleBoost(c); } },
   radiantlight: { name: 'Radiant Light', kind: 'injury', desc: 'Flies (travel ×0.65). Every hero sent on a call with her, including her, gets a Radiant shield that blocks their next injury, then is used up (one at a time; lasts until used or the shift ends). Never changes the %.', flies: true, radiant: true },
   audited: { name: 'Audited', desc: 'Fixed stats. Gains no XP. Never injured.', immune: true, noDown: true },
 };
@@ -2289,11 +2289,21 @@ function noteCallFailed(camp, S, call, how) { if (!S || !call || call.tpl.type =
   if (S.idx === CONFIG.campaignShifts - 1 && S.finale && !(camp.solstice && camp.solstice.joined)) {
     if (S.finaleFails && S.finaleFails.boss >= CONFIG.solstice.bossFails) solsticeJoin(camp, S, 'boss');
     else if (campaignFailCount(camp, S) >= CONFIG.solstice.campaignFails) solsticeJoin(camp, S, 'campaign'); } }
-/* Eager Mop / Holy Water stat boost (+boost to his highest base stat, ties -> lowest index; Mk II +secondBoost to the second-highest). Same effStats for the % and the roll. */
+/* v1.27.1 Eager Mop / Holy Water / Super Soaker / Mk II: +boost to the mission's highest required stat (not Drizzle's own stats); Mk II also +secondBoost to the mission's second-highest required stat. Ties: among equal req, pick the largest (req − current st) gap so the bonus helps coverage most, then lowest STATS index. No second bonus if there is no second required stat (req 0). No bonus if there is no mission req or every req is 0 (hacks). Same effStats path for the shown % and the roll. */
+function drizzleMissionReq(c) {
+  if (c && c.req && c.req.length === 5) return c.req;
+  const call = c && c.call; if (!call) return null;
+  if (call.req && call.req.length === 5) return call.req;
+  if (call.tpl && call.option != null && call.tpl.options && call.tpl.options[call.option] && call.tpl.options[call.option].req) return call.tpl.options[call.option].req;
+  return (call.tpl && call.tpl.req) || null; }
+function drizzleBoostOrder(req, st) {
+  const s = st || [0, 0, 0, 0, 0];
+  return [0, 1, 2, 3, 4].sort((a, b) => (req[b] - req[a]) || ((req[b] - (s[b] || 0)) - (req[a] - (s[a] || 0))) || a - b); }
 function drizzleBoost(c) { const h = c.hero; const always = hasPower(h, 'alwaysBoost'); const vol = !!(c.call && c.call.volunteer === h.id && !hasPower(h, 'noVolunteer'));
-  if (!always && !vol) return; const ord = [0, 1, 2, 3, 4].sort((a, b) => h.stats[b] - h.stats[a] || a - b);
+  if (!always && !vol) return; const req = drizzleMissionReq(c); if (!req || !req.some(v => v > 0)) return;
+  const ord = drizzleBoostOrder(req, c.st);
   const boost = always ? (powerProp(h, 'alwaysBoost') || 1) : (h.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost);
-  c.st[ord[0]] += boost; if (h.powers.includes('eagermop2')) c.st[ord[1]] += CONFIG.drizzle.mk2SecondBoost;
+  c.st[ord[0]] += boost; if (h.powers.includes('eagermop2') && req[ord[1]] > 0) c.st[ord[1]] += CONFIG.drizzle.mk2SecondBoost;
   c.markAs = always ? 'holywater' : h.powers.includes('supersoaker') ? 'supersoaker' : null; }
 function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.heroes.drizzle;
   if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer) return false;
@@ -3982,8 +3992,12 @@ function carryOver(camp, from, to) { if (!from || !to || to.assigned.some(id => 
   return res; }
 function hotkeyLabel(i) { return i < 9 ? String(i + 1) : ['0', '-', '='][i - 9] || ''; } // v1.14.0: heroes 10-12 -> 0, -, =
 function hotkeyIndex(k) { if (/^[1-9]$/.test(k)) return +k - 1; const j = ['0', '-', '='].indexOf(k); return j < 0 ? -1 : 9 + j; }
-function volunteerBoostText(hh) { const ord = [0, 1, 2, 3, 4].sort((a, b) => hh.stats[b] - hh.stats[a] || a - b); const b = hh.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost;
-  return `+${b} ${STAT_NAMES[STATS[ord[0]]]}` + (hh.powers.includes('eagermop2') ? `, +1 ${STAT_NAMES[STATS[ord[1]]]}` : ''); }
+function volunteerBoostText(hh, call) { const b = hh.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost;
+  const mk2 = hh.powers.includes('eagermop2');
+  const req = drizzleMissionReq({ hero: hh, call, req: call && call.req, st: hh.stats });
+  if (!req || !req.some(v => v > 0)) return `+${b} to the mission\'s highest required stat` + (mk2 ? ', +1 to the second-highest' : '');
+  const ord = drizzleBoostOrder(req, hh.stats);
+  return `+${b} ${STAT_NAMES[STATS[ord[0]]]}` + (mk2 && req[ord[1]] > 0 ? `, +1 ${STAT_NAMES[STATS[ord[1]]]}` : ''); }
 
 /* ---------- v1.23.0 slot-stat tints + Mirrorlark illusion ghost; v1.24.1 Slab Spread Thin ghosts (UI only; never mutates assigned[] / odds) ---------- */
 const SLOT_TINT_FLASH_MS = 200;
@@ -4118,7 +4132,7 @@ function openBriefing(c) {
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
-        const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh)}) — tap to remove</div>` : '';
+        const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
         return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
@@ -4459,7 +4473,7 @@ function heroCallHTML(camp, hh, call) { // mission-relevant highlights (only wha
   return `<div class="note hc-call"><b>On “${esc(tpl.title)}”</b>${rows.map(r => `<div>${r}</div>`).join('') || '<div>No special notes for this call.</div>'}</div>`; }
 function extraStateHTML(camp, hh) { const r = []; // v1.14.0
   if (hh.id === 'zenith') r.push(hh.gloom && !hasPower(hh, 'noGloom') ? `😔 Bad mood: next rest ${hasPower(hh, 'gloomRest') ? CONFIG.zenith.restGloomPrescription : CONFIG.zenith.restGloom} s` : hasPower(hh, 'noGloom') ? '😎 No more bad moods: rest always 2 s' : '🙂 Good mood: next rest 2 s');
-  if (hh.id === 'drizzle' && camp.drizzle) r.push(hasPower(hh, 'noVolunteer') ? '💧 Holy Water: no more volunteering, +1 to his highest stat on every call' : camp.drizzle.volunteering ? '💧 Volunteering: he puts himself on each new call until you send him' : `💧 Sent without him: ${Math.min(camp.drizzle.skips, CONFIG.drizzle.skipsBeforeVolunteer)}/${CONFIG.drizzle.skipsBeforeVolunteer}`);
+  if (hh.id === 'drizzle' && camp.drizzle) r.push(hasPower(hh, 'noVolunteer') ? '💧 Holy Water: no more volunteering, +1 to the mission\'s highest required stat on every call' : camp.drizzle.volunteering ? '💧 Volunteering: he puts himself on each new call until you send him' : `💧 Sent without him: ${Math.min(camp.drizzle.skips, CONFIG.drizzle.skipsBeforeVolunteer)}/${CONFIG.drizzle.skipsBeforeVolunteer}`);
   if (hh.radiant) r.push('☀️ Radiant shield: blocks the next injury');
   return r.map(x => `<div class="note">${x}</div>`).join(''); }
 function heroInfoBuild(m, id, opts) {
