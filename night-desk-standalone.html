@@ -927,6 +927,12 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
 .ms-prev{padding:0!important;background:#05070f!important}
 .ms-prev .ms-thumb{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
 .ms-prev .lpin{right:10px;bottom:8px;left:auto;top:auto}
+/* v1.28.0: smooth hacking in every Look. While the console is open (html.nd-hacking) the city map behind it is hidden, so its decorative
+   animations (Neon rain, Comic halftone, CRT sweep band) are paused/removed, and the CRT scanline + vignette overlay that sits above the
+   hack canvas is pinned to its own static compositor layer so the canvas can redraw every frame without repainting it. Look styling stays. */
+html.nd-hacking #mapwrap *,html.nd-hacking #mapwrap::before,html.nd-hacking #mapwrap::after{animation-play-state:paused!important}
+html.nd-hacking[data-look="crt"] #app::before{animation:none!important;display:none}
+html[data-look="crt"] #app::after{will-change:transform;transform:translateZ(0)}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -966,7 +972,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.27.5';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.28.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1579,7 +1585,7 @@ const MECHANICS = {
   branch: ['⑂', 'Who you drafted changes which calls come in tonight ⑂.'],
   threshold: ['★', 'Limits ★: some calls pay double for a high stat, others FAIL if a stat goes over the cap.'],
   boss: ['☠', 'FINALE: protect the City bar (fails and misses cost 8). Each ☠ Night Mayor call you win knocks 1 off his signal; his pin returns until it hits 0.'],
-  invisible: ['👁', 'New hack tricks: invisible paths only show next to you, and red zones invert your controls.'],
+  invisible: ['👁', 'New hack tricks: 👁 fogged maps only show the floor next to you, and ⇅ red zones invert your controls. A hack uses one trick, never both.'],
 };
 function missionMechanics(t) { const k = []; if (t.base === 'choice') k.push('choice'); for (const tr of t.traits || []) if (MECHANICS[tr] && tr !== 'hero_option') k.push(tr); if (t.base === 'story') k.push('story'); if (t.base === 'training') k.push('training'); if (t.base === 'boss') k.push('boss');
   if (t.hack && (t.hack.features || []).some(f => /invisible|inverted/.test(f))) k.push('invisible'); return [...new Set(k)]; }
@@ -1587,6 +1593,19 @@ function missionBlurbs() { // tutorial line the first time each mechanic appears
   const seen = new Set(), out = []; MISSIONS_BY_SHIFT.forEach((list, i) => { const add = []; for (const t of list) for (const k of missionMechanics(t)) if (!seen.has(k)) { seen.add(k); add.push(MECHANICS[k][1]); } out[i] = add; }); return out; }
 /* v1.17.0: ~50% more hacking missions per shift (Shift 1 gets the console tutorial, Shift 8 the hand-made finale on s8_30).
    Added as extra 'hack' templates: hacks are required deck units, and CONFIG.deckTarget grew by the same count, so the other calls are unchanged. */
+/* v1.28.0: one hack trick per mission. 'invisiblePaths' = 👁 fog (floor shows only next to you), 'invertedControls' = ⇅ red zones flip the d-pad. */
+const HACK_TRICKS = ['invisiblePaths', 'invertedControls'];
+const HACK_SOLO_TRICK = { // Story Shift 8 hacks that used to list both tricks -> the one they keep
+  s8_27: 'invisiblePaths',   // Weather Siren Hijack: storm fog over the siren grid
+  s8_28: 'invisiblePaths',   // Find the Night Mayor's Studio: searching for a hidden room
+  s8_29: 'invertedControls', // Prison Door Cascade: door relays flip as they cascade
+  s8_30: 'invisiblePaths',   // Night Mayor: Kill Switch (hand-made finale; neither trick is used on that map)
+  s8_h5: 'invertedControls', // City Hall Mainframe: the back door scrambles the controls
+  s8_h6: 'invertedControls', // Broadcast Tower Override: a mirrored broadcast feed
+};
+function hackSoloTrick(features, keep) { // never both tricks: keep `keep` (default: fog) and drop the other; any other feature is untouched
+  const f = (features || []).map(String); if (!(f.includes('invisiblePaths') && f.includes('invertedControls'))) return f.slice();
+  const k = HACK_TRICKS.includes(keep) ? keep : 'invisiblePaths'; return f.filter(x => !HACK_TRICKS.includes(x) || x === k); }
 const HACK_EXTRA_MISSIONS = [
   [1, 's1_h1', 'Console Training', 'The Desk console needs a dry run before the real thing. Learn the hacking controls on a safe training grid.', { tutorial: true, features: [] }],
   [2, 's2_h2', 'Parking Meter Mutiny', 'Every meter downtown is printing tickets to itself. Take the console yourself.', { features: ['bridges'] }],
@@ -1596,8 +1615,8 @@ const HACK_EXTRA_MISSIONS = [
   [5, 's5_h6', 'Substation Firewall', 'Someone firewalled the substation while the lights were out. Take the console yourself.', { features: ['charges', 'bulbs'] }],
   [6, 's6_h2', 'Ambulance Router Loop', 'Ambulance GPS keeps routing to the same donut shop. Take the console yourself.', { features: ['charges', 'antivirus', 'splitKeys'] }],
   [7, 's7_h2', 'Fireworks Launch Panel', 'The fireworks barge is counting down early. Take the console yourself.', { features: ['charges', 'antivirus x3', 'splitKeys'] }],
-  [8, 's8_h5', 'City Hall Mainframe', 'The Night Mayor left a back door in City Hall. Slam it shut.', { features: ['invisiblePaths', 'invertedControls', 'antivirus'] }],
-  [8, 's8_h6', 'Broadcast Tower Override', 'Every screen in the city shows the Night Mayor\'s face. Take the console yourself.', { features: ['invisiblePaths', 'invertedControls', 'antivirus'] }],
+  [8, 's8_h5', 'City Hall Mainframe', 'The Night Mayor left a back door in City Hall. Slam it shut.', { features: ['invertedControls', 'antivirus'] }], // v1.28.0: one hack trick only (⇅)
+  [8, 's8_h6', 'Broadcast Tower Override', 'Every screen in the city shows the Night Mayor\'s face. Take the console yourself.', { features: ['invertedControls', 'antivirus'] }], // v1.28.0: one hack trick only (⇅)
 ];
 (function () {
   const base = MISSION_TEMPLATES.find(t => t.type === 'hack'); if (!base) return;
@@ -1605,6 +1624,9 @@ const HACK_EXTRA_MISSIONS = [
     const t = Object.assign({}, ref, { id, title, text, shift: sh, minShift: sh, req: ref.req.slice(), tags: ref.tags.slice(), traits: [], goals: (ref.goals || []).slice(), hack: Object.assign({ time: 60, seq: 5, attempts: 1, district: null }, hk) });
     delete t.disruption; MISSION_TEMPLATES.push(t); MISSION_BY_ID[id] = t; (MISSIONS_BY_SHIFT[sh - 1] = MISSIONS_BY_SHIFT[sh - 1] || []).push(t); }
   if (MISSION_BY_ID.s8_30 && MISSION_BY_ID.s8_30.hack) MISSION_BY_ID.s8_30.hack = Object.assign({}, MISSION_BY_ID.s8_30.hack, { finale: true });
+  // v1.28.0 (Craig): a hack never combines 👁 limited visibility (fog) with ⇅ reversed controls. Shift 8 hacks that listed both keep ONE, chosen by theme.
+  // s8_30 is the hand-made finale map (never fogged or inverted in play); its list is trimmed too so the data says what the map does.
+  for (const [id, keep] of Object.entries(HACK_SOLO_TRICK)) { const t = MISSION_BY_ID[id]; if (t && t.hack) t.hack = Object.assign({}, t.hack, { features: hackSoloTrick(t.hack.features, keep) }); }
 })();
 
 /* ================= HACKING MINIGAME (logic + render) ================= */
@@ -1643,7 +1665,7 @@ function hackTerminalGlyph(ctx, sx, sy, cs, col) { // ⌨ terminal drawn with sh
 const HACK_THEME_DEFAULT = { bg: '#050814', wall: '#03050d', wallLine: '#141c38', floor: '#1d3a7a', closed: '#070b18', player: '#4fb3ff', playerCh: '#ffd23f' };
 
 /* v1.27.0: render-only motion. Logic / collision stay grid-instant; the sprite and camera interpolate. */
-const HACKMOVE = { ms: 120 };
+const HACKMOVE = { ms: 120, chainMs: 220, chainGap: 260 }; // v1.28.0: back-to-back steps (held d-pad / key, fast swipes) chain into one continuous glide
 const HACKFADE = { ms: 140 };
 const HACKPOP = { ms: 220 };
 function hackEaseOut(u) { u = Math.max(0, Math.min(1, u)); return 1 - Math.pow(1 - u, 3); }
@@ -1657,19 +1679,23 @@ function hackLerpPos(m, x1, y1) {
   const tx = m.x1 != null ? m.x1 : x1, ty = m.y1 != null ? m.y1 : y1;
   const u = (hackNow() - m.t0) / (m.ms || HACKMOVE.ms);
   if (u >= 1) return { x: tx, y: ty, done: true };
-  const e = hackEaseOut(u);
+  const e = m.lin ? u : hackEaseOut(u);
   return { x: m.x0 + (tx - m.x0) * e, y: m.y0 + (ty - m.y0) * e };
 }
 function hackVisPos(g) { const p = hackLerpPos(g._move, g.px, g.py); if (p.done) g._move = null; return p; }
 function hackAvPos(a) { const p = hackLerpPos(a._move, a.x, a.y); if (p.done) a._move = null; return p; }
 function hackSnapVis(g) {
-  g._move = null; g.vx = g.px; g.vy = g.py;
+  g._move = null; g._lastStep = null; g.vx = g.px; g.vy = g.py;
   if (g.av) for (const a of g.av) { a._move = null; a.vx = a.x; a.vy = a.y; }
 }
 function hackNoteMove(g, fromX, fromY) {
   if (hackReduced(g)) { g._move = null; return; }
   const cur = g._move ? hackVisPos(g) : (fromX != null ? { x: fromX, y: fromY } : { x: g.px, y: g.py });
-  g._move = { x0: cur.x, y0: cur.y, x1: g.px, y1: g.py, t0: hackNow(), ms: HACKMOVE.ms };
+  // v1.28.0: a step that follows the last one within chainGap glides at constant speed for the gap (120–220ms), so a held d-pad (220ms repeat)
+  // moves continuously instead of hop-stop-hop. A lone step keeps the 120ms ease-out. Still render-only; logic stays grid-instant.
+  const now = hackNow(), gap = g._lastStep != null ? now - g._lastStep : Infinity; g._lastStep = now;
+  const chained = gap <= HACKMOVE.chainGap, ms = chained ? Math.max(HACKMOVE.ms, Math.min(HACKMOVE.chainMs, gap)) : HACKMOVE.ms;
+  g._move = { x0: cur.x, y0: cur.y, x1: g.px, y1: g.py, t0: now, ms, lin: chained };
 }
 function hackNoteAvMove(g, a, fromX, fromY) {
   if (hackReduced(g)) { a._move = null; return; }
@@ -1697,7 +1723,8 @@ class HackGame {
     // v1.16.0: every hack has 3 lives (CONFIG.hack.lives); being caught costs a life and sends you back to the section start. Unlimited setting = no limit.
     this.attempts = this.unlimited ? 0 : (layout.lives || (typeof CONFIG !== 'undefined' && CONFIG.hack && CONFIG.hack.lives) || 3); this.lives = this.attempts; this.cp = null;
     this.invisible = !!layout.invisible; this.seen = new Set();
-    this.zone = new Set(); if (layout.inverted) { const x0 = Math.floor(this.W / 3), x1 = Math.ceil(2 * this.W / 3); for (let y = 0; y < this.H; y++) for (let x = x0; x < x1; x++) if ('#SX'.indexOf(this.ch(x, y)) < 0) this.zone.add(x + ',' + y); }
+    this.inverted = !!layout.inverted && !this.invisible; // v1.28.0 hard guard: a fogged map never also gets ⇅ reversed-control zones
+    this.zone = new Set(); if (this.inverted) { const x0 = Math.floor(this.W / 3), x1 = Math.ceil(2 * this.W / 3); for (let y = 0; y < this.H; y++) for (let x = x0; x < x1; x++) if ('#SX'.indexOf(this.ch(x, y)) < 0) this.zone.add(x + ',' + y); }
     this.reset(true);
   }
   find(ch) { const out = []; this.rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === ch) out.push([x, y]); }); return out; }
@@ -1838,7 +1865,9 @@ class HackGame {
   draw(ctx, w, h, t, view) { // v1.16.0: view = {cs, ox, oy} from the scrolling camera (hackCamera); no view = fit the whole map
     const HT = (typeof hackTheme === 'function' && hackTheme()) || HACK_THEME_DEFAULT;
     ctx.fillStyle = HT.bg; ctx.fillRect(0, 0, w, h);
-    let cs, ox, oy; if (view) { cs = view.cs; ox = Math.round(view.ox); oy = Math.round(view.oy); } else { cs = Math.floor(Math.min(w / this.W, h / this.H)); ox = Math.floor((w - cs * this.W) / 2); oy = Math.floor((h - cs * this.H) / 2); }
+    // v1.28.0: positions snap to the DEVICE pixel grid (not whole CSS px) so the camera and sprites glide in fine, crisp steps in every Look
+    const dp = Math.max(1, (ctx.getTransform && ctx.getTransform().a) || 1), snap = v => Math.round(v * dp) / dp;
+    let cs, ox, oy; if (view) { cs = view.cs; ox = snap(view.ox); oy = snap(view.oy); } else { cs = Math.floor(Math.min(w / this.W, h / this.H)); ox = Math.floor((w - cs * this.W) / 2); oy = Math.floor((h - cs * this.H) / 2); }
     const P = (x, y) => [ox + x * cs, oy + y * cs];
     const pv = this.previewCells();
     const x0 = Math.max(0, Math.floor(-ox / cs)), x1 = Math.min(this.W - 1, Math.ceil((w - ox) / cs)), y0 = Math.max(0, Math.floor(-oy / cs)), y1 = Math.min(this.H - 1, Math.ceil((h - oy) / cs));
@@ -1888,9 +1917,9 @@ class HackGame {
       if (c === 'P') icon('⚑', this.cp && this.cp.px === x && this.cp.py === y ? '#22c55e' : '#9ab');
     }
     if (pv) { ctx.lineWidth = 2; ctx.setLineDash([4, 3]); for (const [x, y] of pv.appear) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#22c55e'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } for (const [x, y] of pv.vanish) { const [sx, sy] = P(x, y); ctx.strokeStyle = '#ef4444'; ctx.strokeRect(sx + 4, sy + 4, cs - 8, cs - 8); } ctx.setLineDash([]); ctx.lineWidth = 1; }
-    for (const a of this.av) { if (!a.alive) continue; const ap = hackAvPos(a); if (a.hunter) { const [sx, sy] = P(ap.x, ap.y); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : '#f472b6'; ctx.beginPath(); const r = cs * (on ? 0.4 * (1 + 0.1 * Math.sin(t * 12)) : 0.36); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.closePath(); ctx.fill(); ctx.strokeStyle = HK_INK; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.stroke(); ctx.lineWidth = 1; if (!on) { ctx.fillStyle = HK_INK; ctx.font = `bold ${Math.floor(cs * 0.32)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', sx + cs / 2, sy + cs / 2 + 1); } if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
+    for (const a of this.av) { if (!a.alive) continue; const ap = hackAvPos(a); if (a.hunter) { const [sx, sy] = P(ap.x, ap.y).map(snap); const on = this.alarm; ctx.fillStyle = on ? '#ff2d55' : '#f472b6'; ctx.beginPath(); const r = cs * (on ? 0.4 * (1 + 0.1 * Math.sin(t * 12)) : 0.36); ctx.moveTo(sx + cs / 2, sy + cs / 2 - r); ctx.lineTo(sx + cs / 2 + r, sy + cs / 2); ctx.lineTo(sx + cs / 2, sy + cs / 2 + r); ctx.lineTo(sx + cs / 2 - r, sy + cs / 2); ctx.closePath(); ctx.fill(); ctx.strokeStyle = HK_INK; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.stroke(); ctx.lineWidth = 1; if (!on) { ctx.fillStyle = HK_INK; ctx.font = `bold ${Math.floor(cs * 0.32)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('z', sx + cs / 2, sy + cs / 2 + 1); } if (on) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.floor(cs * 0.4)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', sx + cs / 2, sy + cs / 2 + 1); } continue; }
       const home = P(a.hx, a.hy); ctx.strokeStyle = 'rgba(239,68,68,.18)'; ctx.beginPath(); ctx.arc(home[0] + cs / 2, home[1] + cs / 2, cs * ((this.L.avZone || CONFIG.hack.avZone) + 0.5), 0, 7); ctx.stroke();
-      const [sx, sy] = P(ap.x, ap.y); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = HK_INK; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.fill(); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.stroke(); ctx.lineWidth = 1; }
+      const [sx, sy] = P(ap.x, ap.y).map(snap); const g = ctx.createRadialGradient(sx + cs / 2, sy + cs / 2, 2, sx + cs / 2, sy + cs / 2, cs * 0.45); g.addColorStop(0, '#fff'); g.addColorStop(0.3, '#ff4d4d'); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = HK_INK; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.fill(); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.45 * (1 + 0.08 * Math.sin(t * 8)), 0, 7); ctx.fill(); ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = Math.max(1.5, cs * 0.07); ctx.beginPath(); ctx.arc(sx + cs / 2, sy + cs / 2, cs * 0.34, 0, 7); ctx.stroke(); ctx.lineWidth = 1; }
     // v1.19.0 Route Ghost / Console Scout overlays (read-only; no puzzle state)
     if (this.ghostPath && this.ghostUntil && performance.now() < this.ghostUntil) {
       ctx.fillStyle = 'rgba(148,163,184,.55)'; ctx.strokeStyle = 'rgba(226,232,240,.9)'; ctx.lineWidth = Math.max(2, cs * 0.08);
@@ -1903,7 +1932,7 @@ class HackGame {
       for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) { const c = this.ch(x, y), col = HK_SCOUT[c]; if (!col || !this.liveItem(x, y)) continue; const [sx, sy] = P(x, y); ctx.globalAlpha = pulse;
         ctx.strokeStyle = HK_INK; ctx.lineWidth = lw + 2; ctx.strokeRect(sx + 1.5, sy + 1.5, cs - 3, cs - 3); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.strokeRect(sx + 1.5, sy + 1.5, cs - 3, cs - 3); ctx.globalAlpha = 1; ctx.lineWidth = 1; }
     }
-    const vis = hackVisPos(this); const [px, py] = P(vis.x, vis.y); const m = cs * 0.2 + (this.bump ? 2 : 0);
+    const vis = hackVisPos(this); const [px, py] = P(vis.x, vis.y).map(snap); const m = cs * 0.2 + (this.bump ? 2 : 0);
     ctx.fillStyle = this.charge ? HT.playerCh : HT.player; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.fillRect(px + m, py + m, cs - 2 * m, cs - 2 * m); ctx.shadowBlur = 0;
     ctx.fillStyle = '#081020'; ctx.beginPath(); ctx.arc(px + cs / 2, py + cs / 2, cs * 0.07, 0, 7); ctx.fill();
     if (this.hold > 0) { ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px + cs / 2, py + cs / 2, cs * 0.45, -Math.PI / 2, -Math.PI / 2 + 6.283 * this.hold / CONFIG.hack.holdTime); ctx.stroke(); ctx.lineWidth = 1; }
@@ -1997,7 +2026,8 @@ const HACK_CURVE = [
   { rooms: [3, 3], features: ['charges', 'bulbs'], extra: ['arrow', 'tool'], av: 1, avZone: 2, seq: 5, arrowLen: 5, terminal: true, files: 3, loops: 2, slack: 1.9, speed: 10, timeMargin: 1.35, timeMin: 60 },
   { rooms: [4, 3], features: ['charges', 'antivirus', 'splitKeys'], extra: ['key', 'arrow'], av: 1, avZone: 3, seq: 6, arrowLen: 5, terminal: true, memo: true, hunters: 1, hunterInterval: 0.8, files: 3, loops: 2, slack: 1.8, speed: 10, timeMargin: 1.3, timeMin: 65 },
   { rooms: [4, 3], features: ['charges', 'antivirus x3', 'splitKeys'], extra: ['tool', 'key', 'arrow'], av: 3, avZone: 3, seq: 6, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.7, files: 4, loops: 3, slack: 1.7, speed: 10, timeMargin: 1.3, timeMin: 70 },
-  { rooms: [4, 3], features: ['invisiblePaths', 'invertedControls', 'antivirus'], extra: ['lock', 'tool', 'key', 'arrow'], av: 2, avZone: 3, seq: 7, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.6, files: 4, loops: 3, slack: 1.7, speed: 10, timeMargin: 1.25, timeMin: 75 },
+  // v1.28.0: Shift 8 uses ONE trick per hack. The curve lists fog; Random Calls alternates fog / reversed controls per hack (legacyHackSpec), never both.
+  { rooms: [4, 3], features: ['invisiblePaths', 'antivirus'], altTrick: 'invertedControls', extra: ['lock', 'tool', 'key', 'arrow'], av: 2, avZone: 3, seq: 7, arrowLen: 6, terminal: true, memo: true, hunters: 2, hunterInterval: 0.6, files: 4, loops: 3, slack: 1.7, speed: 10, timeMargin: 1.3, timeMin: 75 }, // v1.28.0: margin 1.25 -> 1.3 (= Shift 7) now each map has one trick; times still come from the map's own human-pace budget
 ];
 const HACK_TUTORIAL = { name: 'Console Training', time: 150, seq: 3, arrowLen: 3, tutorial: true, rows: [
   '###################',
@@ -2034,7 +2064,7 @@ function hackFeatCfg(base, features, opts) { // merge the shift curve with a mis
   if (f.includes('bulbs')) { c.gates.push('bulb'); c.bulbNeed = 1; }
   const avm = f.map(x => /^antivirus(?: x(\d+))?$/.exec(x)).find(Boolean); c.av = avm ? Math.max(base.av || 0, +(avm[1] || 1)) : (base.av || 0); c.charges = (f.includes('charges') ? 1 : 0) + c.av;
   for (const e of base.extra || []) if (!c.gates.includes(e)) c.gates.push(e);
-  c.invisible = f.includes('invisiblePaths'); c.inverted = f.includes('invertedControls');
+  c.invisible = f.includes('invisiblePaths'); c.inverted = f.includes('invertedControls'); if (c.invisible && c.inverted) c.inverted = false; // v1.28.0 hard guard: never fog + reversed controls together
   if (opts && opts.easy) { c.gates = c.gates.slice(0, Math.max(1, c.gates.length - 1)); c.hunters = 0; c.av = Math.min(c.av, 1); c.slack = (c.slack || 2) + 0.4; c.rooms = [Math.min(3, c.rooms[0]), Math.min(3, c.rooms[1])]; }
   return c; }
 function genHackMap(seed, cfg) {
@@ -3153,7 +3183,7 @@ function disruptionHackSpec(S) { // v1.8.1: the hack option inside a disruption 
   return Object.assign({}, sp, { features: f, time: (sp.time || 60) + (CONFIG.disruptHackTimeBonus || 2), attempts: 0 }); }
 function hackMapKey(S, call, opts) { return call ? String(call.tpl.id) + ':' + (call.hackOrd || 0) + (opts && opts.easy ? ':radio' : '') : 'radio:' + (S.radioN = (S.radioN || 0) + 1); }
 function missionLayout(camp, S, spec, call, opts) { // v1.17.0: generated (seeded, solver-validated) maps; Shift 1 tutorial; Shift 8 hand-made finale
-  opts = opts || {}; const f = spec.features || [];
+  opts = opts || {}; const f = hackSoloTrick(spec.features || [], spec.trick); // v1.28.0: never fog + reversed controls in one hack
   const key = hackMapKey(S, call, opts);
   let L; if (spec.tutorial && !opts.easy) L = hackTutorialLayout(); else if (spec.finale && !opts.easy) L = hackFinaleLayout();
   else L = genHackForShift(hackSeed(camp.seed >>> 0, S.idx, key), S.idx, f, { easy: !!opts.easy, noTutorial: !!opts.easy });
@@ -3163,7 +3193,9 @@ function missionLayout(camp, S, spec, call, opts) { // v1.17.0: generated (seede
   return L; }
 function legacyHackSpec(S, call) { // Classic ON: same curve as Classic OFF (Shift 1 tutorial, Shift 8 last hack = finale)
   const c = HACK_CURVE[Math.min(HACK_CURVE.length - 1, S.idx)] || {}; const ord = call && call.hackOrd !== undefined ? call.hackOrd : -1;
-  return { features: c.features || [], tutorial: !!c.tutorial && ord <= 0, finale: !!(S.plan && S.plan.finale) && ord >= 0 && ord === (S.hackQueue || []).length - 1 }; }
+  // v1.28.0: a shift with an alternate trick (Shift 8) swaps fog for ⇅ reversed controls on every other hack (odd hackOrd), so Random Calls gets a mix but never both
+  let feats = (c.features || []).slice(); if (c.altTrick && ord >= 0 && ord % 2 === 1) feats = feats.filter(x => !HACK_TRICKS.includes(x)).concat([c.altTrick]);
+  return { features: hackSoloTrick(feats), tutorial: !!c.tutorial && ord <= 0, finale: !!(S.plan && S.plan.finale) && ord >= 0 && ord === (S.hackQueue || []).length - 1 }; }
 function hackLayoutFor(camp, S, call) { if (camp.missionSet === 'v1.8' && S.deckMode) { const sp = missionHackSpec(S, call); if (sp) return missionLayout(camp, S, sp, call); }
   camp.layoutIdx = (camp.layoutIdx || 0) + 1; return missionLayout(camp, S, legacyHackSpec(S, call), call); }
 function hackPrewarmCall(camp, S, call) { // v1.17.0: queue the map for a just-spawned hack call in the background worker (same seed/args as hackLayoutFor)
@@ -4373,12 +4405,12 @@ function startHack(c, layout, disrupt) {
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
   const helpers = rosterHackHelpers(UI.camp); const spent = {};
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
   if (/R/.test(L.rows.join('')) && L.arrowMemo) tutorial('hackR', '⌨ Terminals flash the arrow code for the ⇄ lock only for a few seconds. Memorize it!');
-  if (L.invisible || L.inverted) tutorial('hackG', '👁 Invisible paths: floor tiles only show next to you. ⇅ Red zones invert your controls while you stand in them.');
+  if (L.invisible || L.inverted) tutorial('hackG', L.invisible ? '👁 Fogged map: floor tiles only show next to you. Walk to reveal more.' : '⇅ Red zones invert your controls while you stand in them.');
   if (L.rows.join('').indexOf('V') >= 0 || /[UG]/.test(L.rows.join(''))) tutorial('hackRb', '⚡ An antivirus takes a held charge when it touches you. Each map has a spare ⚡ for every antivirus before the gates it guards. If you ever have no way forward, tap ↻ REBOOT: the section is restored for one life (the timer keeps running).');
   // v1.19.0 Head Time ✦ Borrowed Seconds: passive once per hack if Sundial (or anyone with hackBorrowed) is on the roster
   const borrow = helpers.find(x => x.P.hackBorrowed || x.kind === 'borrowed' || x.P.hackBorrowed === true);
@@ -4420,7 +4452,7 @@ function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game,
   if (g.status !== 'play' || (H.rbLast && now - H.rbLast < 450)) return; H.rbLast = now; // ghost-click / double-tap guard: a second tap within 450 ms is ignored
   if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
   const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
-function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) pw.innerHTML = ''; const hk = $('hKey'); if (hk) hk.textContent = ''; const seq = $('hSeq'); if (seq) { seq.classList.remove('open'); seq.innerHTML = ''; } const pad = $('hPad'); if (pad) { pad.classList.remove('open'); pad.innerHTML = ''; } $('hack').classList.remove('hack-entry', 'hack-seq'); $('hack').classList.add('hidden');
+function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) pw.innerHTML = ''; const hk = $('hKey'); if (hk) hk.textContent = ''; const seq = $('hSeq'); if (seq) { seq.classList.remove('open'); seq.innerHTML = ''; } const pad = $('hPad'); if (pad) { pad.classList.remove('open'); pad.innerHTML = ''; } $('hack').classList.remove('hack-entry', 'hack-seq'); $('hack').classList.add('hidden'); document.documentElement.classList.remove('nd-hacking');
   const _afterHack = () => { if (typeof flushHackOverlays === 'function') flushHackOverlays(); else if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); _afterHack(); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); _afterHack(); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); _afterHack(); return; }
@@ -4453,10 +4485,15 @@ function hackFrame(dt) {
   const cv = $('hcv'), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr); }
   if (!H.cam) H.cam = { init: false }; const scoutOn = !!(g.scoutUntil && performance.now() < g.scoutUntil); H.view = hackCamera(H.cam, g, w, hh, dt, !!(H.zoom || scoutOn));
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); g.draw(ctx, w, hh, H.t, H.view);
-  $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hTimer').classList.toggle('low', !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm)); $('hCharge').textContent = (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
+  // v1.28.0: HUD DOM is written only when its value changes (was every frame). Per-frame text/bar repaints under heavy Look effects
+  // (Dispatch Terminal glow + scanlines) cost frames on phones, which dropped tween frames and made movement look jumpy.
+  const hud = H.hud || (H.hud = {}), setT = (id, v) => { if (hud[id] !== v) { hud[id] = v; $(id).textContent = v; } };
+  const tw = (g.unlimited ? 100 : Math.round(1000 * g.timeLeft / g.time) / 10) + '%'; if (hud.tw !== tw) { hud.tw = tw; $('hTimer').style.width = tw; }
+  const low = !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm); if (hud.low !== low) { hud.low = low; $('hTimer').classList.toggle('low', low); }
+  setT('hMsg', g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`)); setT('hCharge', (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞'));
   if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (H.softArmed ? ' (Soft Reboot: free).' : (g.attempts ? ' (costs 1 life).' : '.')); renderHackBtns(); } }
   if (H.rbLives !== g.lives) { H.rbLives = g.lives; renderHackBtns(); }
-  const k = $('hKey'); if (g.keyShow > 0) k.textContent = g.keyText; else k.textContent = ''; // v1.27.3: reserved .hhud-key row stays in flow
+  setT('hKey', g.keyShow > 0 ? g.keyText : ''); // v1.27.3: reserved .hhud-key row stays in flow
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
 function initHackInput() {
@@ -5177,7 +5214,7 @@ function frame(now) {
         if (UI.auto) { UI.autoAcc += dt * S.speed; if (UI.autoAcc >= CONFIG.autoReviewDelay) { UI.autoAcc = 0; aiStep(UI.camp, S, {}); } }
         for (const c of S.calls) if (c.stage === 'pending') { const rem = c.expiresAt - S.t; if (rem <= CONFIG.alarmSeconds) { const k = Math.ceil(rem); if (c._al !== k) { c._al = k; Sfx.alarm(); } } }
       }
-      drawMap(now / 1000);
+      if (!UI.hack) drawMap(now / 1000); // v1.28.0: the city map is fully covered by the console while hacking; skip its redraw so the hack keeps every frame
       if (now - lastDom > 100) { lastDom = now; updateRoster(); updateQueue(); updateTop(); }
       Sfx.musicUpdate(pendingCalls(S).length, !isPaused());
       if (UI.shiftOverPending && !UI.modals.length && !UI.hack) {
