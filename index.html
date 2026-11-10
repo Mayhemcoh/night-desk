@@ -625,6 +625,8 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
   .mk2-offer .pw{margin:4px 0}
   .mk2-offer .btn.small{min-height:40px}
 }
+.tag.ver{font:700 13px ui-monospace,monospace;letter-spacing:.04em;color:var(--cyan);padding:4px 10px;border:1px solid var(--cyan);border-radius:999px}
+#swUpdate,.sw-update{position:fixed;bottom:calc(var(--sab) + 12px);left:50%;transform:translateX(-50%);z-index:55;background:#102038f2;border:1px solid var(--cyan);color:#e6fbff;border-radius:999px;padding:8px 14px;font:700 13px ui-monospace,monospace;box-shadow:0 0 16px #3ef0ff44;cursor:pointer;max-width:92vw;white-space:nowrap;pointer-events:auto}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -964,7 +966,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.27.4';
+<script>window.ND_VERSION='nd-v1.27.5';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3683,6 +3685,7 @@ function replayPick(h, level) { // a point re-earned after RESTART/Quit/reload g
 function showRevertNote(camp) { const n = camp.revertNote; delete camp.revertNote; if (!n || !n.length) return; saveCamp();
   toast(`↩ ${n.length} stat point${n.length > 1 ? 's' : ''} earned during that shift ${n.length > 1 ? 'were' : 'was'} undone with the shift's XP: ${n.map(x => `${esc(camp.heroes[x.id] ? camp.heroes[x.id].codename : x.id)} +1 ${STAT_NAMES[STATS[x.stat]]}`).join(', ')}. Your picks are remembered and re-applied automatically when the point is earned again. Points banked before the shift stay spent.`, 9000); }
 
+function ndVersionLabel(v) { v = String(v != null ? v : (window.ND_VERSION || '')).replace(/^nd-/, ''); return v ? (v.charAt(0) === 'v' ? v : 'v' + v) : ''; }
 /* ---------- radio, toasts, fx ---------- */
 function radio(heroId, text) { if (hackOverlaysHeld()) { HackHold.radios.push({ heroId, text }); if (HackHold.radios.length > 8) HackHold.radios.shift(); return; } const r = $('radio'); const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); Sfx.blip(); }
 function radioLog(heroId, text, cls) { if (hackOverlaysHeld()) { HackHold.radios.push({ heroId, text, cls, log: true }); if (HackHold.radios.length > 8) HackHold.radios.shift(); return; } const r = $('radio'); if (!r || !UI.camp) return; const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', cls || '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); }
@@ -3716,6 +3719,7 @@ function flushHackOverlays() {
   for (const r of rs) { if (r.log) radioLog(r.heroId, r.text, r.cls); else radio(r.heroId, r.text); }
   for (const f of fs) finBanner(f.text, f.lost);
   if (typeof Celebrate !== 'undefined') Celebrate.next();
+  if (typeof flushSwUpdatePrompt === 'function') flushSwUpdatePrompt();
   if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0);
 }
 function toast(text, ms) { if (hackOverlaysHeld()) { HackHold.toasts.push({ text, ms }); if (HackHold.toasts.length > 8) HackHold.toasts.shift(); return; } const t = h('div', 'toast', text); $('toasts').appendChild(t); setTimeout(() => t.remove(), ms || 3500); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
@@ -4611,6 +4615,7 @@ function openPause() {
     const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
       `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
+       <div class="tglrow"><span id="verLbl">Night Desk ${esc(ndVersionLabel())}</span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
        <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
@@ -4864,7 +4869,7 @@ function showTitle() {
    <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
    ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
    <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>
-   <div class="verrow"><div class="tag ver" id="verLbl" style="font-size:12px">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</div><button class="btn small ghost" data-a="credits">CREDITS</button></div>`, s => {
+   <div class="verrow"><div class="tag ver" id="verLbl">Version ${esc(ndVersionLabel())}</div><button class="btn small ghost" data-a="credits">CREDITS</button></div>`, s => {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
     s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); const v = parseInt($('seedIn').value, 10); showNewCampaign(isNaN(v) ? ((Math.random() * 1e9) >>> 0) : v, false, !!save); };
     s.querySelector('[data-a=look]').onclick = () => { Sfx.init(); Sfx.click(); openLooks(); };
@@ -5259,9 +5264,53 @@ window.ND = {
     run(); return plan.length;
   },
 };
+/* v1.27.5: register with updateViaCache:'none', poll for updates, network-first navigations in sw.js,
+   and a non-blocking "Update ready" prompt. Auto-reload once on the title/menu (not mid-shift / mid-hack). */
+const SWUpdate = { reg: null, prompted: false, reloading: false, lastCheck: 0, pending: false, ver: '', hadController: false, justReloaded: false }; window.SWUpdate = SWUpdate;
+function swUpdateSafeToAutoReload() { if (UI.hack) return false; if (UI.screen === 'game' && UI.S) return false; return true; }
+function showUpdatePrompt(ver) {
+  if (ver) SWUpdate.ver = ver;
+  SWUpdate.pending = true;
+  if (UI.hack) return; // v1.27.4: never paint over a live hack HUD; flush after endHack
+  if (swUpdateSafeToAutoReload() && !SWUpdate.justReloaded && !SWUpdate.reloading) {
+    try { if (sessionStorage.getItem('nd-sw-autoreload') === '1') { /* already did this hop */ } else { sessionStorage.setItem('nd-sw-autoreload', '1'); SWUpdate.reloading = true; location.reload(); return; } } catch (e) { SWUpdate.reloading = true; location.reload(); return; }
+  }
+  let el = $('swUpdate');
+  if (!el) {
+    el = document.createElement('button'); el.id = 'swUpdate'; el.type = 'button'; el.className = 'sw-update'; el.setAttribute('aria-live', 'polite');
+    el.onclick = () => { if (SWUpdate.reloading) return; SWUpdate.reloading = true; location.reload(); };
+    document.body.appendChild(el);
+  }
+  const lab = ndVersionLabel(SWUpdate.ver);
+  el.textContent = lab ? ('Update ready (' + lab + ') — tap to reload') : 'Update ready — tap to reload';
+  el.classList.remove('hidden'); SWUpdate.prompted = true;
+}
+function flushSwUpdatePrompt() { if (SWUpdate.pending && !UI.hack) showUpdatePrompt(SWUpdate.ver); }
+async function swPeekVersion() { try { const txt = await fetch('./sw.js', { cache: 'no-store' }).then(r => r.text()); const m = txt.match(/CACHE='(nd-v[^']+)'/); return m ? m[1] : ''; } catch (e) { return ''; } }
+function swWatchWorker(worker) { if (!worker) return; const tell = () => { swPeekVersion().then(v => { if (v && v !== window.ND_VERSION) showUpdatePrompt(v); }); }; if (worker.state === 'installed' || worker.state === 'activated') tell(); worker.addEventListener('statechange', () => { if (worker.state === 'installed' || worker.state === 'activated') tell(); }); }
+function swCheckUpdate() { const now = Date.now(); if (now - SWUpdate.lastCheck < 30000) return; SWUpdate.lastCheck = now; if (SWUpdate.reg && SWUpdate.reg.update) SWUpdate.reg.update().catch(() => { }); }
+function initServiceWorker() {
+  if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http') || window.ND_STANDALONE) return;
+  SWUpdate.hadController = !!navigator.serviceWorker.controller;
+  try { SWUpdate.justReloaded = sessionStorage.getItem('nd-sw-autoreload') === '1'; } catch (e) { SWUpdate.justReloaded = false; }
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (SWUpdate.justReloaded || SWUpdate.reloading) return;
+    if (!SWUpdate.hadController) return; // first install: don't reload-loop
+    swPeekVersion().then(v => { if (v && v !== window.ND_VERSION) showUpdatePrompt(v); });
+  });
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+    SWUpdate.reg = reg;
+    if (reg.waiting) swWatchWorker(reg.waiting);
+    if (reg.installing) swWatchWorker(reg.installing);
+    reg.addEventListener('updatefound', () => swWatchWorker(reg.installing));
+    SWUpdate.lastCheck = 0; swCheckUpdate();
+  }).catch(() => { });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) swCheckUpdate(); });
+  if (SWUpdate.justReloaded) setTimeout(() => { try { sessionStorage.removeItem('nd-sw-autoreload'); } catch (e) { } SWUpdate.justReloaded = false; }, 4000);
+}
 function init() {
   initInput();
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.ND_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => { });
+  initServiceWorker();
   showTitle(); requestAnimationFrame(frame);
 }
 window.addEventListener('load', init);
