@@ -163,22 +163,33 @@ html[data-look="comic"] #hReboot b{color:#b91c1c!important}
 @media (max-width:480px) and (orientation:portrait){.hhead{flex-wrap:wrap;row-gap:5px}.hhead .htimer{order:5;flex:1 0 100%}.hhead .htitle{flex:1;max-width:none}} /* v1.18.1: narrow phones put the timer bar on its own full-width row so ↻ REBOOT fits */
 @media (prefers-reduced-motion:reduce){#hReboot.stuck{animation:none;box-shadow:0 0 0 3px rgba(255,210,63,.55)}}
 .htimer i.low{background:linear-gradient(90deg,#dc2626,#f87171)!important}
-#hSeq .sqh{font-size:12px;color:#cfe3ff;margin-bottom:2px}#hSeq .arw{display:flex;gap:8px;justify-content:center;margin:6px 0}#hSeq .arw .btn{min-width:52px;min-height:48px;font-size:22px;padding:0}
-#hKey{position:absolute;top:4px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;font:800 20px ui-monospace,monospace;text-align:center;color:var(--yel);background:#2a2610;border-radius:8px;padding:4px}
+#hSeq .sqh{font-size:11px;color:#cfe3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hSeq .arrows{font:800 clamp(16px,5vw,26px)/1 ui-monospace,monospace;letter-spacing:4px;color:#e8f0ff}
+#hPad .arw{display:flex;gap:8px;justify-content:center;margin:6px 0}#hPad .arw .btn{min-width:52px;min-height:48px;font-size:22px;padding:0}
+/* v1.27.3: reserved HUD rows live OUTSIDE .hstage so chips / KEY / inventory never cover the map or each other, and the map size stays fixed (slots always exist, even when empty). */
+.hhud-powers{flex:none;height:44px;min-height:44px;max-height:44px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hhud-key{flex:none;height:40px;min-height:40px;max-height:40px;display:flex;align-items:center;justify-content:center;gap:8px;overflow:hidden}
+.hhud-tools{flex:none;height:32px;min-height:32px;max-height:32px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#hKey{white-space:nowrap;font:800 clamp(13px,4.6vw,20px)/1.1 ui-monospace,monospace;text-align:center;color:var(--yel);background:#2a2610;border-radius:8px;padding:4px 8px;max-width:100%;overflow:hidden}
+#hKey:empty{visibility:hidden;padding:0;background:none}
 .hstage{flex:1;position:relative;min-height:0}
 #hcv{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-#hSeq,#hPad{position:absolute;left:50%;bottom:6px;transform:translateX(-50%) scale(.96);background:#0b1430f2;border:1px solid var(--cyan);border-radius:12px;padding:8px 10px;text-align:center;max-width:96%;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .14s ease,transform .14s ease,visibility .14s} /* v1.27.0: fade/scale; does not change map size */
-#hSeq.open,#hPad.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) scale(1)}
-@media (prefers-reduced-motion:reduce){#hSeq,#hPad{transition:none;transform:translateX(-50%)}#hSeq.open,#hPad.open{transform:translateX(-50%)}}
-.htools{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:2;min-height:28px;display:flex;align-items:center;justify-content:center;pointer-events:none}
-.htools #hCharge{white-space:nowrap;background:#0b1430e8;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:800 13px ui-monospace,monospace;color:#e8f0ff;min-height:24px;line-height:18px}
-.hpowers{position:absolute;left:8px;right:8px;top:4px;z-index:3;justify-content:center;pointer-events:auto}
-#hSeq .arrows{font:800 26px ui-monospace,monospace;letter-spacing:4px;color:#e8f0ff}
+#hSeq{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;max-width:100%;opacity:0;visibility:hidden;pointer-events:none;background:transparent;border:none;padding:0;transform:none;position:static}
+#hSeq.open{opacity:1;visibility:visible;pointer-events:auto}
+#hPad{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);background:#0b1430f2;border:1px solid var(--cyan);border-radius:12px;padding:6px 8px;text-align:center;max-width:100%;max-height:100%;overflow:auto;opacity:0;visibility:hidden;pointer-events:none;z-index:4;transition:opacity .14s ease,transform .14s ease,visibility .14s} /* v1.27.0 fade; v1.27.3 sits in reserved .hctrl, never over the map */
+#hPad.open{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+#hPad:not(.open){width:0;height:0;padding:0;border:0;overflow:hidden}
+#hSeq .btn{min-height:26px;height:26px;padding:0 8px;font-size:11px;flex:none}
+@media (prefers-reduced-motion:reduce){#hPad{transition:none;transform:translate(-50%,-50%)}#hPad.open{transform:translate(-50%,-50%)}}
+.htools{display:flex;align-items:center;justify-content:center;pointer-events:none;max-width:100%}
+.htools #hCharge{white-space:nowrap;background:#0b1430e8;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:800 13px ui-monospace,monospace;color:#e8f0ff;min-height:24px;line-height:18px;max-width:100%;overflow:hidden;font-size:clamp(12px,3.5vw,13px)}
+.hpowers{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:center;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:0;position:static;pointer-events:auto}
 #hSeq .arrows b{color:var(--grn)}
-#hPad .disp{font:800 26px ui-monospace,monospace;letter-spacing:8px;margin-bottom:6px;color:var(--yel)}
-#hPad .keys{display:grid;grid-template-columns:repeat(4,58px);gap:6px}
-#hPad .keys button{height:50px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font:800 20px ui-monospace,monospace}
-.hctrl{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none}
+#hPad .disp{font:800 22px ui-monospace,monospace;letter-spacing:8px;margin-bottom:4px;color:var(--yel)}
+#hPad .keys{display:grid;grid-template-columns:repeat(4,48px);gap:4px;justify-content:center}
+#hPad .keys button{height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font:800 18px ui-monospace,monospace}
+.hctrl{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none;position:relative;min-height:184px}
+#hack.hack-entry .dpad,#hack.hack-entry .hbtns{visibility:hidden;pointer-events:none}
 .dpad{display:grid;grid-template-columns:repeat(3,62px);grid-template-rows:repeat(3,56px);gap:4px}
 .dp{border-radius:12px;border:1px solid #2c3b70;background:#121b3a;font-size:22px}
 .dp:active,.dp.press{background:#1f3570}
@@ -188,9 +199,15 @@ html[data-look="comic"] #hReboot b{color:#b91c1c!important}
 .btn.hold{min-width:110px;min-height:58px;font-size:18px;border-color:var(--grn);background:linear-gradient(#174a2a,#0d2a18)}
 .btn.act{min-height:58px}.btn.map{min-width:110px;min-height:46px;font-size:16px;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.btn.map.press{filter:brightness(1.4)}
 .hbtns{gap:7px}
-@media (orientation:landscape){#hack{display:grid;grid-template-columns:200px 1fr 150px;grid-template-rows:auto auto 1fr;}
-  .hhead{grid-column:1/4}.hmsg{grid-column:1/4}.hstage{grid-column:2;grid-row:3}
-  .hctrl{display:contents}.dpad{grid-column:1;grid-row:3;align-self:center}.hbtns{grid-column:3;grid-row:3;align-self:center}}
+@media (orientation:landscape){#hack{display:grid;grid-template-columns:200px 1fr 150px;grid-template-rows:auto auto auto auto 1fr auto;}
+  .hhead{grid-column:1/4;grid-row:1}.hmsg{grid-column:1/4;grid-row:2}
+  .hhud-powers{grid-column:1/4;grid-row:3}.hhud-key{grid-column:1/4;grid-row:4}
+  .hstage{grid-column:2;grid-row:5}.hhud-tools{grid-column:2;grid-row:6}
+  .hctrl{display:contents;min-height:0}
+  .dpad{grid-column:1;grid-row:5;align-self:center;position:relative}
+  .hbtns{grid-column:3;grid-row:5;align-self:center}
+  #hPad{grid-column:1;grid-row:5;position:relative;left:auto;top:auto;max-width:196px;justify-self:center;align-self:center;transform:none}
+  #hPad.open{transform:none}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
 .help li{margin-bottom:4px}
 @media (orientation:landscape) and (max-height:520px){.radarbox canvas{width:150px;height:150px}.slot{min-height:64px}.sh-h{padding:6px 10px}.sh-f .btn{min-height:44px}#radio{max-width:45%;font-size:11px}}
@@ -539,9 +556,7 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .hs-cue{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-100%);background:var(--accent,#7fd3ff);color:#000;font:700 12px system-ui,sans-serif;padding:3px 9px;border-radius:10px;white-space:nowrap}
 
 /* v1.19.0 hero hacking-power chips */
-.hpowers{display:flex;flex-wrap:wrap;gap:6px;padding:4px 8px 2px;justify-content:center}
-.hpowers.hidden{display:none}
-.hpowers .hpwr{min-height:40px;padding:6px 10px;font-size:13px;font-weight:700;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--txt);touch-action:manipulation}
+.hpowers .hpwr{flex:none;min-height:36px;padding:4px 8px;font-size:12px;font-weight:700;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--txt);touch-action:manipulation;white-space:nowrap}
 .hpowers .hpwr:disabled{opacity:.45}
 .hpowers .hpwr.armed{border-color:var(--yel);color:var(--yel);background:#2a2610}
 .hpowers .hpwr b{color:var(--cyan)}
@@ -935,17 +950,21 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <div id="hack" class="hidden">
     <div class="hhead"><div class="htitle" id="hTitle">HACK</div><div class="htimer"><i id="hTimer"></i></div><button class="btn small ghost" id="hReboot" aria-label="Reboot section: costs one life, the timer keeps running">↻ REBOOT</button><button class="btn small ghost" id="hQuit">GIVE UP</button></div>
     <div class="hmsg"><span id="hMsg"></span></div>
-    <div class="hstage"><div id="hKey" class="hidden"></div><canvas id="hcv"></canvas><div id="hPowers" class="hpowers hidden" aria-label="Hero hacking powers"></div><div id="hTools" class="htools" aria-live="polite"><span id="hCharge"></span></div><div id="hSeq"></div><div id="hPad"></div></div>
+    <div class="hhud-powers"><div id="hPowers" class="hpowers" aria-label="Hero hacking powers"></div></div>
+    <div class="hhud-key"><div id="hKey"></div><div id="hSeq"></div></div>
+    <div class="hstage"><canvas id="hcv"></canvas></div>
+    <div class="hhud-tools"><div id="hTools" class="htools" aria-live="polite"><span id="hCharge"></span></div></div>
     <div class="hctrl">
       <div class="dpad"><button data-d="up" class="dp up">▲</button><button data-d="left" class="dp left">◀</button><button data-d="right" class="dp right">▶</button><button data-d="down" class="dp down">▼</button></div>
       <div class="hbtns"><button id="hAct" class="btn act">ACT</button><button id="hHold" class="btn hold">HOLD</button><button id="hMap" class="btn map" aria-label="Hold to see the whole map">⊞ MAP</button></div>
+      <div id="hPad"></div>
     </div>
   </div>
   <div id="lvlBanner" class="hidden"></div>
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.27.2';
+<script>window.ND_VERSION='nd-v1.27.3';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4344,8 +4363,7 @@ function startHack(c, layout, disrupt) {
 function renderHackPowers() { // v1.19.0 POWER chips (active helpers only; Borrowed Seconds is passive)
   const H = UI.hack, box = $('hPowers'); if (!H || !box) return;
   const active = (H.helpers || []).filter(x => x.kind === 'scout' || x.kind === 'ghost' || x.kind === 'code' || x.kind === 'softreboot');
-  if (!active.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
-  box.classList.remove('hidden');
+  if (!active.length) { box.innerHTML = ''; return; } // v1.27.3: reserved .hhud-powers row stays in flow (never display:none)
   box.innerHTML = active.map(x => { const used = !!H.spent[x.power]; const soft = x.kind === 'softreboot' && H.softArmed; const label = x.kind === 'scout' ? '💡 Scout' : x.kind === 'ghost' ? '♜ Ghost' : x.kind === 'code' ? '🧾 Code' : (soft ? '🔧 Free reboot ready' : '🔧 Soft Reboot');
     return `<button class="hpwr${soft ? ' armed' : ''}" data-hp="${x.power}" ${used && x.kind !== 'softreboot' ? 'disabled' : (used && x.kind === 'softreboot' && !H.softArmed ? 'disabled' : '')} aria-label="${esc(x.P.name)} (${esc(x.hero.codename)})">${label}</button>`; }).join('');
   box.querySelectorAll('[data-hp]').forEach(b => b.onclick = () => useHackPower(b.dataset.hp));
@@ -4372,7 +4390,7 @@ function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game,
   if (g.status !== 'play' || (H.rbLast && now - H.rbLast < 450)) return; H.rbLast = now; // ghost-click / double-tap guard: a second tap within 450 ms is ignored
   if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
   const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
-function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) { pw.classList.add('hidden'); pw.innerHTML = ''; } $('hack').classList.add('hidden');
+function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) pw.innerHTML = ''; const hk = $('hKey'); if (hk) hk.textContent = ''; const seq = $('hSeq'); if (seq) { seq.classList.remove('open'); seq.innerHTML = ''; } const pad = $('hPad'); if (pad) { pad.classList.remove('open'); pad.innerHTML = ''; } $('hack').classList.remove('hack-entry', 'hack-seq'); $('hack').classList.add('hidden');
   const _afterHack = () => { if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); _afterHack(); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); _afterHack(); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); _afterHack(); return; }
@@ -4382,15 +4400,23 @@ function hackStep(d) { const H = UI.hack; if (!H) return; const g = H.game; cons
 function hackFx() { const g = UI.hack && UI.hack.game; if (!g || !g.fx) return; (({ zap: () => Sfx.chime(), caught: () => { Sfx.thud(); shake(); }, charge: () => Sfx.tone(900, .15, 'triangle', .1), key: () => Sfx.blip(), bridge: () => Sfx.chime(), err: () => Sfx.alarm(), reboot: () => { Sfx.thud(); } })[g.fx] || (() => {}))(); g.fx = null; }
 function renderHackPanels() {
   const H = UI.hack; if (!H) return; const g = H.game;
-  const seq = $('hSeq'); const seqOn = g.mode === 'arrow' || g.mode === 'seq';
-  if (g.mode === 'arrow') { const show = g.arrowKnown && !g.L.arrowMemo;
-    seq.innerHTML = `<div class="sqh">⇄ ARROW LOCK${!g.arrowKnown ? ': code unknown, find the ⌨ terminal' : g.L.arrowMemo ? ': enter the code from memory' : ''}</div><div class="arrows">${g.arrowCode.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : show ? ARROW[d] : '_').join('')}</div><div class="arw">${['left', 'up', 'down', 'right'].map(d => `<button class="btn" data-ar="${d}" aria-label="${d}">${ARROW[d]}</button>`).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`;
-    seq.querySelectorAll('[data-ar]').forEach(b => b.onclick = () => { hackStep(b.dataset.ar); }); $('seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; }
-  else if (g.mode === 'seq') { const s = g.seqs[g.seqNode]; seq.innerHTML = `<div style="font-size:12px;color:#9ab">Enter with the d-pad / swipes:</div><div class="arrows">${s.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : ARROW[d]).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`; $('seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; }
-  if (seqOn) requestAnimationFrame(() => { if (UI.hack === H) seq.classList.add('open'); }); else seq.classList.remove('open');
-  const pad = $('hPad'); if (g.mode === 'lock') { pad.innerHTML = `<div class="disp">${(g.entry + '____').slice(0, 4)}</div><div class="keys">${['1', '2', '3', 'C', '4', '5', '6', '0', '7', '8', '9', 'OK'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div><button class="btn small ghost" id="padX" style="margin-top:6px">CANCEL</button>`;
-    pad.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { g.lockKey(b.dataset.k); Sfx.click(); hackFx(); renderHackPanels(); }); $('padX').onclick = () => { g.cancelMode(); renderHackPanels(); };
-    requestAnimationFrame(() => { if (UI.hack === H) pad.classList.add('open'); }); } else pad.classList.remove('open');
+  const seq = $('hSeq'), pad = $('hPad');
+  const arrow = g.mode === 'arrow', seqMode = g.mode === 'seq', lock = g.mode === 'lock';
+  $('hack').classList.toggle('hack-entry', arrow || lock); // hide d-pad/buttons while a keyboard fills the reserved .hctrl well
+  $('hack').classList.toggle('hack-seq', seqMode); // seq is entered with the d-pad; pattern stays in the reserved key row
+  if (arrow) { const show = g.arrowKnown && !g.L.arrowMemo;
+    seq.innerHTML = `<div class="sqh">⇄ ARROW LOCK${!g.arrowKnown ? ': code unknown, find the ⌨ terminal' : g.L.arrowMemo ? ': enter the code from memory' : ''}</div><div class="arrows">${g.arrowCode.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : show ? ARROW[d] : '_').join('')}</div>`; }
+  else if (seqMode) { const s = g.seqs[g.seqNode]; seq.innerHTML = `<div class="sqh">Enter with the d-pad / swipes</div><div class="arrows">${s.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : ARROW[d]).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`;
+    seq.querySelector('#seqX').onclick = () => { g.cancelMode(); renderHackPanels(); }; }
+  else seq.innerHTML = '';
+  if (arrow || seqMode) requestAnimationFrame(() => { if (UI.hack === H) seq.classList.add('open'); }); else seq.classList.remove('open');
+  if (arrow) { pad.innerHTML = `<div class="arw">${['left', 'up', 'down', 'right'].map(d => `<button class="btn" data-ar="${d}" aria-label="${d}">${ARROW[d]}</button>`).join('')}</div><button class="btn small ghost" id="seqX">CANCEL</button>`;
+    pad.querySelectorAll('[data-ar]').forEach(b => b.onclick = () => { hackStep(b.dataset.ar); }); pad.querySelector('#seqX').onclick = () => { g.cancelMode(); renderHackPanels(); };
+    requestAnimationFrame(() => { if (UI.hack === H) pad.classList.add('open'); }); }
+  else if (lock) { pad.innerHTML = `<div class="disp">${(g.entry + '____').slice(0, 4)}</div><div class="keys">${['1', '2', '3', 'C', '4', '5', '6', '0', '7', '8', '9', 'OK'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div><button class="btn small ghost" id="padX" style="margin-top:6px">CANCEL</button>`;
+    pad.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { g.lockKey(b.dataset.k); Sfx.click(); hackFx(); renderHackPanels(); }); pad.querySelector('#padX').onclick = () => { g.cancelMode(); renderHackPanels(); };
+    requestAnimationFrame(() => { if (UI.hack === H) pad.classList.add('open'); }); }
+  else { pad.classList.remove('open'); pad.innerHTML = ''; }
 }
 function hackFrame(dt) {
   const H = UI.hack; const g = H.game; g.update(dt); H.t += dt; hackFx();
@@ -4400,7 +4426,7 @@ function hackFrame(dt) {
   $('hTimer').style.width = (g.unlimited ? 100 : 100 * g.timeLeft / g.time) + '%'; $('hMsg').textContent = g.msg + (g.unlimited ? '' : `  ${Math.ceil(g.timeLeft)}s`); $('hTimer').classList.toggle('low', !g.unlimited && (g.timeLeft / g.time < 0.25 || !!g.alarm)); $('hCharge').textContent = (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞');
   if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (H.softArmed ? ' (Soft Reboot: free).' : (g.attempts ? ' (costs 1 life).' : '.')); renderHackBtns(); } }
   if (H.rbLives !== g.lives) { H.rbLives = g.lives; renderHackBtns(); }
-  const k = $('hKey'); if (g.keyShow > 0) { k.classList.remove('hidden'); k.textContent = g.keyText; } else k.classList.add('hidden');
+  const k = $('hKey'); if (g.keyShow > 0) k.textContent = g.keyText; else k.textContent = ''; // v1.27.3: reserved .hhud-key row stays in flow
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
 function initHackInput() {
