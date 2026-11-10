@@ -917,7 +917,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.23.1';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.24.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -946,7 +946,8 @@ const CONFIG = {
   coverageMode: 'area',     // 'perStat' or 'area' (true polygon intersection area)
   coverageExponent: 1,     // v1.9.5 Dispatch parity: chance = covered area (was perStat^1.5)
   streakAbove: 0.76, streakUses: 3, chanceFloor: 0.15, helpersOffFromIdx: 7, // v1.9.5 hidden helpers; off from Shift 8 (idx 7)
-  hardCap: 0.85, normalCap: 1.0, easyCap: 1.0,
+  hardCap: 1.0, normalCap: 1.0, easyCap: 1.0, // v1.24.0: no 85% hard-call cap; synergy/conflict are plain additions, clamped 0–100%
+  hardWorkMult: 1.5,          // v1.24.0: Hard missions take longer on scene (work time only; not travel)
   synergyBase: 0.05, synergyPerPairing: 0.02, synergyMax: 0.15,
   moraleChance: 0, conflictPenalty: 0.08, conflictNeutralWins: 3, // v1.18.0: morale no longer changes success odds (moraleChance kept at 0 for old references)
   moraleXP: [0.5, 1, 2], moralePairThreshold: 3, // v1.18.0: morale -1/0/+1 multiplies the hero's BASE XP share; 3rd reviewed synergy (+1) / friction (-1) pairing in a shift
@@ -2684,8 +2685,11 @@ function travelTime(camp, call, ids) {
   return t;
 }
 function workTimeFor(camp, call, ids) {
+  ids = ids || [];
   let w = call.tpl.workTime;
-  for (const id of ids) { const h = camp.heroes[id]; for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.workMult || !powerFormOk(h, P)) continue; if (P.travelNeedsStreak && (h.streak || 0) < P.travelNeedsStreak) continue; w *= P.workMult; } }
+  // v1.24.0: Hard missions take longer on scene (work only). Stacks with hero workMult then soloMult.
+  if ((call.difficulty || call.tpl.difficulty) === 'hard') w *= (CONFIG.hardWorkMult || 1);
+  for (const id of ids) { const h = camp.heroes[id]; if (!h) continue; for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.workMult || !powerFormOk(h, P)) continue; if (P.travelNeedsStreak && (h.streak || 0) < P.travelNeedsStreak) continue; w *= P.workMult; } }
   if (ids.length === 1 && hasPower(camp.heroes[ids[0]], 'solo')) w *= soloMultFor(camp.heroes[ids[0]]);
   return w;
 }
@@ -3751,7 +3755,7 @@ function drawMap(t) {
     if (cl.stage === 'pending') { const rem = cl.expiresAt - S.t; frac = rem / (cl.expiresAt - cl.spawnedAt); urgent = rem <= CONFIG.alarmSeconds; if (tpl.type === 'hack') col = T.hack; }
     else if (cl.disruption && !cl.disruption.resolved) { col = T.disrupt; icon = '✋'; frac = cl.disruption.timer / CONFIG.disruptionTimer; urgent = true; }
     else if (reviewable(cl)) { col = T.review; icon = '★'; label = 'REVIEW'; }
-    else { col = T.busy; icon = cl.stage === 'travel' ? '➜' : cl.stage === 'work' ? '⚙' : '↩'; frac = cl.stage === 'work' ? cl.stageT / cl.work : null; }
+    else { col = T.busy; icon = cl.stage === 'travel' ? '➜' : cl.stage === 'work' ? '⚙' : '↩'; frac = cl.stage === 'work' ? cl.stageT / cl.work : null; if (cl.stage === 'work') label = Math.ceil(Math.max(0, cl.work - cl.stageT)) + 's'; }
     const pulse = urgent ? 1 + 0.15 * Math.sin(t * 14) : LV && cl.stage === 'pending' ? 1 + 0.05 * Math.sin(t * 3 + cl.uid) : 1; const r = R * pulse; let x0 = x; if (LV && cl.disruption && !cl.disruption.resolved) x = x0 + 2.5 * Math.sin(t * 22);
     if (urgent) { g.fillStyle = T.glow; g.beginPath(); g.arc(x, y, r + 10, 0, 7); g.fill(); }
     g.fillStyle = T.back; g.beginPath(); g.arc(x, y, r + 4, 0, 7); g.fill();
@@ -3759,7 +3763,7 @@ function drawMap(t) {
     g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 10; g.beginPath(); g.arc(x, y, r - 2, 0, 7); g.fill(); g.shadowBlur = 0;
     g.fillStyle = T.icon; g.font = `800 ${Math.round(r * 0.95)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon, x, y + 1);
     if (!S.deckMode && cl.pairUid && cl.stage === 'pending') { const bx = x + r * 0.8, by = y - r * 0.8, br = Math.max(8, r * 0.52); g.fillStyle = T.back; g.beginPath(); g.arc(bx, by, br + 2, 0, 7); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill(); g.fillStyle = T.icon; g.font = `900 ${Math.round(br * 1.25)}px system-ui,sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(cl.uid < cl.pairUid ? 'A' : 'B', bx, by + 1); } // v1.13.0 Classic random calls: A/B badge (pin colour + pin icon colour = same contrast as the pin icon, every theme)
-    if (label) { g.font = '800 11px ui-monospace,monospace'; const tw = g.measureText(label).width + 10; g.fillStyle = T.review; g.fillRect(x - tw / 2, y - r - 22, tw, 16); g.fillStyle = '#000'; g.fillText(label, x, y - r - 13); }
+    if (label) { g.font = '800 11px ui-monospace,monospace'; const tw = g.measureText(label).width + 10; const workLbl = cl.stage === 'work'; g.fillStyle = workLbl ? 'rgba(0,0,0,0.75)' : T.review; g.fillRect(x - tw / 2, y - r - 22, tw, 16); g.fillStyle = workLbl ? '#3ef0ff' : '#000'; g.fillText(label, x, y - r - 13); }
     else if (cl.stage === 'pending' && rosterPreviewMeta(UI.camp)) { const tags = (tpl.tags || []).slice(0, 2).join('/') || (tpl.type || 'call'); const meta = `👥${cl.slots} · ${tags}`; g.font = '700 9px ui-monospace,monospace'; const tw = g.measureText(meta).width + 8; g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(x - tw / 2, y + r + 2, tw, 13); g.fillStyle = '#5eead4'; g.fillText(meta, x, y + r + 9); }
     if (cl.willDisrupt === false && tpl.disruption && S.idx >= 2 && cl.stage === 'pending') { }
   }
@@ -3992,7 +3996,9 @@ function openBriefing(c) {
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
-      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
+      const workEst = workTimeFor(camp, c, c.assigned.filter(Boolean));
+      if (c.difficulty === 'hard') notes += `<div class="note">Hard: takes longer</div>`;
+      const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
          <div class="binfo"><p class="txt">${markup(tpl.text)}</p>${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
         `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Hold the row, then slide, to scroll · Tap or drag a hero to add · Tap a slot to remove</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
@@ -4419,7 +4425,7 @@ function openPause() {
 function helpHTML() { return `<ul class="help">
 <li>📍 Calls appear as pins. Tap one (or its card in the queue) to open the briefing. <b>Time pauses while any panel is open.</b></li>
 <li>👥 Add heroes to the slots. Colored keywords hint at the stats needed: ${STATS.map(s => `<b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b>`).join(', ')}.</li>
-<li>⬢ Team stats add up per stat (capped at 10). Success chance = coverage<sup>1.5</sup>; hard calls cap at 85% unless a 🔗 synergy pair pushes it higher. ⚡ Conflict pairs cost 8%.</li>
+<li>⬢ Team stats add up per stat (capped at 10). Success chance = coverage (the overlap between the team and the call). 🔗 Synergy and ⚡ conflict are added or subtracted from that chance, then clamped to 0–100%. Conflict pairs cost 8%. Hard calls take longer on scene.</li>
 <li>★ When a mission ends, tap the REVIEW pin. Heroes from unreviewed calls cannot be sent again.</li>
 <li>🦸 Shift 6: Zenith and Drizzle join every campaign (team of 10).</li>
 <li>💧 Drizzle volunteers after 3 missions without him; take him off if you like.</li>
