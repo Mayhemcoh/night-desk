@@ -940,7 +940,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.25.0';
+<script>window.ND_VERSION='nd-v1.26.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1296,27 +1296,27 @@ function T(id, title, text, req, slots, difficulty, workTime, extra) {
 const LEGACY_CALLS = [
   T(1, 'Cat on a Power Line', 'A tabby is stranded on a live line above Elm St. It needs someone [[nimble|AGI]] and a [[soothing voice|PRS]], plus enough [[sense|WIT]] not to get fried.', [1, 1, 5, 2, 2], 1, 'easy', 8, { tags: ['rescue'] }),
   T(2, 'Bank Heist in Progress', 'Masked crew inside First Civic. Expect a [[brawl|CMB]] and a long [[standoff|END]]. The vault is on a timer.', [7, 4, 3, 2, 2], 2, 'normal', 12, { tags: ['fight'], disruption: 'vault' }),
-  T(3, 'Rooftop Chase', 'A purse-snatcher is [[leaping rooftops|AGI]]. You will need [[stamina|END]] and a [[punch|CMB]] at the end.', [3, 3, 8, 1, 2], 1, 'normal', 10, { tags: ['chase'] }),
+  T(3, 'Rooftop Chase', 'A purse-snatcher is [[leaping rooftops|AGI]]. You will need [[stamina|END]] and a [[punch|CMB]] at the end.', [3, 3, 8, 1, 2], 1, 'normal', 10, { tags: ['chase'], reqShift1: [2, 2, 4, 1, 1] }),
   T(4, 'Hostage Negotiation', 'A jittery ex-henchman holds a deli hostage. [[Talk him down|PRS]], [[read the room|WIT]], and [[keep calm|END]] for hours.', [2, 3, 2, 8, 5], 2, 'hard', 14, { tags: ['talk'], disruption: 'hostage', minShift: 3 }),
   T(5, 'Chemical Spill', 'An overturned tanker is leaking something green. Needs [[chemistry smarts|WIT]] and [[tough lungs|END]]. Heavy bodies only make it worse.', [1, 5, 2, 2, 7], 2, 'normal', 12, { tags: ['hazard'], banned: { slab: 'Too heavy: Slab would widen the spill.' }, disruption: 'spill', minShift: 2 }),
   T(6, 'Kaiju-lite in the Harbor', 'A forty-foot lizard (it is a "lite" one) is gnawing the pier. Bring [[raw power|CMB]], [[huge endurance|END]] and a bit of [[speed|AGI]].', [9, 8, 4, 2, 3], 3, 'hard', 15, { tags: ['fight', 'monster'], disruption: 'kaiju', minShift: 4 }),
-  T(7, 'Lost Tourist Kid', 'A crying kid lost his parents at the night market. Needs [[warmth|PRS]], [[detective work|WIT]] and some [[legwork|AGI]].', [1, 1, 3, 5, 4], 1, 'easy', 8, { tags: ['rescue'] }),
+  T(7, 'Lost Tourist Kid', 'A crying kid lost his parents at the night market. Needs [[warmth|PRS]], [[detective work|WIT]] and some [[legwork|AGI]].', [1, 1, 3, 5, 4], 1, 'easy', 8, { tags: ['rescue'], reqShift1: [1, 1, 3, 4, 2] }),
   T(8, 'Warehouse Fire', 'Flames at Pier 9 storage. Needs [[smoke-proof lungs|END]] and [[quick feet|AGI]]. The sprinkler panels are all exposed electrics, so nothing that sparks.', [2, 6, 5, 3, 2], 2, 'normal', 12, { tags: ['fire'], autoFailHero: [{ heroId: 'brightwire', reason: 'Brightwire touched the sprinkler panel. The whole warehouse is now a disco inferno.' }, { heroId: 'hotwire', reason: 'Hotwire tried to jump-start the sprinkler pump. Sparks. Everywhere.' }], disruption: 'fire', minShift: 2 }),
-  T(9, 'Rogue AI Vending Machines', 'Vending machines at Tech Park have unionized and are firing cans. Needs a [[clever hacker mind|WIT]] and a little [[muscle|CMB]].', [3, 2, 2, 2, 7], 1, 'normal', 10, { tags: ['tech'] }),
-  T(10, 'Influencer PR Meltdown', 'A rooftop live-stream is turning into a riot of fans. Needs pure [[charisma|PRS]] and a [[quick read|WIT]] on the crowd.', [1, 1, 1, 8, 3], 1, 'normal', 9, { tags: ['talk'] }),
+  T(9, 'Rogue AI Vending Machines', 'Vending machines at Tech Park have unionized and are firing cans. Needs a [[clever hacker mind|WIT]] and a little [[muscle|CMB]].', [3, 2, 2, 2, 7], 1, 'normal', 10, { tags: ['tech'], reqShift1: [2, 2, 2, 2, 5] }),
+  T(10, 'Influencer PR Meltdown', 'A rooftop live-stream is turning into a riot of fans. Needs pure [[charisma|PRS]] and a [[quick read|WIT]] on the crowd.', [1, 1, 1, 8, 3], 1, 'normal', 9, { tags: ['talk'], reqShift1: [1, 1, 1, 7, 2] }),
   T(11, 'Bridge Collapse', 'The Harbor Bridge is sagging with cars on it. Someone has to [[hold it up|END]], someone has to [[run|AGI]] people out, and someone has to [[figure out|WIT]] the cables.', [3, 9, 5, 3, 4], 3, 'hard', 15, { tags: ['rescue'], disruption: 'bridge', minShift: 4 }),
-  T(12, 'Speed-Racing Gang', 'Souped-up hatchbacks drag-racing down Neon Row. Needs [[speed|AGI]], a [[roadblock|CMB]] and [[timing|WIT]].', [4, 3, 8, 2, 3], 2, 'normal', 11, { tags: ['chase'], disruption: 'racing', minShift: 2 }),
-  T(13, 'Haunted Subway Rumor', 'Commuters swear there is a ghost on Line 4. Needs [[investigation|WIT]] and someone who can [[calm a crowd|PRS]].', [2, 3, 3, 4, 6], 2, 'normal', 11, { tags: ['mystery'], minShift: 2 }),
+  T(12, 'Speed-Racing Gang', 'Souped-up hatchbacks drag-racing down Neon Row. Needs [[speed|AGI]], a [[roadblock|CMB]] and [[timing|WIT]].', [4, 3, 8, 2, 3], 2, 'normal', 11, { tags: ['chase'], disruption: 'racing', minShift: 2, allowShift1: true }),
+  T(13, 'Haunted Subway Rumor', 'Commuters swear there is a ghost on Line 4. Needs [[investigation|WIT]] and someone who can [[calm a crowd|PRS]].', [2, 3, 3, 4, 6], 2, 'normal', 11, { tags: ['mystery'], minShift: 2, allowShift1: true }),
   T(14, 'Bar Brawl', 'Fight at the Rusty Anchor. Pure [[fisticuffs|CMB]] and some [[staying power|END]].', [6, 4, 2, 3, 1], 1, 'easy', 8, { tags: ['fight'], autoHero: 'knuckles' }),
   T(15, 'Escaped Zoo Gorilla', 'Big Gerald got out again. Needs [[strength|END]], [[agility|AGI]] and a firm [[grip|CMB]].', [4, 5, 5, 3, 2], 2, 'normal', 11, { tags: ['animal'] }),
   T(16, 'Museum Gala Infiltration', 'A jewel thief is mingling at the gala. [[Blend in|PRS]], [[sneak|AGI]] and [[deduce|WIT]] who it is. A truly dazzling guest earns a bonus.', [2, 2, 5, 6, 5], 2, 'hard', 13, { tags: ['stealth'], bonusThreshold: { stat: 3, value: 8 }, disruption: 'gala', minShift: 3 }),
-  T(17, 'Mugging', 'A mugger is cornering people by the ATM on 5th. Quick [[hands|AGI]] and a [[shove|CMB]].', [4, 2, 4, 1, 1], 1, 'easy', 8, { tags: ['fight'] }),
+  T(17, 'Mugging', 'A mugger is cornering people by the ATM on 5th. Quick [[hands|AGI]] and a [[shove|CMB]].', [4, 2, 4, 1, 1], 1, 'easy', 8, { tags: ['fight'], reqShift1: [3, 2, 3, 1, 1] }),
   T(18, 'Collapsed Mine Shaft', 'Old tunnels under Old Town caved in on urban explorers. Needs massive [[endurance|END]] and [[engineering sense|WIT]].', [2, 8, 3, 1, 4], 2, 'normal', 13, { tags: ['rescue'], minShift: 2 }),
   T(19, 'Protest Turning Ugly', 'A tenant protest is boiling over. Needs a [[voice of reason|PRS]] and a [[clear head|WIT]]. Show up swinging and you will start a riot.', [2, 3, 2, 7, 4], 2, 'normal', 11, { tags: ['talk'], overCapFail: { stat: 0, value: 6, reason: 'Too much muscle at a peaceful protest. Riot started. Very bad optics.' }, minShift: 3 }),
   T(20, 'Supervillain Parade Float', 'Somebody built a giant robot parade float and is hijacking the Founders Parade. Needs an [[all-rounder|CMB]] team with [[grit|END]] and [[brains|WIT]].', [6, 5, 4, 4, 4], 3, 'hard', 14, { tags: ['fight'], minShift: 4 }),
   T(21, 'Data-Center Break-in', 'Someone is inside the municipal data center. No hero can get there in time: take the console yourself.', [0, 0, 0, 0, 0], 0, 'normal', 0, { type: 'hack' }),
   T(22, 'Traffic Grid Hijack', 'Every light in the city turned green at once. Hack back in before the fender-benders turn into chaos.', [0, 0, 0, 0, 0], 0, 'normal', 0, { type: 'hack' }),
-  T(23, 'Stuck Elevator Full of Lawyers', 'Twelve lawyers trapped between floors, already drafting lawsuits. Needs [[patience|END]] and [[charm|PRS]].', [1, 4, 2, 5, 3], 1, 'easy', 9, { tags: ['rescue'] }),
+  T(23, 'Stuck Elevator Full of Lawyers', 'Twelve lawyers trapped between floors, already drafting lawsuits. Needs [[patience|END]] and [[charm|PRS]].', [1, 4, 2, 5, 3], 1, 'easy', 9, { tags: ['rescue'], reqShift1: [1, 3, 2, 4, 2] }),
   T(24, 'Meteor Fragment Heist', 'A glowing meteor chunk is being stolen from a lab truck by a crew with jetpacks. Needs [[force|CMB]], [[toughness|END]], [[speed|AGI]] and [[planning|WIT]].', [7, 6, 6, 2, 5], 4, 'hard', 15, { tags: ['fight'], minShift: 5 }),
   T(25, 'Wedding Crashed by an Ex-Villain', 'Somebody\'s ex showed up to a wedding in full villain gear. Needs [[tact|PRS]] and maybe a little [[persuasion of the physical kind|CMB]].', [4, 2, 2, 6, 2], 2, 'normal', 11, { tags: ['talk'], disruption: 'wedding', minShift: 3 }),
   T(26, 'Mayor\'s Photo-op vs. Orphanage Leak', 'Two calls, one team. The mayor wants a hero at a photo-op, and the orphanage roof is leaking. Pick one.', [2, 3, 2, 5, 2], 2, 'normal', 10, { type: 'competing', minShift: 3, retired: true /* v1.13.0: split into linked pair L26 (261/262) */,
@@ -1339,11 +1339,11 @@ const LEGACY_CALLS = [
   T(28, 'Knuckles Wants the Docks Job', 'Smugglers at the docks. Knuckles says it is his old crew and he wants to handle it. [[Muscle|CMB]], [[grit|END]], and someone who [[knows people|PRS]].', [5, 4, 2, 4, 2], 2, 'normal', 11, { type: 'request', requestHero: 'knuckles', requiresHero: 'knuckles', minShift: 6 }),
   T(29, 'Ledger Smells Fraud', 'Ledger spotted a charity that only donates to itself. She wants this one. Needs [[forensic brains|WIT]], a [[cool head|PRS]] and some [[legwork|AGI]].', [1, 2, 2, 4, 8], 2, 'normal', 12, { type: 'request', requestHero: 'ledger', requiresHero: 'ledger', minShift: 5 }),
   T(30, "Foghorn's Old Crew at the Ferry", 'His old pirate crew is "borrowing" the night ferry. Foghorn wants to talk them down, loudly. Needs [[muscle|CMB]], [[sea legs|END]] and a [[booming voice|PRS]].', [5, 4, 2, 5, 2], 2, 'normal', 12, { type: 'request', requestHero: 'foghorn', requiresHero: 'foghorn', minShift: 6 }),
-  T(31, 'Runaway Hot-Air Balloon', 'A sightseeing balloon slipped its tether over Uptown. Needs [[aerial agility|AGI]], a [[steady grip|END]] and someone to [[work the burner|WIT]].', [1, 3, 7, 2, 4], 2, 'normal', 11, { tags: ['rescue'], autoHero: 'kitefall', minShift: 2 }),
+  T(31, 'Runaway Hot-Air Balloon', 'A sightseeing balloon slipped its tether over Uptown. Needs [[aerial agility|AGI]], a [[steady grip|END]] and someone to [[work the burner|WIT]].', [1, 3, 7, 2, 4], 2, 'normal', 11, { tags: ['rescue'], autoHero: 'kitefall', minShift: 2, allowShift1: true }),
   T(32, 'Botanical Garden Break-in', 'Someone is stealing rare orchids by moonlight. Needs [[stealth|AGI]] and a [[botanist brain|WIT]].', [2, 2, 5, 2, 6], 2, 'normal', 11, { tags: ['stealth'], banned: { foghorn: 'Too loud: the orchids are sound-sensitive (really).' }, minShift: 3 }),,
   // v1.11.0 expanded Classic ON pool (~2.5×) for bag variety
-  T(33, 'Midnight Bike Courier Crash', 'A courier is tangled under a delivery bike on 8th. Needs [[careful hands|AGI]] and [[first-aid sense|WIT]].', [1, 2, 6, 2, 4], 1, 'easy', 8, { tags: ['rescue'] }),
-  T(34, 'Karaoke Amp Feedback Loop', 'The waterfront karaoke pier is stuck at maximum feedback. Needs [[tech brains|WIT]] and [[patience|END]].', [1, 4, 2, 3, 7], 2, 'normal', 11, { tags: ['tech'], minShift: 2 }),
+  T(33, 'Midnight Bike Courier Crash', 'A courier is tangled under a delivery bike on 8th. Needs [[careful hands|AGI]] and [[first-aid sense|WIT]].', [1, 2, 6, 2, 4], 1, 'easy', 8, { tags: ['rescue'], noShift1: true }),
+  T(34, 'Karaoke Amp Feedback Loop', 'The waterfront karaoke pier is stuck at maximum feedback. Needs [[tech brains|WIT]] and [[patience|END]].', [1, 4, 2, 3, 7], 2, 'normal', 11, { tags: ['tech'], minShift: 2, allowShift1: true }),
   T(35, 'Escaped Inflatable T-Rex', 'A parade balloon T-Rex is bouncing through Uptown traffic. Needs [[speed|AGI]] and [[crowd calm|PRS]].', [2, 2, 7, 5, 2], 2, 'normal', 11, { tags: ['animal', 'rescue'], minShift: 2 }),
   T(36, 'Rooftop Beekeeper Panic', 'A new hive on a roof deck went sideways. Needs [[steady nerves|END]] and [[soft voice|PRS]].', [1, 5, 3, 6, 2], 2, 'normal', 11, { tags: ['animal'], minShift: 2 }),
   T(37, 'Silent Disco Stampede', 'Wireless disco headphones failed; the crowd cannot hear the stop cue. Needs [[presence|PRS]] and [[legwork|AGI]].', [2, 2, 5, 7, 2], 2, 'normal', 10, { tags: ['talk', 'security'], minShift: 2 }),
@@ -1352,17 +1352,17 @@ const LEGACY_CALLS = [
   T(40, 'Museum Night Guard Nap Chain', 'Every guard on Floor 3 fell asleep at once. Needs [[investigation|WIT]] and [[stealth|AGI]].', [1, 2, 5, 2, 7], 2, 'normal', 11, { tags: ['mystery', 'stealth'], minShift: 3 }),
   T(41, 'Food-Court Chili Flood', 'A ruptured chili vat is heading for the escalators. Needs [[barricade strength|CMB]] and [[speed|AGI]].', [6, 3, 5, 2, 2], 2, 'normal', 11, { tags: ['hazard'], minShift: 2 }),
   T(42, 'Skybridge Proposal Traffic Jam', 'A public proposal blocked both directions of the skybridge. Needs [[tact|PRS]] and [[crowd move|CMB]].', [4, 2, 2, 7, 2], 2, 'normal', 10, { tags: ['talk'], minShift: 3 }),
-  T(43, 'Subway Violin Duel', 'Two buskers turned a platform into a turf war with bows. Needs [[mediation|PRS]] and [[reflexes|AGI]].', [2, 2, 5, 6, 2], 1, 'easy', 9, { tags: ['talk'] }),
+  T(43, 'Subway Violin Duel', 'Two buskers turned a platform into a turf war with bows. Needs [[mediation|PRS]] and [[reflexes|AGI]].', [2, 2, 5, 6, 2], 1, 'easy', 9, { tags: ['talk'], noShift1: true }),
   T(44, 'Crane Operator Locked Out', 'The harbor crane is mid-swing with a container and no operator key. Needs [[climbing|AGI]] and [[heavy control|WIT]].', [2, 4, 6, 1, 6], 2, 'hard', 13, { tags: ['rescue', 'tech'], minShift: 4 }),
   T(45, 'Neon Alley Ink Spill', 'A print shop dumped UV ink that only shows under club lights. Needs [[tracking|WIT]] and [[night agility|AGI]].', [1, 2, 6, 2, 6], 2, 'normal', 11, { tags: ['mystery'], minShift: 3 }),
   T(46, 'Yacht Party Noise Complaint', 'The mayor "is not on that yacht" but the speakers say otherwise. Needs [[diplomacy|PRS]] and [[sea legs|END]].', [2, 5, 3, 7, 2], 2, 'normal', 12, { tags: ['talk'], minShift: 3 }),
   T(47, 'Warehouse Robot Pallet Stampede', 'Warehouse bots decided every aisle is a racetrack. Needs [[override brains|WIT]] and [[dodging|AGI]].', [2, 2, 6, 1, 7], 2, 'normal', 12, { tags: ['tech'], minShift: 3 }),
-  T(48, 'Clocktower Pigeon King', 'One very large pigeon has crowned itself and will not abdicate. Needs [[animal sense|WIT]] and [[patience|PRS]].', [1, 3, 3, 5, 6], 1, 'easy', 9, { tags: ['animal'] }),
+  T(48, 'Clocktower Pigeon King', 'One very large pigeon has crowned itself and will not abdicate. Needs [[animal sense|WIT]] and [[patience|PRS]].', [1, 3, 3, 5, 6], 1, 'easy', 9, { tags: ['animal'], noShift1: true }),
   T(49, 'Live-Wire Manhole Cover', 'A cover is arcing every time a scooter crosses. Needs [[caution|WIT]] and [[insulated grit|END]].', [2, 6, 3, 1, 6], 2, 'normal', 12, { tags: ['hazard'], minShift: 2 }),
   T(50, 'Fashion Week Runway Collapse', 'A temporary runway sagged mid-show. Needs [[structural eye|WIT]] and [[crowd calm|PRS]].', [2, 3, 3, 6, 5], 3, 'hard', 14, { tags: ['rescue', 'talk'], minShift: 4 }),
-  T(51, 'Escape-Room Real Lock-In', 'The "prop" lock on an escape room is a real lock. Needs [[lockcraft|WIT]] and [[calm talk|PRS]].', [1, 2, 3, 5, 7], 2, 'normal', 11, { tags: ['rescue', 'mystery'], minShift: 2 }),
+  T(51, 'Escape-Room Real Lock-In', 'The "prop" lock on an escape room is a real lock. Needs [[lockcraft|WIT]] and [[calm talk|PRS]].', [1, 2, 3, 5, 7], 2, 'normal', 11, { tags: ['rescue', 'mystery'], minShift: 2, allowShift1: true }),
   T(52, 'Crossfit Charity Melee', 'Two teams disputed a burpee count into open combat. Needs [[fisticuffs|CMB]] and [[ref voice|PRS]].', [6, 4, 2, 5, 1], 2, 'normal', 10, { tags: ['fight'], minShift: 2 }),
-  T(53, 'Drone Wedding Ring Drop', 'A delivery drone dropped a ring into a storm drain mid-proposal. Needs [[reach|AGI]] and [[romance diplomacy|PRS]].', [1, 2, 7, 6, 2], 1, 'easy', 9, { tags: ['rescue'] }),
+  T(53, 'Drone Wedding Ring Drop', 'A delivery drone dropped a ring into a storm drain mid-proposal. Needs [[reach|AGI]] and [[romance diplomacy|PRS]].', [1, 2, 7, 6, 2], 1, 'easy', 9, { tags: ['rescue'], noShift1: true }),
   T(54, 'Parking Garage Spiral Flood', 'A broken main is turning Level B3 into a lazy river. Needs [[pump sense|WIT]] and [[wading endurance|END]].', [2, 7, 3, 1, 5], 2, 'normal', 12, { tags: ['hazard', 'rescue'], minShift: 3 }),
   T(55, 'Opera Understudy Riot', 'The chorus rejected the understudy with thrown roses (stems first). Needs [[stage presence|PRS]] and [[blocks|CMB]].', [5, 2, 2, 7, 2], 2, 'normal', 11, { tags: ['talk', 'fight'], minShift: 3 }),
   T(56, 'Tech Campus Hoverboard Ban Protest', 'A hoverboard protest blocked the campus loop. Needs [[policy talk|PRS]] and [[crowd weave|AGI]].', [2, 2, 5, 7, 3], 2, 'normal', 11, { tags: ['talk'], overCapFail: { stat: 0, value: 7, reason: 'Too much muscle at a campus protest. Optics disaster.' }, minShift: 3 }),
@@ -1371,10 +1371,10 @@ const LEGACY_CALLS = [
   T(59, 'Harbor Seal on the Tram', 'A seal boarded the night tram and will not budge. Needs [[animal charm|PRS]] and [[gentle lift|CMB]].', [4, 3, 2, 6, 3], 2, 'normal', 10, { tags: ['animal'], minShift: 2 }),
   T(60, 'Billboard Ladder Thief', 'Someone is stealing LED modules mid-ad. Needs [[climb|AGI]] and [[catch|CMB]].', [5, 2, 7, 1, 2], 2, 'normal', 11, { tags: ['chase'], minShift: 2 }),
   T(61, 'Courthouse Fountain Dye Job', 'The fountain is now aggressively neon. Needs [[chem cleanup|WIT]] and [[PR calm|PRS]].', [1, 2, 2, 6, 6], 2, 'normal', 11, { tags: ['talk', 'hazard'], minShift: 3 }),
-  T(62, 'Night Market Generator Theft', 'The market generator just rolled away on a dolly. Needs [[sprint|AGI]] and [[tackle|CMB]].', [5, 2, 7, 2, 1], 1, 'easy', 8, { tags: ['chase'] }),
+  T(62, 'Night Market Generator Theft', 'The market generator just rolled away on a dolly. Needs [[sprint|AGI]] and [[tackle|CMB]].', [5, 2, 7, 2, 1], 1, 'easy', 8, { tags: ['chase'], noShift1: true }),
   T(63, 'Library Rare-Book Climate Alarm', 'Humidity spiked in the rare stacks. Needs [[climate tech|WIT]] and [[careful hands|AGI]].', [1, 2, 5, 2, 7], 2, 'normal', 12, { tags: ['tech', 'mystery'], minShift: 3 }),
   T(64, 'Bridge Walk Photographer Crowd', 'A viral photo spot jammed the pedestrian bridge. Needs [[crowd control|PRS]] and [[routing|WIT]].', [2, 2, 3, 7, 5], 2, 'normal', 11, { tags: ['security', 'talk'], minShift: 3 }),
-  T(65, 'Sushi Conveyor Belt Rebellion', 'The conveyor reversed and launched plates. Needs [[timing|AGI]] and [[kitchen authority|PRS]].', [2, 2, 7, 5, 2], 1, 'easy', 9, { tags: ['tech', 'talk'] }),
+  T(65, 'Sushi Conveyor Belt Rebellion', 'The conveyor reversed and launched plates. Needs [[timing|AGI]] and [[kitchen authority|PRS]].', [2, 2, 7, 5, 2], 1, 'easy', 9, { tags: ['tech', 'talk'], noShift1: true }),
   T(66, 'Abandoned Tram Full of Mannequins', 'A tram arrived packed with mannequins and one living thief. Needs [[observation|WIT]] and [[stealth|AGI]].', [2, 2, 5, 2, 7], 2, 'normal', 11, { tags: ['stealth', 'mystery'], minShift: 3 }),
   T(67, 'Stadium Light Grid Flicker', 'Half the stadium lights strobe in a seizure pattern. Needs [[grid brains|WIT]] and [[tower climb|AGI]].', [2, 3, 6, 1, 7], 3, 'hard', 14, { tags: ['tech'], minShift: 4 }),
   T(68, 'Chocolate Factory Cooling Fail', 'The cooling line failed; chocolate is heading for the river. Needs [[valve work|WIT]] and [[heat endurance|END]].', [2, 7, 3, 2, 5], 2, 'normal', 12, { tags: ['hazard'], minShift: 3 }),
@@ -1382,9 +1382,9 @@ const LEGACY_CALLS = [
   T(70, 'Hotel Elevator Express Only', 'Every elevator insists it is express to the roof. Needs [[override|WIT]] and [[stair endurance|END]].', [1, 6, 2, 2, 7], 2, 'normal', 12, { tags: ['tech', 'rescue'], minShift: 3 }),
   T(71, 'Cargo Bike Convoy Heist', 'A line of cargo bikes is moving a dismantled ATM. Needs [[intercept speed|AGI]] and [[roadblock|CMB]].', [5, 2, 7, 1, 3], 2, 'normal', 11, { tags: ['chase'], minShift: 2 }),
   T(72, 'Observatory Dome Stuck Open', 'The dome is open in a rain cell. Needs [[mechanical force|CMB]] and [[astro-tech|WIT]].', [6, 3, 2, 1, 6], 2, 'hard', 13, { tags: ['tech'], minShift: 4 }),
-  T(73, 'Community Garden Sprinkler Siege', 'Sprinklers turned into a synchronized siege on the block party. Needs [[valve hunt|WIT]] and [[dodging|AGI]].', [1, 2, 6, 3, 6], 1, 'easy', 9, { tags: ['hazard'] }),
-  T(74, 'Ferry Ticket System Meltdown', 'Tickets are printing for yesterday, tomorrow, and never. Needs [[systems|WIT]] and [[queue calm|PRS]].', [1, 2, 2, 6, 7], 2, 'normal', 11, { tags: ['tech', 'talk'], minShift: 2 }),
-  T(75, 'Glass Elevator Sticker Bomb', 'Tourists stuck opaque stickers over the entire glass cab. Needs [[scrape patience|END]] and [[reassurance|PRS]].', [1, 5, 3, 6, 2], 1, 'easy', 9, { tags: ['rescue'] }),
+  T(73, 'Community Garden Sprinkler Siege', 'Sprinklers turned into a synchronized siege on the block party. Needs [[valve hunt|WIT]] and [[dodging|AGI]].', [1, 2, 6, 3, 6], 1, 'easy', 9, { tags: ['hazard'], noShift1: true }),
+  T(74, 'Ferry Ticket System Meltdown', 'Tickets are printing for yesterday, tomorrow, and never. Needs [[systems|WIT]] and [[queue calm|PRS]].', [1, 2, 2, 6, 7], 2, 'normal', 11, { tags: ['tech', 'talk'], minShift: 2, allowShift1: true }),
+  T(75, 'Glass Elevator Sticker Bomb', 'Tourists stuck opaque stickers over the entire glass cab. Needs [[scrape patience|END]] and [[reassurance|PRS]].', [1, 5, 3, 6, 2], 1, 'easy', 9, { tags: ['rescue'], noShift1: true }),
   T(76, 'Night Construction Pile Driver Drift', 'A pile driver walked itself toward a gas marker. Needs [[heavy stop|CMB]] and [[site brains|WIT]].', [7, 4, 2, 1, 6], 3, 'hard', 14, { tags: ['hazard'], minShift: 5 }),
   T(77, 'Art Installation Escape', 'A "kinetic sculpture" started chasing interns. Needs [[timing|AGI]] and [[power cut|WIT]].', [2, 2, 7, 2, 6], 2, 'normal', 11, { tags: ['tech'], minShift: 3 }),
   T(78, 'Boulevard Piano Movers Strike', 'A grand piano is stranded in a crosswalk mid-move. Needs [[lift|CMB]] and [[traffic talk|PRS]].', [7, 4, 2, 5, 1], 2, 'normal', 11, { tags: ['rescue', 'talk'], minShift: 2 }),
@@ -2395,7 +2395,7 @@ function spawnCall(camp, S, tpl, extra) {
     if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
   }
   const c = { uid: S.uid++, templateId: tpl.id, tpl, pos, district, spawnedAt: S.t, expiresAt: S.t + (tpl.training && tpl.training.noExpiry ? 1e9 : tpl.type === 'hack' ? (S.plan.blackout ? CONFIG.blackoutHackExpiry : CONFIG.hackExpiry) : expiryFor(S, diff)),
-    assigned: Array(tpl.slots).fill(null), stage: 'pending', result: null, difficulty: diff, req: tpl.req.slice(), slots: tpl.slots, option: null,
+    assigned: Array(tpl.slots).fill(null), stage: 'pending', result: null, difficulty: diff, req: reqForTemplate(tpl, S).slice(), slots: tpl.slots, option: null,
     namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && !extra.pairHalf && S.plan.blackout };
   if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; }
   if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
@@ -2411,10 +2411,19 @@ function spawnCall(camp, S, tpl, extra) {
 }
 function afList(tpl) { const a = tpl.autoFailHero; return !a ? [] : Array.isArray(a) ? a : [a]; }
 function afFor(tpl, id) { return afList(tpl).find(x => x.heroId === id); }
+function reqForTemplate(tpl, S) { // v1.26.0: Shift 1 Random (legacy) may use a milder requirement set; Story / later shifts keep tpl.req
+  if (!tpl || !tpl.req) return tpl && tpl.req;
+  if (tpl.reqShift1 && S && S.idx === 0 && !S.deckMode) return tpl.reqShift1;
+  return tpl.req;
+}
+function legacyEligibleOnShift(t, S) { // v1.26.0: noShift1 gates v1.11 solos off Shift 1; allowShift1 lets existing later 2-slots appear on Shift 1 without changing minShift
+  if (S.idx === 0) { if (t.noShift1) return false; return (t.minShift || 1) <= 1 || !!t.allowShift1; }
+  return (t.minShift || 1) <= S.idx + 1;
+}
 function templateAllowed(t, roster) { // hero-gated content silently skips heroes not in this campaign
   if (t.requiresHero && !roster.includes(t.requiresHero)) return false; if (t.type === 'request' && t.requestHero && !roster.includes(t.requestHero)) return false; return true; }
 function legacyUnits(camp, S, free) { // v1.13.0: singles + linked pairs (one unit each); retired single-pin T26/T27 never drawn
-  const roster = S.roster || []; const ok = t => t.type !== 'hack' && !t.retired && t.minShift <= S.idx + 1 && templateAllowed(t, roster) && !S.calls.some(c => c.tpl === t && c.stage === 'pending');
+  const roster = S.roster || []; const ok = t => t.type !== 'hack' && !t.retired && legacyEligibleOnShift(t, S) && templateAllowed(t, roster) && !S.calls.some(c => c.tpl === t && c.stage === 'pending');
   const units = [], groups = {};
   for (const t of CALLS) { if (!t || !ok(t)) continue; if (t.competingGroup) (groups[t.competingGroup] = groups[t.competingGroup] || []).push(t); else units.push({ kind: 'single', key: String(t.id), tpls: [t] }); }
   if (free === undefined || free >= 2) for (const g in groups) { const ts = groups[g]; if (ts.length !== 2 || ts.some(t => S.usedTemplates[t.id] || (S.spawned && S.spawned[t.id]))) continue; units.push({ kind: 'pair', key: 'pair:' + g, tpls: ts }); }
@@ -2561,7 +2570,7 @@ function travelMultForHero(h) { let m = 1; let flew = false;
 function computeCall(camp, S, call, assigned, opt, xo) {
   xo = xo || {}; const trace = [];
   assigned = assigned || call.assigned; opt = opt !== undefined ? opt : call.option;
-  const tpl = call.tpl; let req = call.req, difficulty = call.difficulty;
+  const tpl = call.tpl; let req = call.req || reqForTemplate(tpl, S), difficulty = call.difficulty;
   if (tpl.type === 'competing' && opt !== null && opt !== undefined) { const o = tpl.options[opt]; if (o.req) req = o.req; if (o.difficulty) difficulty = o.difficulty; }
   const heroes = assigned.map(id => id ? camp.heroes[id] : null);
   const ids = heroes.filter(Boolean).map(h => h.id);
