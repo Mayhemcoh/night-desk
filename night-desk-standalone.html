@@ -964,7 +964,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.27.3';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.27.4';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3684,8 +3684,8 @@ function showRevertNote(camp) { const n = camp.revertNote; delete camp.revertNot
   toast(`↩ ${n.length} stat point${n.length > 1 ? 's' : ''} earned during that shift ${n.length > 1 ? 'were' : 'was'} undone with the shift's XP: ${n.map(x => `${esc(camp.heroes[x.id] ? camp.heroes[x.id].codename : x.id)} +1 ${STAT_NAMES[STATS[x.stat]]}`).join(', ')}. Your picks are remembered and re-applied automatically when the point is earned again. Points banked before the shift stay spent.`, 9000); }
 
 /* ---------- radio, toasts, fx ---------- */
-function radio(heroId, text) { const r = $('radio'); const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); Sfx.blip(); }
-function radioLog(heroId, text, cls) { const r = $('radio'); if (!r || !UI.camp) return; const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', cls || '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); }
+function radio(heroId, text) { if (hackOverlaysHeld()) { HackHold.radios.push({ heroId, text }); if (HackHold.radios.length > 8) HackHold.radios.shift(); return; } const r = $('radio'); const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); Sfx.blip(); }
+function radioLog(heroId, text, cls) { if (hackOverlaysHeld()) { HackHold.radios.push({ heroId, text, cls, log: true }); if (HackHold.radios.length > 8) HackHold.radios.shift(); return; } const r = $('radio'); if (!r || !UI.camp) return; const hh = heroId && UI.camp.heroes[heroId]; const d = h('div', cls || '', (hh ? `<b style="color:${hh.color}">${esc(hh.codename)}:</b> ` : '<b>DESK:</b> ') + esc(text)); r.appendChild(d); while (r.children.length > 3) r.removeChild(r.firstChild); }
 function pctLabel(info) { return info.forced ? '0%' : info.display + '%'; }
 function chanceHTML(info, open, review) { // v1.7 shared display of successChance(): headline + optional breakdown
   const cls = info.forced ? 'bad' : info.display >= 70 ? 'good' : info.display >= 40 ? 'mid' : 'low';
@@ -3693,11 +3693,36 @@ function chanceHTML(info, open, review) { // v1.7 shared display of successChanc
   const rr = info.forced || info.guaranteedSuccess ? '' : info.retry ? `<div class="ch-retry" role="note">🔁 ${esc(info.retry.text)}</div>` : info.retrySpent ? `<div class="ch-retry used" role="note">🔁 ${esc(info.retrySpent.text)}</div>` : ''; // v1.10: separate line, never added to the headline
   const rows = info.breakdown.map(b => `<div class="br ${b.forced ? 'bad' : ''}"><span>${esc(b.label)}</span><b>${b.forced ? '✕' : (b.delta >= 0 && b !== info.breakdown[0] ? '+' : '') + (b.delta < 0 ? '-' + pctFloor(-b.delta) : pctFloor(b.delta)) + '%'}</b></div>`).join('');
   return `<div class="chance ${cls}" role="button" tabindex="0" aria-label="Success chance ${info.forced ? 0 : info.display} percent"><div class="ch-head"><span>${review ? 'Chance' : 'Success chance'}</span><b class="ch-pct">${head}</b>${review ? '' : `<small>${open ? '▲' : '▼ why?'}</small>`}</div>${rr}${open ? `<div class="ch-break">${rows}<div class="br tot"><span>Total (single roll)</span><b>${info.forced ? '0%' : pctFloor(info.chance) + '%'}</b></div></div>` : ''}</div>`; }
-function toast(text, ms) { const t = h('div', 'toast', text); $('toasts').appendChild(t); setTimeout(() => t.remove(), ms || 3500); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
+/* v1.27.4: while a hacking mission is up, queue any global overlay that could paint over the reserved HUD (fixed banners, toasts, radio, FX) and flush them after endHack. */
+function hackOverlaysHeld() { return !!UI.hack; }
+const HackHold = { toasts: [], radios: [], fins: [] };
+let finBannerTimer = 0;
+function holdVisibleOverlaysForHack() {
+  if (typeof Celebrate !== 'undefined' && Celebrate.holdForHack) Celebrate.holdForHack();
+  const b = $('finBanner');
+  if (b && !b.classList.contains('hidden')) {
+    HackHold.fins.unshift({ text: b.innerHTML, lost: b.classList.contains('lost') });
+    b.classList.add('hidden');
+    clearTimeout(finBannerTimer);
+  }
+  if (typeof FX !== 'undefined') { FX.parts = []; const c = $('fx'); if (c) { const g = c.getContext('2d'); if (g) g.clearRect(0, 0, c.width, c.height); c._on = false; } }
+  if (typeof closeHeroCard === 'function') closeHeroCard();
+  document.querySelectorAll('.hs-cue').forEach(el => el.remove());
+}
+function flushHackOverlays() {
+  if (hackOverlaysHeld()) return;
+  const ts = HackHold.toasts.splice(0), rs = HackHold.radios.splice(0), fs = HackHold.fins.splice(0);
+  for (const x of ts) toast(x.text, x.ms);
+  for (const r of rs) { if (r.log) radioLog(r.heroId, r.text, r.cls); else radio(r.heroId, r.text); }
+  for (const f of fs) finBanner(f.text, f.lost);
+  if (typeof Celebrate !== 'undefined') Celebrate.next();
+  if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0);
+}
+function toast(text, ms) { if (hackOverlaysHeld()) { HackHold.toasts.push({ text, ms }); if (HackHold.toasts.length > 8) HackHold.toasts.shift(); return; } const t = h('div', 'toast', text); $('toasts').appendChild(t); setTimeout(() => t.remove(), ms || 3500); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
 function tutorial(key, text) { if (UI.S && UI.S.idx === 0 && !UI.tutorial[key]) { UI.tutorial[key] = 1; toast('💡 ' + text, 6000); } }
 function shake() { const a = $('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
-const FX = { parts: [], confetti() { const w = innerWidth; for (let i = 0; i < 160; i++) this.parts.push({ x: Math.random() * w, y: -20 - Math.random() * 200, vx: (Math.random() - .5) * 120, vy: 80 + Math.random() * 160, r: Math.random() * 6, c: ['#ffd23f', '#ff3ea5', '#3ef0ff', '#4cd97b'][i % 4], a: Math.random() * 6 }); },
-  update(dt) { const c = $('fx'); if (!this.parts.length) { if (c._on) { c.getContext('2d').clearRect(0, 0, c.width, c.height); c._on = false; } return; } c._on = true; if (c.width !== innerWidth) { c.width = innerWidth; c.height = innerHeight; } const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+const FX = { parts: [], confetti() { if (hackOverlaysHeld()) return; const w = innerWidth; for (let i = 0; i < 160; i++) this.parts.push({ x: Math.random() * w, y: -20 - Math.random() * 200, vx: (Math.random() - .5) * 120, vy: 80 + Math.random() * 160, r: Math.random() * 6, c: ['#ffd23f', '#ff3ea5', '#3ef0ff', '#4cd97b'][i % 4], a: Math.random() * 6 }); },
+  update(dt) { const c = $('fx'); if (hackOverlaysHeld()) { this.parts = []; if (c._on) { c.getContext('2d').clearRect(0, 0, c.width, c.height); c._on = false; } return; } if (!this.parts.length) { if (c._on) { c.getContext('2d').clearRect(0, 0, c.width, c.height); c._on = false; } return; } c._on = true; if (c.width !== innerWidth) { c.width = innerWidth; c.height = innerHeight; } const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
     for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.a += dt * 5; g.fillStyle = p.c; g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.fillRect(-4, -2, 8, 4); g.restore(); } this.parts = this.parts.filter(p => p.y < c.height + 20); } };
 
 /* ---------- modal manager ---------- */
@@ -3956,19 +3981,20 @@ function updateQueue() {
 function callIcon(cl) { const tpl = cl.tpl; return tpl.boss ? '☠' : tpl.type === 'hack' ? '⌘' : cl.pairUid || tpl.type === 'competing' ? '⇄' : tpl.training ? '🎓' : tpl.story ? '📖' : cl.requestHero ? '🙋' : cl.autoHero ? '🔒' : tpl.sabotage ? '🗡' : cl.followUp ? '↪' : '!'; }
 function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return;
   $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; const BM = F.bossMax || 5; $('bossBar').style.width = (100 * F.bossHP / BM) + '%'; $('bossVal').textContent = F.bossHP + '/' + BM; const bl = $('bossLbl'); if (bl) bl.textContent = F.rogue ? '☠ ' + bossName(S).toUpperCase() : '☠ NIGHT MAYOR'; }
-function finBanner(text, lost) { const b = $('finBanner'); if (!b) return; b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); setTimeout(() => b.classList.add('hidden'), 4200); }
+function finBanner(text, lost) { if (hackOverlaysHeld()) { HackHold.fins.push({ text, lost }); return; } const b = $('finBanner'); if (!b) return; clearTimeout(finBannerTimer); b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); finBannerTimer = setTimeout(() => b.classList.add('hidden'), 4200); }
 function updateTop() { const S = UI.S, camp = UI.camp; updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts; $('scoreLbl').textContent = shiftScore(S);
   $('rankName').textContent = 'Rank ' + camp.rank + ' · ' + CONFIG.rankNames[camp.rank - 1]; const lo = CONFIG.rankThresholds[camp.rank - 1], hi = CONFIG.rankThresholds[camp.rank]; const pts = camp.rankPts + S.stats.success; $('rankBar').style.width = hi ? (100 * clamp((pts - lo) / (hi - lo), 0, 1)) + '%' : '100%';
   $('btnSpeed').textContent = S.speed + '×'; $('btnPause').textContent = UI.userPaused ? '▶' : '⏸'; $('pausedTag').classList.toggle('hidden', !UI.userPaused); $('btnTools').classList.toggle('on', toolUnlocked(camp, 'medkit')); }
 
 /* ---------- level-up celebration (once per point earned) ---------- */
-const Celebrate = { q: [], busy: false, fired: 0,
+const Celebrate = { q: [], busy: false, fired: 0, current: null, timer: 0,
   push(h, level) { const camp = UI.camp; if (!camp) return; camp.seenLevelUp = camp.seenLevelUp || {}; if ((camp.seenLevelUp[h.id] || 1) >= level) return; camp.seenLevelUp[h.id] = level; this.fired++; h.pendingLevelUps = Math.max(0, (h.pendingLevelUps || 0) - 1);
     let extra = ' · +1 skill point'; if (level === CONFIG.trainLevel && !h.trainedChoice) extra += ' · TRAINING UNLOCKED'; if (level === CONFIG.signatureLevel && canUpgradeMk2(h)) extra += ' · MK II AVAILABLE'; if (level >= CONFIG.levelCap) extra += ' · MAX';
     this.q.push({ text: `LEVEL UP! ${h.codename} LV ${level}${extra}`, color: h.color }); if (this.q.length > 4) this.q.splice(0, this.q.length - 4); this.next(); },
-  next() { if (this.busy || !this.q.length) return; this.busy = true; const it = this.q.shift(); const b = $('lvlBanner'); b.innerHTML = `<b>${esc(it.text)}</b>`; b.style.borderColor = it.color; b.classList.remove('hidden'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
-    Sfx.fanfare(); FX.burst(); setTimeout(() => { b.classList.add('hidden'); this.busy = false; this.next(); }, 1700); } };
-FX.burst = function () { const w = innerWidth; for (let i = 0; i < 60; i++) this.parts.push({ x: w / 2 + (Math.random() - .5) * 80, y: 90, vx: (Math.random() - .5) * 420, vy: -80 + Math.random() * 300, r: 3, c: ['#ffd23f', '#ff3ea5', '#3ef0ff', '#4cd97b'][i % 4], a: Math.random() * 6 }); };
+  next() { if (this.busy || !this.q.length) return; if (hackOverlaysHeld()) return; this.busy = true; const it = this.q.shift(); this.current = it; const b = $('lvlBanner'); b.innerHTML = `<b>${esc(it.text)}</b>`; b.style.borderColor = it.color; b.classList.remove('hidden'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    Sfx.fanfare(); FX.burst(); clearTimeout(this.timer); this.timer = setTimeout(() => { b.classList.add('hidden'); this.busy = false; this.current = null; this.next(); }, 1700); },
+  holdForHack() { const b = $('lvlBanner'); if (this.busy && this.current) this.q.unshift(this.current); this.current = null; this.busy = false; clearTimeout(this.timer); this.timer = 0; if (b) { b.classList.add('hidden'); b.classList.remove('pop'); } } };
+FX.burst = function () { if (hackOverlaysHeld()) return; const w = innerWidth; for (let i = 0; i < 60; i++) this.parts.push({ x: w / 2 + (Math.random() - .5) * 80, y: 90, vx: (Math.random() - .5) * 420, vy: -80 + Math.random() * 300, r: 3, c: ['#ffd23f', '#ff3ea5', '#3ef0ff', '#4cd97b'][i % 4], a: Math.random() * 6 }); };
 
 /* ---------- v1.6 injury helpers ---------- */
 function toolFor(camp, S, id) { const hh = camp.heroes[id]; if (!S || !hh) return null;
@@ -4343,7 +4369,7 @@ function startHack(c, layout, disrupt) {
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack });
   const helpers = rosterHackHelpers(UI.camp); const spent = {};
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. The timer keeps running while you look at the map.');
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
@@ -4391,7 +4417,7 @@ function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game,
   if (!H.rbArm) { H.rbArm = now; Sfx.click(); clearTimeout(H.rbT); H.rbT = setTimeout(() => { if (UI.hack === H) { H.rbArm = 0; renderHackBtns(); } }, 3000); renderHackBtns(); return; }
   const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
 function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) pw.innerHTML = ''; const hk = $('hKey'); if (hk) hk.textContent = ''; const seq = $('hSeq'); if (seq) { seq.classList.remove('open'); seq.innerHTML = ''; } const pad = $('hPad'); if (pad) { pad.classList.remove('open'); pad.innerHTML = ''; } $('hack').classList.remove('hack-entry', 'hack-seq'); $('hack').classList.add('hidden');
-  const _afterHack = () => { if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
+  const _afterHack = () => { if (typeof flushHackOverlays === 'function') flushHackOverlays(); else if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); _afterHack(); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); _afterHack(); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); _afterHack(); return; }
   const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
@@ -4649,6 +4675,7 @@ function kickRevealQueue() {
 }
 
 function openLevelUpChoice(onDone) {
+  if (UI.hack) return; // v1.27.4: never open the LEVEL UP card over a live hack; camp.levelQueue stays queued
   const camp = UI.camp; pruneLevelQueue(camp); let lastHero = null, sel = -1, idx = 0, total = camp.levelQueue.length, busy = false;
   const save = () => { saveCamp(); };
   const finishAll = () => { save(); closeModal(); if (onDone) onDone(); };
