@@ -567,7 +567,7 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 }
 
 
-/* ===== v1.23.0 slot-stat tints + Mirrorlark illusion ghost (UI only) ===== */
+/* ===== v1.23.0 slot-stat tints + Mirrorlark illusion ghost; v1.24.1 Spread Thin ghosts (UI only) ===== */
 .slot.slot-tint{border-color:var(--tint)!important;background:color-mix(in srgb, var(--tint) 22%, #0a1024)!important;box-shadow:0 0 0 1px color-mix(in srgb, var(--tint) 55%, transparent),0 0 14px color-mix(in srgb, var(--tint) 35%, transparent);color:var(--txt);transition:border-color .08s,background .08s,box-shadow .08s}
 .slot.slot-tint-flash{animation:slotTintFlash .2s ease-out}
 @keyframes slotTintFlash{0%{filter:brightness(1.25)}100%{filter:none}}
@@ -581,6 +581,9 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .slot.illus-ghost.drop{border-color:var(--grn)!important;box-shadow:0 0 10px #4cd97b66}
 .sheet.bfix .bdock .slot.illus-ghost{justify-content:flex-start;padding-top:16px}
 @media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.illus-ghost .illus-tag{display:none}}
+/* v1.24.1: Spread Thin ghosts reuse illus-ghost, drawn slightly smaller ("smaller versions of himself") */
+.slot.illus-ghost.spread-ghost .e{transform:scale(.78);transform-origin:center center}
+.slot.illus-ghost.spread-ghost .n{font-size:10px}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -917,7 +920,7 @@ html[data-look="comic"] .statrow span{color:#111!important;border:1px solid #111
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.24.0';
+<script>window.ND_VERSION='nd-v1.24.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3876,7 +3879,7 @@ function hotkeyIndex(k) { if (/^[1-9]$/.test(k)) return +k - 1; const j = ['0', 
 function volunteerBoostText(hh) { const ord = [0, 1, 2, 3, 4].sort((a, b) => hh.stats[b] - hh.stats[a] || a - b); const b = hh.powers.includes('supersoaker') ? CONFIG.drizzle.superBoost : CONFIG.drizzle.boost;
   return `+${b} ${STAT_NAMES[STATS[ord[0]]]}` + (hh.powers.includes('eagermop2') ? `, +1 ${STAT_NAMES[STATS[ord[1]]]}` : ''); }
 
-/* ---------- v1.23.0 slot-stat tints + Mirrorlark illusion ghost (UI only; never mutates assigned[] / odds) ---------- */
+/* ---------- v1.23.0 slot-stat tints + Mirrorlark illusion ghost; v1.24.1 Slab Spread Thin ghosts (UI only; never mutates assigned[] / odds) ---------- */
 const SLOT_TINT_FLASH_MS = 200;
 let _slotTintFlashTimer = null;
 function slotBonusPowerKnown(h, pid) {
@@ -3943,6 +3946,28 @@ function illusionGhostSlotHTML(camp, assigned, i, selOn) {
   const pct = Math.round(ratio * 100);
   return `<div class="slot illus-ghost ${solid ? 'solid' : 'half'}${selOn ? ' sel' : ''}" data-slot="${i}" data-illus="1" style="--hc:${src.color}" aria-label="Illusion: ${pct}% copy of ${esc(src.codename)} (empty slot — drop a hero to replace)"><span class="illus-badge" aria-hidden="true">🪞</span><div class="e">${src.emoji}</div><div class="n">${esc(src.codename)}</div><div class="illus-tag">${solid ? 'Perfect Copy' : pct + '% copy'} · not a real hero</div></div>`;
 }
+// v1.24.1: Spread Thin ghosts — same reveal rule as the Mirrorlark ghost (trained/non-base powers are known once owned; a base spread would need baseRevealed). Cosmetic only.
+function spreadGhostKnown(h) {
+  if (!h || !hasPower(h, 'spread')) return false;
+  const def = heroDef(h.id) || {};
+  if (h.powers.some(p => POWERS[p] && POWERS[p].spread && p !== def.power)) return true;
+  return baseRevealed(h);
+}
+function spreadGhostHero(camp, assigned) {
+  for (const id of assigned) { if (!id) continue; const h = camp.heroes[id]; if (spreadGhostKnown(h)) return h; }
+  return null;
+}
+/** Returns a Slab (Spread Thin) ghost for empty slot i, or '' . Cosmetic only — assigned[i] stays null. */
+function spreadGhostSlotHTML(camp, assigned, i, selOn) {
+  if (i < 0 || i >= assigned.length || assigned[i]) return '';
+  const src = spreadGhostHero(camp, assigned); if (!src) return '';
+  const pct = Math.round(((powerProp(src, 'spread') || 0.25) * 100));
+  return `<div class="slot illus-ghost half spread-ghost${selOn ? ' sel' : ''}" data-slot="${i}" data-spread="1" style="--hc:${src.color}" aria-label="Spread Thin: smaller ${esc(src.codename)} (empty slot — drop a hero to replace)"><span class="illus-badge" aria-hidden="true">${src.emoji}</span><div class="e">${src.emoji}</div><div class="n">${esc(src.codename)}</div><div class="illus-tag">Spread Thin · ${pct}%</div></div>`;
+}
+function emptySlotGhostHTML(camp, assigned, i, selOn) {
+  // Overlap: Mirrorlark's single right-side duplicate wins that one slot; remaining empties can still show Spread Thin.
+  return illusionGhostSlotHTML(camp, assigned, i, selOn) || spreadGhostSlotHTML(camp, assigned, i, selOn);
+}
 
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
@@ -3986,7 +4011,7 @@ function openBriefing(c) {
       let baseTeam = null; for (const id of c.assigned.filter(Boolean)) { const hh = camp.heroes[id], v = injuryView(camp, hh); if (!v.injured || info.healed.includes(id)) continue;
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
-      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = illusionGhostSlotHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
+      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
