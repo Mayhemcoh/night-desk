@@ -986,7 +986,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.30.0';
+<script>window.ND_VERSION='nd-v1.31.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1215,10 +1215,10 @@ const POWERS = {
   visions: { name: 'Life Trade Visions', desc: 'After she heals someone, her next assigned call reveals its requirements in the briefing.', visionAfterHeal: true },
   portalritual: { name: 'Portal Ritual', desc: 'After she heals someone, once per shift her next travel is ×0.3 (portal approx).', portalAfterHeal: true },
   covenpay: { name: 'Coven Pay', desc: 'Team XP +20% on calls she joins.', xpBoost: 0.20 },
-  lastrites: { name: 'Last Rites', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  lastrites: { name: 'Last Rites', desc: 'Once per shift, if a call she is on fails, roll again against the same chance.', retry: true },
   shiftchange: { name: 'Shift Change', desc: 'Day form (brains) and Night form (brawn) swap after every call: Might↔Wits, Endurance↔Presence. Strong Back: in Night form he flies and carries the team (travel ×0.65).', swap: true, flies: true, travelMult: 0.65, carryTravel: true, formGateTravel: 'night' },
   batshit: { name: 'Bat Shit', desc: 'Night form only: immune to injuries; rest time halved.', formGate: 'night', immune: true, restMult: 0.5 },
-  talkshit: { name: 'Talk Shit', desc: 'Day form only: once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', formGate: 'day', retry: true },
+  talkshit: { name: 'Talk Shit', desc: 'Day form only: once per shift, if a call he is on fails, roll again against the same chance.', formGate: 'day', retry: true },
   eavesdrop: { name: 'Eavesdrop', desc: 'Hears everything: reveals call requirements in the briefing when assigned.', preview: true },
   nightowl: { name: 'Night Owl', slotBonus: true, desc: 'Slot bonus: +2 Wits in slot 2, +1 Agility in slot 3.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; if (c.slot === 2) c.st[2] += 1; } },
   thickskull: { name: 'Thick Skull', desc: 'Ignores injury debuffs and can never be Downed.', ignoreInjury: true, noDown: true },
@@ -1227,7 +1227,7 @@ const POWERS = {
   musclememory: { name: 'Muscle Memory', desc: 'Momentum: +1 Might per success this shift, resets on a failure.', onCompute(c) { c.st[0] += (c.hero.streak2 || 0); }, onResult(c) { c.hero.streak2 = c.success ? (c.hero.streak2 || 0) + 1 : 0; } },
   runningtab: { name: 'Running Tab', desc: 'Knows every shortcut: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   positions: { name: 'Positions', slotBonus: true, desc: 'Slot bonus: +1 Might in slot 1, +1 Agility in slot 2. En L\'air: she flies to calls (travel ×0.65).', flies: true, onCompute(c) { if (c.hero.powers.includes('alaseconde')) return; if (c.slot === 0) c.st[0] += 1; if (c.slot === 1) c.st[2] += 1; } },
-  encoredanse: { name: 'Encore Dansé', desc: 'Once per shift, if a call she is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  encoredanse: { name: 'Encore Dansé', desc: 'Once per shift, if a call she is on fails, roll again against the same chance.', retry: true },
   alaseconde: { name: 'À la Seconde', slotBonus: true, desc: 'Upgrades Positions: +3 Might in slot 1 and +3 Agility in slot 2 (replaces the +1/+1).', onCompute(c) { if (c.slot === 0) c.st[0] += 3; if (c.slot === 1) c.st[2] += 3; } },
   lightfeet: { name: 'Light Feet', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   // ---- Signature upgrades (LV 8) ----
@@ -1247,7 +1247,7 @@ const POWERS = {
   undertow: { name: 'Undertow', desc: 'Water cushions every blow: immune to injuries.', immune: true },
   breakwater2: { name: 'Breakwater ✦', signature: true, desc: 'MK II aura: teammates on her call get +2 Endurance (doesn\'t stack with the same aura).', aura: [0, 2, 0, 0, 0] },
   headstart: { name: 'Head Start', desc: 'Always first out the door: travel time x0.6.', travelMult: 0.6 },
-  secondwind: { name: 'Second Wind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  secondwind: { name: 'Second Wind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
   courierroute: { name: 'Courier Route', desc: 'Has run every route: reveals call requirements in the briefing when assigned.', preview: true },
   headstart2: { name: 'Head Start ✦', signature: true, desc: 'MK II: travel time x0.45 and rests half as long between calls.', travelMult: 0.45, restMult: 0.5 },
   audittrail: { name: 'Audit Trail', desc: 'Follows the money: +1 Wits to the team on calls that need Wits 5+.', onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 1; } },
@@ -1264,7 +1264,7 @@ const POWERS = {
   forgeahead: { name: 'Forge Ahead', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   hammertime2: { name: 'Hammer Time ✦', signature: true, desc: 'MK II: +1 Might per success (max +5); a failure only removes 1 stack.', onCompute(c) { c.st[0] += Math.min(5, c.hero.streak || 0); }, onResult(c) { c.hero.streak = c.success ? Math.min(5, (c.hero.streak || 0) + 1) : Math.max(0, (c.hero.streak || 0) - 1); } },
   coil: { name: 'Coil', desc: '+2 Might on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [2, 0, 0, 0, 0] } },
-  constrict: { name: 'Constrict', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  constrict: { name: 'Constrict', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
   shedskin: { name: 'Shed Skin', desc: 'Can never be Downed.', noDown: true },
   coil2: { name: 'Coil ✦', signature: true, desc: 'MK II: +3 Might and +1 Agility on calls with 2 heroes or fewer.', smallTeam: { max: 2, add: [3, 0, 1, 0, 0] } },
   jumpstart: { name: 'Jump Start', desc: 'Hot-wires a ride: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
@@ -1282,7 +1282,7 @@ const POWERS = {
   consolescout: { name: 'Console Scout', kind: 'hack', hack: 'scout', desc: 'Hacking: once per hack, briefly show the whole map and pulse antivirus, keys and gates. Does not change the puzzle. Does nothing on normal calls.', },
   floodlight2: { name: 'Floodlight ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 1] },
   toolbelt: { name: 'Toolbelt', desc: 'A gadget for every gap: +1 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 1; c.st[o[1]] += 1; } },
-  juryrig: { name: 'Jury-Rig', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  juryrig: { name: 'Jury-Rig', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
   gadgetpack: { name: 'Gadget Pack', desc: 'Rocket skates: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   toolbelt2: { name: 'Toolbelt ✦', signature: true, desc: 'MK II: +2 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 2; c.st[o[1]] += 2; } },
   soothe: { name: 'Soothe', desc: 'Works best alone: solo travel and work x0.6, and +2 Presence and +1 Wits when sent solo.', solo: true, smallTeam: { max: 1, add: [0, 0, 0, 2, 1] } },
@@ -1303,7 +1303,7 @@ const POWERS = {
   timeout: { name: 'Time Out', desc: 'Heals up to 2 injured teammates sent with her.', heal: true, healCount: 2 },
   naptime2: { name: 'Nap Time ✦', signature: true, desc: 'MK II: can never be Downed, and teammates on her calls are never injured.', noDown: true, injuryShield: 1 },
   headtime: { name: 'Head Time', desc: 'Skips the boring bits: rests half as long between calls.', restMult: 0.5 },
-  rewind: { name: 'Rewind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance (the briefing shows the ~overall chance on its own line).', retry: true },
+  rewind: { name: 'Rewind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
   earlybird: { name: 'Early Bird', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
   headtime2: { name: 'Head Time ✦', signature: true, desc: 'MK II: rests 70% less; once per shift adds +8 s to a call about to expire; and once per hack adds +10 s to the hack timer while he is on the roster.', restMult: 0.3, extendExpiry: true, hackBorrowed: true },
   tripwire: { name: 'Tripwire', slotBonus: true, desc: 'Slot bonus: +2 Agility in slot 2, +1 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 2; if (c.slot === 2) c.st[4] += 1; } },
@@ -2907,7 +2907,11 @@ function deltaShort(d) { return deltaText(d); } // full stat names (matches the 
 function powerContribution(info, e) { if (!info || !info.rawTeam || !info.req || !e.delta) return null; const tot = e.kind === 'aura' ? e.delta : e.delta;
   const wo = info.rawTeam.map((v, k) => Math.min(CONFIG.teamCap, Math.max(0, v - tot[k]))); const covWo = CONFIG.coverageMode === 'area' ? areaCoverage(wo, info.req) : 0;
   return { before: covWo, after: info.coverage, pts: (info.coverage - covWo) * 100 }; }
-function contribText(info, e) { const c = powerContribution(info, e); if (!c) return ''; return ` (coverage ${Math.round(c.before * 100)}% → ${Math.round(c.after * 100)}%, ${c.pts >= 0 ? '+' : '−'}${Math.abs(c.pts).toFixed(1)} pts)`; }
+/* v1.31.0: the success chance is hidden on the briefing by default. The math (successChance) is unchanged; only display goes through this hook.
+   Returns true only when a hero on the team has a power flagged revealOdds (none yet; reserved for a future 'see the odds' power). */
+function oddsVisible(camp, S, call, info) { if (!camp || !call) return false; const ids = (info && info.ids) || (call.assigned || []).filter(Boolean);
+  return ids.some(id => { const h = camp.heroes[id]; return h && (h.powers || []).some(p => POWERS[p] && POWERS[p].revealOdds); }); }
+function contribText(info, e) { const c = powerContribution(info, e); if (!c || (info && info.hideOdds)) return ''; return ` (coverage ${Math.round(c.before * 100)}% → ${Math.round(c.after * 100)}%, ${c.pts >= 0 ? '+' : '−'}${Math.abs(c.pts).toFixed(1)} pts)`; }
 function powerEvText(camp, e) { const h = camp.heroes[e.hero]; return `${h ? h.codename : e.hero}: ${POWERS[e.power] ? POWERS[e.power].name : e.power} activated ${e.text}`; }
 function shouldAnnounceBaseReveal(camp, heroId, power) {
   if (!camp || !heroId || !power) return false;
@@ -2927,12 +2931,12 @@ function traceEventText(camp, e, info) { const ct = info ? contribText(info, e) 
   if (e.kind === 'ignoreInjury') return e.delta.some(v => v) ? 'ignored the injury penalty (' + deltaShort(e.delta) + ' kept)' + ct : 'ignored the injury penalty (no stat lost anyway)'; return deltaShort(e.delta) + ct; }
 function powerPreview(camp, S, call, info) { // what will trigger if dispatched now (briefing)
   const out = []; const ids = info.ids; const add = (hero, power, text, kind) => power && out.push({ hero, power, text, kind, msg: powerEvText(camp, { hero, power, text }) });
-  const NP = ', does not change the %';
+  const ov = !info.hideOdds; const NP = ov ? ', does not change the %' : ', does not change the success roll'; // v1.31.0: no numbers when odds are hidden
   for (const e of info.trace) add(e.hero, e.power, traceEventText(camp, e, info), e.kind);
   if (info.healer) { const hh = camp.heroes[info.healer], always = hasPower(hh, 'alwaysPrs'), lt = hasPower(hh, 'lifeTrade'), due = prsBonusDue(camp, S, info.healer, info.healed.length), hp = hh.powers.find(p => POWERS[p].heal);
     const st = lifeTradeStat(hh), stName = STAT_NAMES[STATS[st]];
-    const prs = due ? '+1 Presence (already in the %)' : always ? '+1 Presence already active this shift (in the %)' : '';
-    if (info.healed.length) add(info.healer, hp, 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (lt ? `, then +1 ${stName} (stacks, already in the %)` : (prs ? ', ' + prs : '')), 'heal');
+    const prs = due ? '+1 Presence' + (ov ? ' (already in the %)' : '') : always ? '+1 Presence already active this shift' + (ov ? ' (in the %)' : '') : '';
+    if (info.healed.length) add(info.healer, hp, 'heals ' + info.healed.map(id => camp.heroes[id].codename).join(' + ') + (lt ? `, then +1 ${stName} (stacks${ov ? ', already in the %' : ''})` : (prs ? ', ' + prs : '')), 'heal');
     else if (always) add(info.healer, hp, 'no one to heal, still ' + prs, 'heal');
     else if (lt) add(info.healer, hp, 'no one to heal — no Life Trade stack', 'heal'); }
   for (const id of ids) { const h = camp.heroes[id];
@@ -2944,7 +2948,7 @@ function powerPreview(camp, S, call, info) { // what will trigger if dispatched 
     const rm = restMultFor(h); if (rm) add(id, rm.power, 'rest ×' + rm.mult + ' after the call' + NP, 'rest');
     const sh = h.powers.find(p => POWERS[p].injuryShield); if (sh && ids.length > 1) add(id, sh, `teammates ${POWERS[sh].injuryShield >= 1 ? 'never' : 'half as often'} injured` + NP, 'shield');
     const io = h.powers.find(p => POWERS[p].immuneOnSuccess); if (io) add(id, io, 'immune to injuries if the call succeeds' + NP, 'injury'); }
-  if (info.retry) add(info.retry.hero, info.retry.power, `second try if this fails (~${info.retry.overallPct}% overall; the headline stays the single-roll ${info.display}%)`, 'retry');
+  if (info.retry) add(info.retry.hero, info.retry.power, ov ? `second try if this fails (~${info.retry.overallPct}% overall; the headline stays the single-roll ${info.display}%)` : 'second try if this fails', 'retry');
   else if (info.retrySpent) add(info.retrySpent.hero, info.retrySpent.power, 'second try already used this shift', 'retry');
   return out; }
 
@@ -4292,8 +4296,10 @@ function openBriefing(c) {
       const pairRow = !c.pairUid ? '' : pp ? `<div class="pair-row"><span class="pair-ab" role="group" aria-label="Linked options"><button class="ab ${pl === 'A' ? 'on' : ''}" data-ab="A" ${pl === 'A' ? 'aria-current="true"' : ''}>A</button><button class="ab ${pl === 'B' ? 'on' : ''}" data-ab="B" ${pl === 'B' ? 'aria-current="true"' : ''}>B</button></span><button class="pair-switch" data-a="pairswitch" title="${esc(pp.tpl.title)}" aria-label="Switch to option ${pl === 'A' ? 'B' : 'A'}: ${esc(pp.tpl.title)}">⇄ Switch to: <b>${esc(pp.tpl.title)}</b> <small>· 👥 ${pp.slots} · ${esc(pp.difficulty)}</small></button></div>`
         : `<div class="pair-row gone"><span class="pair-ab"><button class="ab on" disabled>${pl}</button></span><button class="pair-switch" disabled aria-disabled="true">⇄ Other option: <b>${esc(po ? po.tpl.title : '?')}</b> <small>— no longer available${po && po.result ? ' (' + esc(po.result) + ')' : ''}</small></button></div>`;
       const info = successChance(camp, S, c, c.assigned, { atDispatch: true }); const tpl = c.tpl; const rem = Math.max(0, c.expiresAt - S.t);
+      const showOdds = oddsVisible(camp, S, c, info); if (!showOdds) info.hideOdds = true; // v1.31.0: success chance hidden by default (future 'see the odds' power flips this)
+      const xpFixed = tpl.type === 'story' || tpl.type === 'training';
       const pm = c.assigned.some(Boolean) ? previewMorale(camp, S, c, c.assigned.filter(Boolean), info) : {}; // v1.18.0: morale at review for a success (request grant + 3rd pairing)
-      const est = info.forced ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info }, { morale: pm }).perHero : {};
+      const est = info.forced && showOdds ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info: showOdds ? info : Object.assign({}, info, { chance: 1 }) }, { morale: pm }).perHero : {}; // v1.31.0: hidden odds → base XP (no risk bonus, no FAIL tag) so the estimate can't leak the chance
       const pmc = c.assigned.some(Boolean) ? pairMoraleCheck(camp, S, c, c.assigned.filter(Boolean), true, info) : null;
       let notes = '';
       if (tpl.type === 'competing') notes += `<div class="opts" style="margin-bottom:6px">${tpl.options.map((o, i) => `<button class="opt ${c.option === i ? 'on' : ''}" data-opt="${i}"><span>${c.option === i ? '◉' : '○'}</span><span><b>${esc(o.label)}</b><br><small>${esc(o.desc.replace('the named hero', camp.heroes[c.namedHero].codename))}</small></span></button>`).join('')}</div>`;
@@ -4305,15 +4311,15 @@ function openBriefing(c) {
       if (c.autoHero && !tpl.story) notes += `<div class="note">🔒 <b>${esc(camp.heroes[c.autoHero].codename)}</b> already grabbed this call and will not budge.${c.autoLine ? ' ' + esc(c.autoLine) : ''}</div>`;
       if (tpl.story) notes += `<div class="note story">📖 <b>${esc(camp.heroes[c.autoHero].codename)}</b> picked this one up. How should it play out? (Both succeed.)<div class="opts">${tpl.story.choices.map((o, i) => `<button class="opt ${(c.storyChoice || 0) === i ? 'on' : ''}" data-story="${i}"><span>${(c.storyChoice || 0) === i ? '◉' : '○'}</span><span>${esc(o.label)}${o.morale ? ' <small>(+1 morale: 2× base XP this shift)</small>' : ''}</span></button>`).join('')}</div></div>`;
       if (tpl.training) notes += `<div class="note train">🎓 ${tpl.training.kind === 'route' ? `ROUTE drill: the hero you send travels 15% faster for good (${Object.values(camp.heroes).filter(x => x.routeTrained).length}/${CONFIG.routeMax} used).` : `POWER drill: only a hero at LV ${CONFIG.trainLevel}+ (counted when sent), with a revealed power and no trained power yet, can be sent. They pick 1 of 2 powers right after review.`}${tpl.training.kind === 'route' ? ' Heroes who already know the routes can\'t be sent.' : ''} No expiry.</div>`; if (tpl.training && trainingNobodyEligible(camp, c)) notes += `<div class="note">🎓 No hero can use this drill yet. It stays open and closes on its own with no penalty.</div>`;
-      if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
+      if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. ${showOdds ? `The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).` : 'Only the team that actually goes counts.'}</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
       if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
       if (tpl.overCapFail) notes += `<div class="note warn">⚠ Auto-fail if ${esc(STAT_NAMES[STATS[tpl.overCapFail.stat]])} goes over ${tpl.overCapFail.value}</div>`;
       if (tpl.bonusThreshold) notes += `<div class="note good">★ Double XP if ${esc(STAT_NAMES[STATS[tpl.bonusThreshold.stat]])} reaches ${tpl.bonusThreshold.value}</div>`;
       if (tpl.disruption && !tpl.disruption.always && S.idx + 1 >= CONFIG.disruptionsFromShift) notes += `<div class="note">📻 Things may get disrupted mid-mission. Keep the radio close.</div>`;
       let links = '';
-      for (const [a, b, n] of info.synPairs) links += `<div class="note good">🔗 Synergy: ${esc(camp.heroes[a].codename)} + ${esc(camp.heroes[b].codename)} (+${Math.round(100 * Math.min(CONFIG.synergyMax, CONFIG.synergyBase + CONFIG.synergyPerPairing * n))}%, paired ${n}×)</div>`;
-      for (const [a, b] of info.conPairs) links += `<div class="note warn">⚡ Conflict: ${esc(camp.heroes[a].codename)} × ${esc(camp.heroes[b].codename)} (−${Math.round(CONFIG.conflictPenalty * 100)}%). ${camp.conflictWins[pairKey(a, b)] || 0}/${CONFIG.conflictNeutralWins} clean wins to resolve.</div>`;
+      for (const [a, b, n] of info.synPairs) links += `<div class="note good">🔗 Synergy: ${esc(camp.heroes[a].codename)} + ${esc(camp.heroes[b].codename)} (${showOdds ? `+${Math.round(100 * Math.min(CONFIG.synergyMax, CONFIG.synergyBase + CONFIG.synergyPerPairing * n))}%, ` : ''}paired ${n}×)</div>`;
+      for (const [a, b] of info.conPairs) links += `<div class="note warn">⚡ Conflict: ${esc(camp.heroes[a].codename)} × ${esc(camp.heroes[b].codename)} ${showOdds ? `(−${Math.round(CONFIG.conflictPenalty * 100)}%)` : ''}. ${camp.conflictWins[pairKey(a, b)] || 0}/${CONFIG.conflictNeutralWins} clean wins to resolve.</div>`;
       for (const e of info.trace.filter(e => e.kind === 'illusion')) links += e.noEffect ? `<div class="note warn illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(e.text || 'no effect')}.</div>` : `<div class="note illusion-note">🪞 ${esc(camp.heroes[e.hero].codename)} – ${esc(POWERS[e.power].name)}: ${esc(traceEventText(camp, e, info))}. Fills an empty slot (coverage only), no extra roll.</div>`;
       if (info.healed.length) links += `<div class="note good">💚 ${esc(camp.heroes[info.healer].codename)} will heal ${info.healed.map(x => esc(camp.heroes[x].codename)).join(' + ')} on this call.</div>`;
       if (info.healer && hasPower(camp.heroes[info.healer], 'lifeTrade')) { const hh = camp.heroes[info.healer]; const st = lifeTradeStat(hh);
@@ -4323,11 +4329,11 @@ function openBriefing(c) {
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
-        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
+        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced && showOdds ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
         return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
-      const chanceBox = !any ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
+      const chanceBox = !any ? '' : !showOdds && !(tpl.disruption && tpl.disruption.always && !info.forced) ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
       const dbg = UI.debug ? `<div class="dbgbox">chance=${(info.chance * 100).toFixed(1)}% coverage=${(info.coverage * 100).toFixed(1)}% (perStat ${(info.perStat * 100).toFixed(1)}%)\ncap=${info.cap} synergy=+${info.synergy.toFixed(2)} conflict=-${info.conflict.toFixed(2)} morale=${info.morale.toFixed(2)}\nreq=${info.req.join('/')} team=${info.team.join('/')} forced=${info.forced ? 'YES' : 'no'} disrupt=${c.willDisrupt}</div>` : '';
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
@@ -4777,7 +4783,7 @@ function openPause() {
 function helpHTML() { return `<ul class="help">
 <li>📍 Calls appear as pins. Tap one (or its card in the queue) to open the briefing. <b>Time pauses while any panel is open.</b></li>
 <li>👥 Add heroes to the slots. Colored keywords hint at the stats needed: ${STATS.map(s => `<b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b>`).join(', ')}.</li>
-<li>⬢ Team stats add up per stat (capped at 10). Success chance = coverage (the overlap between the team and the call). 🔗 Synergy and ⚡ conflict are added or subtracted from that chance, then clamped to 0–100%. Conflict pairs cost 8%. Hard calls take longer on scene.</li>
+<li>⬢ Team stats add up per stat (capped at 10). How likely a call is to succeed depends on coverage (the overlap between the team and the call). 🔗 Synergy helps and ⚡ conflict hurts. The briefing doesn't show the success chance: read the caller's hints and match the team shape. Hard calls take longer on scene.</li>
 <li>★ When a mission ends, tap the REVIEW pin. Heroes from unreviewed calls cannot be sent again.</li>
 <li>🦸 Shift 6: Zenith and Drizzle join every campaign (team of 10).</li>
 <li>💧 Drizzle volunteers after 3 missions without him; take him off if you like.</li>
@@ -4787,7 +4793,7 @@ function helpHTML() { return `<ul class="help">
 <li>🩹 Failed normal/hard calls can injure heroes (−1 all stats). A second injury downs them for the shift. Some competing "risky" options can injure even on success (~${Math.round(CONFIG.injuryRiskyCompeting * 100)}% per hero).</li>
 <li>⌘ Hack calls: you play a maze on the console. D-pad or swipe, ACT for nodes, HOLD at the exit.</li>
 <li>😊 Morale (per hero, XP only): +1 = 2× base XP, −1 = ½ base XP; it never changes odds or stats. Granting a 🙋 request: +1 for the rest of this shift and next shift. Refusing the same hero twice: −1 next shift. The 3rd reviewed call in a shift with a 🔗 synergy pair together: +1 each; with a ⚡ friction pair (Shift 4+, until resolved): −1 each. Pair morale lasts until the shift ends.</li>
-<li>📈 XP comes only from successes and is split evenly across the team (solo = biggest share). Riskier sends (lower chance) pay up to +25%, ★ thresholds ×2, perfect picks +33%. Each point at 1000, 1300, 1600… XP raises the hero's LV (max LV 10); after that XP is wasted. Veterans earn a little less per call.</li>
+<li>📈 XP comes only from successes and is split evenly across the team (solo = biggest share). Riskier sends (lower chance) pay up to +25% (the briefing's ≈XP+ is before this bonus), ★ thresholds ×2, perfect picks +33%. Each point at 1000, 1300, 1600… XP raises the hero's LV (max LV 10); after that XP is wasted. Veterans earn a little less per call.</li>
 <li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked. At LV 8, if a trained hero can take the optional Mk II upgrade, that choice appears on the same card (stat and upgrade are confirmed separately; skip it and it stays available from the hero card).</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 4 a hero can train one of two powers (permanent choice); at LV 8 their starting power can be upgraded to Mk II. Tap the rank bar for your Dispatcher File.</li><li>⚡ Starting powers are hidden (???) until first used. The first time a hero's base power actually triggers, a pop-up names them and explains the power. It stays until you close it (time is paused). Each hero's reveal is shown once per campaign.</li>
 <li>⌨ Optional keys: Space pause, 1–9 pick hero, Enter dispatch, Esc close, D debug. Hacking: WASD/arrows, E act, hold Space.</li></ul>`; }
 function openHelp() { const prev = UI.modals[0]; openModal('help', m => { const P = sheetParts(m, '<h2>How to play</h2>', helpHTML(), '<button class="btn pri">GOT IT</button>'); P.F.querySelector('button').onclick = () => { closeModal(); if (prev && prev.kind === 'pause') openPause(); }; }); }
