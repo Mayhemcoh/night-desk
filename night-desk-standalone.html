@@ -986,7 +986,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.31.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.32.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1131,7 +1131,7 @@ const HERO_DEFS = [
     quips: ['Water always finds a way. So do I.', 'Stand behind me. Further. Bit further.', 'I used to break dams. Now I AM one.'] },
   { id: 'quickstep', name: 'Theo Okafor', codename: 'Quickstep', color: '#a3e635', emoji: '👟', stats: [1, 2, 6, 1, 2], bio: 'Ex-getaway courier. Talks fast, eats fast, apologises fast.', power: 'headstart', train: ['secondwind', 'courierroute'], synergy: 'hotwire',
     quips: ['Already there. Also already back.', 'Sorry-sorry-sorry, coming through!', 'I can outrun anything except my landlord.'] },
-  { id: 'ledger', name: 'Prudence Vale', codename: 'Ledger', color: '#e2e8f0', emoji: '🧾', stats: [1, 1, 1, 3, 6], bio: 'Reformed embezzler. Can find a missing penny in a city budget, and a missing person in a phone bill.', power: 'audittrail', train: ['compound', 'codewhisper'], synergy: 'brasstack',
+  { id: 'ledger', name: 'Prudence Vale', codename: 'Ledger', color: '#e2e8f0', emoji: '🧾', stats: [1, 1, 1, 3, 6], bio: 'Reformed embezzler. Can find a missing penny in a city budget, and a missing person in a phone bill.', power: 'audittrail', train: ['runnumbers', 'codewhisper'], synergy: 'brasstack',
     quips: ['The numbers never lie. People, constantly.', 'I will need receipts for that heroics.', 'Interesting. Deeply, fiscally interesting.'] },
   { id: 'marquee', name: 'Augustin Bell', codename: 'Marquee', color: '#f472b6', emoji: '🎭', stats: [1, 2, 1, 6, 2], bio: 'Ex-cult frontman turned hostage negotiator. Still cannot enter a room without an entrance.', power: 'headliner', train: ['ovation', 'crowdwork'], synergy: 'murmur',
     quips: ['Ladies, gentlemen, and frightened bystanders!', 'Every crisis is just an audience that has not clapped yet.', 'Cue the spotlight. Any light. A phone torch is fine.'] },
@@ -1145,17 +1145,17 @@ const HERO_DEFS = [
     quips: ['Patience. Moss always wins eventually.', 'The ferns told me. Do not ask how.', 'I am rooted. Please do not water me.'] },
   { id: 'halogen', name: 'Priya Anand', codename: 'Halogen', color: '#fde047', emoji: '💡', stats: [2, 2, 2, 2, 4], bio: "Light-bender who once blinded a whole stadium. Now does lighting for kids' plays.", power: 'floodlight', train: ['prism', 'consolescout'], synergy: 'gravemoss',
     quips: ['Let me shed some light on this.', 'Everyone close your eyes. No, really.', 'I do rainbows on request.'] },
-  { id: 'brasstack', name: 'Otto Ruiz', codename: 'Brass Tack', color: '#d97706', emoji: '⚙️', stats: [2, 3, 1, 1, 5], bio: 'Gadgeteer who built heist rigs. Every pocket holds a tool and a snack.', power: 'toolbelt', train: ['juryrig', 'gadgetpack'], synergy: 'ledger',
+  { id: 'brasstack', name: 'Otto Ruiz', codename: 'Brass Tack', color: '#d97706', emoji: '⚙️', stats: [2, 3, 1, 1, 5], bio: 'Gadgeteer who built heist rigs. Every pocket holds a tool and a snack.', power: 'toolbelt', train: ['juryrig', 'oddsometer'], synergy: 'ledger',
     quips: ['Let us get down to brass tacks. I have some.', 'Duct tape: the other superpower.', 'Give me ninety seconds and a wrench.'] },
   { id: 'murmur', name: 'Sefa Lind', codename: 'Murmur', color: '#c4b5fd', emoji: '🫧', stats: [1, 1, 2, 5, 3], bio: 'Soft-spoken empath who used to talk guards into opening vaults. Now talks jumpers down.', power: 'soothe', train: ['empathy', 'kindwords'], synergy: 'marquee',
     quips: ['Shh. Everyone breathe with me.', 'I can go alone. It is quieter that way.', 'You are not in trouble. Well. A little.'] },
-  { id: 'rook', name: 'Casimir Dray', codename: 'Rook', color: '#94a3b8', emoji: '♜', stats: [3, 2, 1, 2, 4], bio: 'Ex-crime-family strategist. Thinks twelve moves ahead, forgets where he parked.', power: 'gambit', train: ['routeghost', 'castle'], synergy: null,
+  { id: 'rook', name: 'Casimir Dray', codename: 'Rook', color: '#94a3b8', emoji: '♜', stats: [3, 2, 1, 2, 4], bio: 'Ex-crime-family strategist. Thinks twelve moves ahead, forgets where he parked.', power: 'readboard', train: ['routeghost', 'castle'], synergy: null,
     quips: ['Check. And, eventually, mate.', 'I planned for this. And for that. Not for the pigeons.', 'Sacrifice the pawn. I am kidding. Mostly.'] },
   { id: 'kitefall', name: 'Ama Boateng', codename: 'Kitefall', color: '#22d3ee', emoji: '🪁', stats: [2, 1, 5, 3, 1], bio: 'Rooftop glider and former cat burglar; waves at everyone on the way down.', power: 'updraft', train: ['swoop', 'landing'], synergy: 'sundial',
     quips: ['Hiii! Bye! Wheee!', 'The wind owes me a favour.', 'Gravity is more of a suggestion.'] },
   { id: 'matron', name: 'Bettina Grau', codename: 'Matron', color: '#fb7185', emoji: '🛡️', stats: [3, 5, 1, 2, 1], bio: "Retired henchwoman who ran a villain's day-care. Nobody misbehaves near her.", power: 'naptime', train: ['curfew', 'timeout'], synergy: 'tidewall',
     quips: ['Inside voices, please.', 'Nobody gets hurt on my watch. Nobody.', 'Who wants a juice box? After the arrest.'] },
-  { id: 'sundial', name: 'Kenji Mori', codename: 'Sundial', color: '#fbbf24', emoji: '⏳', stats: [1, 3, 4, 1, 3], bio: 'Can nudge time by a second or two. Always early, always smug about it.', power: 'headtime', train: ['rewind', 'earlybird'], synergy: 'kitefall',
+  { id: 'sundial', name: 'Kenji Mori', codename: 'Sundial', color: '#fbbf24', emoji: '⏳', stats: [1, 3, 4, 1, 3], bio: 'Can nudge time by a second or two. Always early, always smug about it.', power: 'headtime', train: ['rewind', 'glimpse'], synergy: 'kitefall',
     quips: ['I was here two seconds ago. Technically.', 'Punctuality is my superpower. Also time.', 'Ready before you asked.'] },
   { id: 'snare', name: 'Lotte Quist', codename: 'Snare', color: '#a78bfa', emoji: '🕸️', stats: [2, 2, 4, 1, 3], bio: "Trap-builder who used to guard a villain's lair; now nets runaway pets.", power: 'tripwire', train: ['netgun', 'lure'], synergy: 'copperhead',
     quips: ['Watch your step. Seriously.', 'It is not a trap if you are on my side.', 'Net, net, net. Got it.'] },
@@ -1196,7 +1196,7 @@ const CONFLICT_RESOLVE = {
 // hooks: onCompute(c) mutates c.st; onResult(c); travelMult; xpBoost; flags: illusion, heal, immune, noDown, retry, preview
 const SLAB_SLOTS = [0, 1, 3, 2];
 const SIGNATURES = { overclock: 'overclock2', doubletake: 'doubletake2', settlingin: 'settlingin2', soloact: 'soloact2', borrowedtime: 'borrowedtime2', shiftchange: 'shiftchange2', thickskull: 'thickskull2', positions: 'positions2',
-  breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', gambit: 'gambit2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2', moodswing: 'moodswing2', eagermop: 'eagermop2' };
+  breakwater: 'breakwater2', headstart: 'headstart2', audittrail: 'audittrail2', headliner: 'headliner2', hammertime: 'hammertime2', coil: 'coil2', jumpstart: 'jumpstart2', deeproots: 'deeproots2', floodlight: 'floodlight2', toolbelt: 'toolbelt2', soothe: 'soothe2', readboard: 'readboard2', updraft: 'updraft2', naptime: 'naptime2', headtime: 'headtime2', tripwire: 'tripwire2', bellow: 'bellow2', moodswing: 'moodswing2', eagermop: 'eagermop2' };
 const POWERS = {
   overclock: { name: 'Overclock', desc: '+1 Might and Agility for every success this shift. Resets on a failure. Flybae: she flies to calls (travel ×0.65).', flies: true, onCompute(c) { const s = c.hero.streak || 0; c.st[0] += s; c.st[2] += s; }, onResult(c) { c.hero.streak = c.success ? (c.hero.streak || 0) + 1 : 0; } },
   comet: { name: 'Comet', desc: 'While Overclock has 1+ stacks, travel and work time ×0.6. A failure with 2+ stacks Downs her.', travelMult: 0.6, workMult: 0.6, travelNeedsStreak: 1, burnout: 2, burnoutDown: true },
@@ -1251,7 +1251,7 @@ const POWERS = {
   courierroute: { name: 'Courier Route', desc: 'Has run every route: reveals call requirements in the briefing when assigned.', preview: true },
   headstart2: { name: 'Head Start ✦', signature: true, desc: 'MK II: travel time x0.45 and rests half as long between calls.', travelMult: 0.45, restMult: 0.5 },
   audittrail: { name: 'Audit Trail', desc: 'Follows the money: +1 Wits to the team on calls that need Wits 5+.', onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 1; } },
-  compound: { name: 'Compound Interest', desc: 'Team XP +20% on calls she joins, and her paperwork reveals the call requirements in the briefing when assigned.', xpBoost: 0.20, preview: true },
+  runnumbers: { name: 'Run the Numbers', desc: 'The numbers never lie: while she is slotted, the briefing shows the success chance and reveals the call requirements.', revealOdds: true, preview: true }, // v1.32.0: replaces Compound Interest
   fineprint: { name: 'Fine Print', slotBonus: true, desc: '(Retired) Slot bonus: +2 Wits in slot 1.', onCompute(c) { if (c.slot === 0) c.st[4] += 2; } }, // kept for old saves until migrate
   codewhisper: { name: 'Code Whisper', kind: 'hack', hack: 'code', desc: 'Hacking: once per hack, re-show a lock or arrow code you already read (no walking back). Does nothing on normal calls.', },
   audittrail2: { name: 'Audit Trail ✦', signature: true, desc: 'MK II: +2 Wits to the team on calls that need Wits 5+, and team XP +15% on her calls.', xpBoost: 0.15, onCompute(c) { if (c.req && c.req[4] >= 5) c.st[4] += 2; } },
@@ -1283,17 +1283,17 @@ const POWERS = {
   floodlight2: { name: 'Floodlight ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Agility (doesn\'t stack with the same aura).', aura: [0, 0, 1, 0, 1] },
   toolbelt: { name: 'Toolbelt', desc: 'A gadget for every gap: +1 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 1; c.st[o[1]] += 1; } },
   juryrig: { name: 'Jury-Rig', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
-  gadgetpack: { name: 'Gadget Pack', desc: 'Rocket skates: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
+  oddsometer: { name: 'Odds-O-Meter', desc: 'A pocket gizmo that crunches the odds: while he is slotted, the briefing shows the success chance.', revealOdds: true }, // v1.32.0: replaces Gadget Pack
   toolbelt2: { name: 'Toolbelt ✦', signature: true, desc: 'MK II: +2 to his two lowest stats.', onCompute(c) { const o = [0, 1, 2, 3, 4].sort((a, b) => c.hero.stats[a] - c.hero.stats[b] || a - b); c.st[o[0]] += 2; c.st[o[1]] += 2; } },
   soothe: { name: 'Soothe', desc: 'Works best alone: solo travel and work x0.6, and +2 Presence and +1 Wits when sent solo.', solo: true, smallTeam: { max: 1, add: [0, 0, 0, 2, 1] } },
   empathy: { name: 'Empathy', desc: 'Heals one injury on a teammate sent with her.', heal: true },
   kindwords: { name: 'Kind Words', desc: 'Team XP +15% on calls she joins.', xpBoost: 0.15 },
   soothe2: { name: 'Soothe ✦', signature: true, desc: 'MK II: solo travel and work x0.5, and +3 Presence and +2 Wits when sent solo.', solo: true, soloMult: 0.5, smallTeam: { max: 1, add: [0, 0, 0, 3, 2] } },
-  gambit: { name: 'Gambit', desc: 'Aura: calls the plays, teammates get +1 Wits (doesn\'t stack with the same aura).', aura: [0, 0, 0, 0, 1] },
+  readboard: { name: 'Read the Board', desc: 'Thinks twelve moves ahead: while he is slotted, the briefing shows the success chance.', revealOdds: true }, // v1.32.0: replaces Gambit (base)
   fork: { name: 'Fork', slotBonus: true, desc: '(Retired) Slot bonus: +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
   routeghost: { name: 'Route Ghost', kind: 'hack', hack: 'ghost', desc: 'Hacking: once per hack, show a short ghost path toward the exit for a few seconds. Hint only. Does nothing on normal calls.', },
   castle: { name: 'Castle', desc: 'Always has an escape: can never be Downed.', noDown: true },
-  gambit2: { name: 'Gambit ✦', signature: true, desc: 'MK II aura: teammates get +1 Wits and +1 Might (doesn\'t stack with the same aura).', aura: [1, 0, 0, 0, 1] },
+  readboard2: { name: 'Read the Board ✦', signature: true, desc: 'MK II: while he is slotted, the briefing shows the success chance and reveals the call requirements.', revealOdds: true, preview: true }, // v1.32.0: replaces Gambit ✦
   updraft: { name: 'Updraft', desc: 'Glides over traffic: travel time x0.6.', travelMult: 0.6 },
   swoop: { name: 'Swoop', slotBonus: true, desc: 'Slot bonus: +2 Agility in slot 1.', onCompute(c) { if (c.slot === 0) c.st[2] += 2; } },
   landing: { name: 'Perfect Landing', desc: 'Always lands on her feet: immune to injuries.', immune: true },
@@ -1304,7 +1304,7 @@ const POWERS = {
   naptime2: { name: 'Nap Time ✦', signature: true, desc: 'MK II: can never be Downed, and teammates on her calls are never injured.', noDown: true, injuryShield: 1 },
   headtime: { name: 'Head Time', desc: 'Skips the boring bits: rests half as long between calls.', restMult: 0.5 },
   rewind: { name: 'Rewind', desc: 'Once per shift, if a call he is on fails, roll again against the same chance.', retry: true },
-  earlybird: { name: 'Early Bird', desc: 'Travel time x0.7.', travelMult: CONFIG.shortTravelMult },
+  glimpse: { name: 'Glimpse Ahead', desc: 'Sees a second into the future: while he is slotted, the briefing shows the success chance.', revealOdds: true }, // v1.32.0: replaces Early Bird
   headtime2: { name: 'Head Time ✦', signature: true, desc: 'MK II: rests 70% less; once per shift adds +8 s to a call about to expire; and once per hack adds +10 s to the hack timer while he is on the roster.', restMult: 0.3, extendExpiry: true, hackBorrowed: true },
   tripwire: { name: 'Tripwire', slotBonus: true, desc: 'Slot bonus: +2 Agility in slot 2, +1 Wits in slot 3.', onCompute(c) { if (c.slot === 1) c.st[2] += 2; if (c.slot === 2) c.st[4] += 1; } },
   netgun: { name: 'Net Gun', slotBonus: true, desc: 'Slot bonus: +2 Might in slot 1.', onCompute(c) { if (c.slot === 0) c.st[0] += 2; } },
@@ -1330,9 +1330,9 @@ const POWERS = {
    rest, xp, injury, info. Explicit `kind` wins; otherwise it is derived from the hooks so a new power can never be left without one. */
 const POWER_KINDS = ['stat', 'cap', 'time', 'rest', 'xp', 'injury', 'info', 'hack'];
 function powerKindOf(P) { if (P.kind) return P.kind; if (P.onCompute || P.smallTeam || P.aura || P.illusion || P.spread || P.swap || P.supernova || P.respecOncePerShift || P.extraSlot) return 'stat'; if (P.retry) return 'cap';
-  if (P.travelMult || P.solo || P.extendExpiry || P.flies || P.workMult || P.portalAfterHeal) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.hack) return 'hack'; if (P.preview || P.previewMeta || P.visionAfterHeal) return 'info'; return 'info'; }
+  if (P.travelMult || P.solo || P.extendExpiry || P.flies || P.workMult || P.portalAfterHeal) return 'time'; if (P.restMult) return 'rest'; if (P.xpBoost || P.soloXpBoost) return 'xp'; if (P.heal || P.immune || P.noDown || P.ignoreInjury || P.injuryShield || P.immuneOnSuccess) return 'injury'; if (P.hack) return 'hack'; if (P.preview || P.previewMeta || P.visionAfterHeal || P.revealOdds) return 'info'; return 'info'; }
 for (const k in POWERS) POWERS[k].kind = powerKindOf(POWERS[k]);
-const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground', silvertongue: 'longrangeillusion', covenpay: 'visions', lastrites: 'portalritual', eavesdrop: 'talkshit', nightowl: 'batshit', musclememory: 'harderhead', runningtab: 'squeezein', lightfeet: 'alaseconde', flashbang: 'consolescout', fork: 'routeghost', fineprint: 'codewhisper', chopshop: 'softreboot' }; // v1.10 + v1.12 + v1.19.0 hack-power migrations
+const RETIRED_POWERS = { encore: 'perfectcopy', shortcircuit: 'comet', sparksight: 'supernova', foundation: 'spreadthin', digin: 'foundhimself', shadowstep: 'wolfpack', casejoint: 'eartoground', silvertongue: 'longrangeillusion', covenpay: 'visions', lastrites: 'portalritual', eavesdrop: 'talkshit', nightowl: 'batshit', musclememory: 'harderhead', runningtab: 'squeezein', lightfeet: 'alaseconde', flashbang: 'consolescout', fork: 'routeghost', fineprint: 'codewhisper', chopshop: 'softreboot', gambit: 'readboard', gambit2: 'readboard2', compound: 'runnumbers', earlybird: 'glimpse', gadgetpack: 'oddsometer' }; // v1.10 + v1.12 + v1.19.0 hack-power migrations
 
 /* ================= CALL TEMPLATES ================= */
 // req order: CMB END AGI PRS WIT. Text keywords: [[word|STAT]]
@@ -2485,6 +2485,8 @@ function migrateV119(c) { // v1.19.0 hack-power train swaps via RETIRED_POWERS (
     if (h.trainedChoice) h.trainedChoice = RETIRED_POWERS[h.trainedChoice] || h.trainedChoice;
     if (h.trainedChoice && !POWERS[h.trainedChoice]) h.trainedChoice = null;
     if (!h.trainedChoice) h.trainedChoice = (d.train || []).find(p => h.powers.includes(p)) || null;
+    if (h.revealed && typeof h.revealed === 'object') for (const k of Object.keys(h.revealed)) { const n = RETIRED_POWERS[k]; if (n && POWERS[n]) { if (h.revealed[k]) h.revealed[n] = true; delete h.revealed[k]; } } // v1.32.0: Gambit/Compound/Early Bird/Gadget Pack -> odds powers keep their reveal
+    h.signature = h.powers.some(p => POWERS[p] && POWERS[p].signature);
   } return c; }
 function migrateV114(c) { // v1.14.0: extra heroes + save rules (2c)
   if (!c.rulesVersion) { // a v1.13.0 (or older) save
@@ -2909,8 +2911,8 @@ function powerContribution(info, e) { if (!info || !info.rawTeam || !info.req ||
   return { before: covWo, after: info.coverage, pts: (info.coverage - covWo) * 100 }; }
 /* v1.31.0: the success chance is hidden on the briefing by default. The math (successChance) is unchanged; only display goes through this hook.
    Returns true only when a hero on the team has a power flagged revealOdds (none yet; reserved for a future 'see the odds' power). */
-function oddsVisible(camp, S, call, info) { if (!camp || !call) return false; const ids = (info && info.ids) || (call.assigned || []).filter(Boolean);
-  return ids.some(id => { const h = camp.heroes[id]; return h && (h.powers || []).some(p => POWERS[p] && POWERS[p].revealOdds); }); }
+function oddsVisible(camp, S, call, info) { if (!camp || !call) return false; const ids = (call.assigned || []).filter(Boolean); // v1.32.0: slotted heroes only (not the roster)
+  return ids.some(id => { const h = camp.heroes[id]; return h && Array.isArray(h.powers) && hasPower(h, 'revealOdds'); }); }
 function contribText(info, e) { const c = powerContribution(info, e); if (!c || (info && info.hideOdds)) return ''; return ` (coverage ${Math.round(c.before * 100)}% → ${Math.round(c.after * 100)}%, ${c.pts >= 0 ? '+' : '−'}${Math.abs(c.pts).toFixed(1)} pts)`; }
 function powerEvText(camp, e) { const h = camp.heroes[e.hero]; return `${h ? h.codename : e.hero}: ${POWERS[e.power] ? POWERS[e.power].name : e.power} activated ${e.text}`; }
 function shouldAnnounceBaseReveal(camp, heroId, power) {
@@ -2940,7 +2942,8 @@ function powerPreview(camp, S, call, info) { // what will trigger if dispatched 
     else if (always) add(info.healer, hp, 'no one to heal, still ' + prs, 'heal');
     else if (lt) add(info.healer, hp, 'no one to heal — no Life Trade stack', 'heal'); }
   for (const id of ids) { const h = camp.heroes[id];
-    const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, 'requirements revealed' + NP, 'preview');
+    const pv = h.powers.find(p => POWERS[p].preview); if (pv) add(id, pv, (POWERS[pv].revealOdds ? 'success chance shown, ' : '') + 'requirements revealed' + NP, 'preview');
+    const op = h.powers.find(p => POWERS[p].revealOdds && !POWERS[p].preview); if (op) add(id, op, 'success chance shown' + NP, 'odds'); // v1.32.0
     if (h.visionReady) { const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) add(id, vp, 'Life Trade Visions: requirements revealed' + NP, 'preview'); }
     const tm = h.powers.find(p => POWERS[p].travelMult && (!POWERS[p].travelNeedsStreak || (h.streak || 0) >= POWERS[p].travelNeedsStreak)); if (tm) add(id, tm, 'travel ×' + POWERS[tm].travelMult + NP, 'travel');
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) add(id, so, 'solo travel and work ×' + soloMultFor(h) + NP, 'solo');
@@ -3001,7 +3004,8 @@ function dispatch(camp, S, call) {
   call.stage = 'travel'; call.stageT = 0; call.team = ids.slice(); call.teamSlots = call.assigned.slice(); call.dispatchedAt = S.t;
   call.locked = JSON.parse(JSON.stringify(info));
   for (const id of ids) { const h = camp.heroes[id]; if (visionWasReady[id]) { h.visionReady = false; const vp = h.powers.find(p => POWERS[p].visionAfterHeal); if (vp) powerEv(camp, S, { hero: id, power: vp, kind: 'preview', callUid: call.uid, text: 'Life Trade Visions: requirements revealed' }); }
-    const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: 'requirements revealed' });
+    const pv = h.powers.find(p => POWERS[p].preview); if (pv) powerEv(camp, S, { hero: id, power: pv, kind: 'preview', callUid: call.uid, text: (POWERS[pv].revealOdds ? 'success chance shown, ' : '') + 'requirements revealed' });
+    const op = h.powers.find(p => POWERS[p].revealOdds && !POWERS[p].preview); if (op) powerEv(camp, S, { hero: id, power: op, kind: 'odds', callUid: call.uid, text: 'success chance shown' }); // v1.32.0: reveals the power (??? -> name) the first time he goes out
     const tm = travelMultForHero(h); if (tm !== 1) { const tp = h.powers.find(p => POWERS[p].travelMult || POWERS[p].flies); if (tp) powerEv(camp, S, { hero: id, power: tp, kind: 'travel', callUid: call.uid, text: 'travel ×' + tm.toFixed(2) + ', does not change the %' }); }
     const so = h.powers.find(p => POWERS[p].solo); if (so && ids.length === 1) powerEv(camp, S, { hero: id, power: so, kind: 'solo', callUid: call.uid, text: 'solo run ×' + soloMultFor(h) }); }
   for (const id of ids) { const h = camp.heroes[id]; h.state = 'traveling'; h.callUid = call.uid; h.stateTimer = 0; h.stateDur = call.travel; }
@@ -4299,7 +4303,7 @@ function openBriefing(c) {
       const showOdds = oddsVisible(camp, S, c, info); if (!showOdds) info.hideOdds = true; // v1.31.0: success chance hidden by default (future 'see the odds' power flips this)
       const xpFixed = tpl.type === 'story' || tpl.type === 'training';
       const pm = c.assigned.some(Boolean) ? previewMorale(camp, S, c, c.assigned.filter(Boolean), info) : {}; // v1.18.0: morale at review for a success (request grant + 3rd pairing)
-      const est = info.forced && showOdds ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info: showOdds ? info : Object.assign({}, info, { chance: 1 }) }, { morale: pm }).perHero : {}; // v1.31.0: hidden odds → base XP (no risk bonus, no FAIL tag) so the estimate can't leak the chance
+      const est = info.forced ? {} : c.assigned.some(Boolean) ? computeXP(camp, S, Object.assign({}, c, { team: c.assigned.filter(Boolean) }), { success: true, info: showOdds ? info : Object.assign({}, info, { chance: 1 }) }, { morale: pm }).perHero : {}; // v1.31.0: hidden odds → base XP (no risk bonus, no FAIL tag) so the estimate can't leak the chance
       const pmc = c.assigned.some(Boolean) ? pairMoraleCheck(camp, S, c, c.assigned.filter(Boolean), true, info) : null;
       let notes = '';
       if (tpl.type === 'competing') notes += `<div class="opts" style="margin-bottom:6px">${tpl.options.map((o, i) => `<button class="opt ${c.option === i ? 'on' : ''}" data-opt="${i}"><span>${c.option === i ? '◉' : '○'}</span><span><b>${esc(o.label)}</b><br><small>${esc(o.desc.replace('the named hero', camp.heroes[c.namedHero].codename))}</small></span></button>`).join('')}</div>`;
@@ -4314,6 +4318,7 @@ function openBriefing(c) {
       if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. ${showOdds ? `The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).` : 'Only the team that actually goes counts.'}</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
       if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
+      if (info.forced && !showOdds) notes += `<div class="note warn instafail-note" role="alert">⛔ <b>Instant fail:</b> ${esc(String(info.forced).replace(/[.!\s]+$/, ''))}. This team will fail if you dispatch it.</div>`; // v1.32.0: auto-fail criteria met (no % shown)
       if (tpl.overCapFail) notes += `<div class="note warn">⚠ Auto-fail if ${esc(STAT_NAMES[STATS[tpl.overCapFail.stat]])} goes over ${tpl.overCapFail.value}</div>`;
       if (tpl.bonusThreshold) notes += `<div class="note good">★ Double XP if ${esc(STAT_NAMES[STATS[tpl.bonusThreshold.stat]])} reaches ${tpl.bonusThreshold.value}</div>`;
       if (tpl.disruption && !tpl.disruption.always && S.idx + 1 >= CONFIG.disruptionsFromShift) notes += `<div class="note">📻 Things may get disrupted mid-mission. Keep the radio close.</div>`;
@@ -4329,7 +4334,7 @@ function openBriefing(c) {
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
-        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced && showOdds ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
+        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
         return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
@@ -4783,7 +4788,7 @@ function openPause() {
 function helpHTML() { return `<ul class="help">
 <li>📍 Calls appear as pins. Tap one (or its card in the queue) to open the briefing. <b>Time pauses while any panel is open.</b></li>
 <li>👥 Add heroes to the slots. Colored keywords hint at the stats needed: ${STATS.map(s => `<b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b>`).join(', ')}.</li>
-<li>⬢ Team stats add up per stat (capped at 10). How likely a call is to succeed depends on coverage (the overlap between the team and the call). 🔗 Synergy helps and ⚡ conflict hurts. The briefing doesn't show the success chance: read the caller's hints and match the team shape. Hard calls take longer on scene.</li>
+<li>⬢ Team stats add up per stat (capped at 10). How likely a call is to succeed depends on coverage (the overlap between the team and the call). 🔗 Synergy helps and ⚡ conflict hurts. The briefing doesn't show the success chance unless a hero with an odds power (Read the Board, Run the Numbers, Glimpse Ahead, Odds-O-Meter) is slotted; otherwise read the caller's hints and match the team shape. If the team meets an instant-fail rule, the briefing warns you. Hard calls take longer on scene.</li>
 <li>★ When a mission ends, tap the REVIEW pin. Heroes from unreviewed calls cannot be sent again.</li>
 <li>🦸 Shift 6: Zenith and Drizzle join every campaign (team of 10).</li>
 <li>💧 Drizzle volunteers after 3 missions without him; take him off if you like.</li>
@@ -4794,7 +4799,7 @@ function helpHTML() { return `<ul class="help">
 <li>⌘ Hack calls: you play a maze on the console. D-pad or swipe, ACT for nodes, HOLD at the exit.</li>
 <li>😊 Morale (per hero, XP only): +1 = 2× base XP, −1 = ½ base XP; it never changes odds or stats. Granting a 🙋 request: +1 for the rest of this shift and next shift. Refusing the same hero twice: −1 next shift. The 3rd reviewed call in a shift with a 🔗 synergy pair together: +1 each; with a ⚡ friction pair (Shift 4+, until resolved): −1 each. Pair morale lasts until the shift ends.</li>
 <li>📈 XP comes only from successes and is split evenly across the team (solo = biggest share). Riskier sends (lower chance) pay up to +25% (the briefing's ≈XP+ is before this bonus), ★ thresholds ×2, perfect picks +33%. Each point at 1000, 1300, 1600… XP raises the hero's LV (max LV 10); after that XP is wasted. Veterans earn a little less per call.</li>
-<li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked. At LV 8, if a trained hero can take the optional Mk II upgrade, that choice appears on the same card (stat and upgrade are confirmed separately; skip it and it stays available from the hero card).</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 4 a hero can train one of two powers (permanent choice); at LV 8 their starting power can be upgraded to Mk II. Tap the rank bar for your Dispatcher File.</li><li>⚡ Starting powers are hidden (???) until first used. The first time a hero's base power actually triggers, a pop-up names them and explains the power. It stays until you close it (time is paused). Each hero's reveal is shown once per campaign.</li>
+<li>★ When a review earns a skill point, a LEVEL UP card opens right away (time stays paused): tap a stat to preview +1, then CONFIRM (final) or DECIDE LATER to bank it. Keys: 1–5 pick, Enter confirms, Esc banks. A yellow ★! button on the top bar means points are banked. At LV 8, if a trained hero can take the optional Mk II upgrade, that choice appears on the same card (stat and upgrade are confirmed separately; skip it and it stays available from the hero card).</li><li>★ Spend banked skill points any time: tap a hero card → SPEND (time is paused), or between shifts. At LV 3 a hero can train one of two powers (permanent choice); at LV 8 their starting power can be upgraded to Mk II. Tap the rank bar for your Dispatcher File.</li><li>⚡ Starting powers are hidden (???) until first used. The first time a hero's base power actually triggers, a pop-up names them and explains the power. It stays until you close it (time is paused). Each hero's reveal is shown once per campaign.</li>
 <li>⌨ Optional keys: Space pause, 1–9 pick hero, Enter dispatch, Esc close, D debug. Hacking: WASD/arrows, E act, hold Space.</li></ul>`; }
 function openHelp() { const prev = UI.modals[0]; openModal('help', m => { const P = sheetParts(m, '<h2>How to play</h2>', helpHTML(), '<button class="btn pri">GOT IT</button>'); P.F.querySelector('button').onclick = () => { closeModal(); if (prev && prev.kind === 'pause') openPause(); }; }); }
 
