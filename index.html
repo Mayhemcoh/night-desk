@@ -674,6 +674,11 @@ html.reduce-fx .sheet.bfix .bdock .slots.full-shake{animation:none}
 .note.instafail-note.if-notice{background:#5a0f1a}
 .chip.afrisk{box-shadow:inset 0 0 0 2px var(--red)}
 
+/* v1.37.0 Infinite level-up: new power notices on top */
+.inf-pw-top{border:2px solid var(--yel,#ffd23f);border-radius:12px;padding:6px 8px;margin:0 0 8px;background:rgba(255,210,63,.08)}
+.inf-pw-head{font-weight:800;letter-spacing:.04em;font-size:13px;color:var(--yel-txt,#ffd23f);margin:0 0 4px}
+.inf-pw-top .note{margin:2px 0 4px}.inf-pw-top .tropts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.inf-pw-top .tropt{padding:6px}.inf-pw-top .mk2-actions{display:flex;gap:6px;flex-wrap:wrap}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -1025,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.36.0';
+<script>window.ND_VERSION='nd-v1.37.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3428,6 +3433,27 @@ function pruneLevelQueue(camp) { const q = camp.levelQueue = Array.isArray(camp.
   for (let i = q.length - 1; i >= 0; i--) { const h = camp.heroes[q[i].heroId]; if (!h) { q.splice(i, 1); continue; } left[h.id] = left[h.id] === undefined ? h.unspentPoints : left[h.id]; if (left[h.id] <= 0) q.splice(i, 1); else left[h.id]--; }
   return q; }
 function levelEntryFlags(camp, e) { const h = camp.heroes[e.heroId], d = heroDef(e.heroId) || {}; return { training: e.level === CONFIG.trainLevel && !h.trainedChoice && !!(d.train && d.train.length), revealedBase: baseRevealed(h), signature: e.level === CONFIG.signatureLevel && canUpgradeMk2(h), mk2: e.level === CONFIG.signatureLevel && canUpgradeMk2(h), max: e.level >= CONFIG.levelCap }; }
+/* v1.37.0 INFINITE SHIFT ONLY: power notices for a level-up entry. kind: 'new' (the entry IS the LV3 / LV8 level),
+   'wait' (LV3 reached, base power still hidden), 'locked' (LV8 reached, Mk II needs the LV3 power first),
+   'late' (unlock level passed while locked, now available) or 'late-locked' (Mk II late, LV3 pick still pending).
+   A late notice shows once (h.infPw[k] is saved with the hero, so it survives a checkpoint CONTINUE); within one
+   level-up session it stays on the same hero's later entries. Campaign modes never call this. */
+function infPowerNotices(camp, e, session) {
+  if (!camp || !camp.inf || !e) return []; const h = camp.heroes[e.heroId]; if (!h || h.noXP) return []; const d = heroDef(h.id) || {}, lv = e.level, out = [];
+  const seen = k => !!(h.infPw && h.infPw[k]) && !(session && session.has(h.id + ':' + k));
+  const hasTrain = !!(d.train && d.train.length);
+  if (hasTrain && !h.trainedChoice) {
+    if (lv === CONFIG.trainLevel) out.push({ k: 3, kind: baseRevealed(h) ? 'new' : 'wait' });
+    else if (lv > CONFIG.trainLevel && canTrain(h) && !seen(3)) out.push({ k: 3, kind: 'late' });
+  }
+  const sig = SIGNATURES[d.power];
+  if (sig && POWERS[sig] && !h.signature && h.powers.includes(d.power)) {
+    if (lv === CONFIG.signatureLevel) out.push({ k: 8, kind: canUpgradeMk2(h) ? 'new' : 'locked' });
+    else if (lv > CONFIG.signatureLevel && !seen(8)) { if (canUpgradeMk2(h)) out.push({ k: 8, kind: 'late' }); else if (canTrain(h)) out.push({ k: 8, kind: 'late-locked' }); }
+  }
+  return out; }
+function infMarkPowerNotices(camp, e, items, session) { const h = camp && camp.heroes[e.heroId]; if (!h) return;
+  for (const it of items) if (it.kind === 'late' || it.kind === 'late-locked' || it.kind === 'new') { h.infPw = h.infPw || {}; h.infPw[it.k] = true; if (session && it.kind !== 'new') session.add(h.id + ':' + it.k); } }
 function chooseLevelStat(camp, stat) { const q = pruneLevelQueue(camp); if (!q.length) return false; const e = q[0]; if (!allocate(camp, e.heroId, stat)) return false; q.shift(); return true; }
 function bankLevel(camp) { const q = pruneLevelQueue(camp); if (!q.length) return false; q.shift(); return true; }
 function undoAllocation(camp, id, batch, queue) { const h = camp.heroes[id]; batch.forEach((n, i) => { h.stats[i] -= n; h.unspentPoints += n; }); if (queue) camp.levelQueue = JSON.parse(queue); pruneLevelQueue(camp); return true; }
@@ -5112,7 +5138,7 @@ function kickRevealQueue() {
 
 function openLevelUpChoice(onDone) {
   if (UI.hack) return; // v1.27.4: never open the LEVEL UP card over a live hack; camp.levelQueue stays queued
-  const camp = UI.camp; pruneLevelQueue(camp); let lastHero = null, sel = -1, idx = 0, total = camp.levelQueue.length, busy = false;
+  const camp = UI.camp; pruneLevelQueue(camp); let lastHero = null, sel = -1, idx = 0, total = camp.levelQueue.length, busy = false; const pwSession = new Set(); // v1.37.0
   const save = () => { saveCamp(); };
   const finishAll = () => { save(); closeModal(); if (onDone) onDone(); };
   openModal('levelup', m => {
@@ -5123,11 +5149,12 @@ function openLevelUpChoice(onDone) {
       if (e.heroId !== lastHero) { lastHero = e.heroId; Sfx.fanfare(); if (!reducedMotion()) FX.burst(); }
       const N = idx + q.length, more = h.unspentPoints - 1;
       const d0 = heroDef(h.id) || {}, sig0 = SIGNATURES[d0.power], mk2Ready = !!(f.mk2 && sig0 && POWERS[sig0] && POWERS[d0.power]);
-      const mk2Html = !mk2Ready ? (h.signature && e.level === CONFIG.signatureLevel ? `<div class="note good">✦ Mk II already unlocked: ${esc(POWERS[SIGNATURES[d0.power]].name)}.</div>` : '') : `<details class="mk2-offer" open><summary>✦ Mk II upgrade available (optional)</summary><div class="mk2-body"><p class="txt" style="margin:6px 0">At LV ${CONFIG.signatureLevel}, ${esc(h.codename)} can replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>. Optional and permanent. The stat pick below is a separate choice — upgrade now, pick a stat, both, or skip and upgrade later from the hero card.</p><div class="pw" style="border-left-color:${h.color}"><b>${esc(POWERS[sig0].name)}</b> <span class="pill">MK II</span><small>${esc(POWERS[sig0].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div></details>`;
+      const infItems = camp.inf && typeof infPowerNotices === 'function' ? infPowerNotices(camp, e, pwSession) : null; if (infItems) infMarkPowerNotices(camp, e, infItems, pwSession); // v1.37.0 Infinite only
+      const mk2Html = infItems && (infItems.length || !(h.signature && e.level === CONFIG.signatureLevel)) ? infPowerTopHTML(camp, h, infItems) : !mk2Ready ? (h.signature && e.level === CONFIG.signatureLevel ? `<div class="note good">✦ Mk II already unlocked: ${esc(POWERS[SIGNATURES[d0.power]].name)}.</div>` : '') : `<details class="mk2-offer" open><summary>✦ Mk II upgrade available (optional)</summary><div class="mk2-body"><p class="txt" style="margin:6px 0">At LV ${CONFIG.signatureLevel}, ${esc(h.codename)} can replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>. Optional and permanent. The stat pick below is a separate choice — upgrade now, pick a stat, both, or skip and upgrade later from the hero card.</p><div class="pw" style="border-left-color:${h.color}"><b>${esc(POWERS[sig0].name)}</b> <span class="pill">MK II</span><small>${esc(POWERS[sig0].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div></details>`;
       const tiles = STATS.map((s, i) => { const v = h.stats[i], mx = v >= CONFIG.statMax; return `<button class="lvtile ${sel === i ? 'sel' : ''} ${mx ? 'max' : ''}" data-s="${i}" ${mx ? 'disabled' : ''} style="--c:${STAT_COLORS[s]}"><span class="k">${i + 1}</span><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}</small><span class="vv">${mx ? 'MAX' : `${v} → <em>${v + 1}</em>`}</span></button>`; }).join('');
       const P = sheetParts(m, `<span style="font-size:28px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill lvbadge" style="background:${h.color}">LEVEL UP! LV ${e.level}</span>${N > 1 ? `<span class="pill lvcount">${idx + 1} of ${N}</span>` : ''}`,
         `${mk2Html}<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
-         ${f.training ? (camp.inf && typeof infTrainHTML === 'function' ? infTrainHTML(camp, h) : `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>`) : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
+         ${f.training && !infItems ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
          ${more > 0 ? `<div class="note">+${more} more banked · <button class="lnk" data-a="all">SPEND ALL…</button></div>` : ''}${q.length >= 2 ? `<div style="text-align:center;margin-top:6px"><button class="lnk" data-a="skipall">SKIP ALL (bank ${q.length})</button></div>` : ''}</div></div>`,
         `<button class="btn ghost" data-a="later">DECIDE LATER</button><button class="btn pri" data-a="ok" ${sel < 0 ? 'disabled' : ''}>CONFIRM +1 STAT</button>`);
       drawRadar(P.B.querySelector('.rad'), { team: h.stats, preview: sel >= 0 ? h.stats.map((v, i) => v + (i === sel ? 1 : 0)) : null });
@@ -5139,7 +5166,7 @@ function openLevelUpChoice(onDone) {
         const showConfirm = on => { const c = offer.querySelector('.mk2-confirm'); const a = offer.querySelector('.mk2-actions'); if (c) { c.classList.toggle('hidden', !on); c.hidden = !on; } if (a) a.classList.toggle('hidden', on); };
         const go = offer.querySelector('[data-a=mk2go]'); if (go) go.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); showConfirm(true); };
         const no = offer.querySelector('[data-a=mk2no]'); if (no) no.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); showConfirm(false); };
-        const laterMk = offer.querySelector('[data-a=mk2later]'); if (laterMk) laterMk.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); offer.open = false; };
+        const laterMk = offer.querySelector('[data-a=mk2later]'); if (laterMk) laterMk.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); Sfx.click(); offer.open = false; if (offer.tagName !== 'DETAILS') { const a = offer.querySelector('.mk2-actions'); if (a) a.innerHTML = '<small class="txt">Not now: upgrade later from the hero card.</small>'; } };
         const yes = offer.querySelector('[data-a=mk2yes]'); if (yes) yes.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (!upgradeMk2(camp, h.id)) { toast('Upgrade is not available.'); return; } Sfx.fanfare(); save(); toast(`✦ ${esc(h.codename)}: ${esc(POWERS[SIGNATURES[heroDef(h.id).power]].name)}`); render(); };
       }
       const sk = P.B.querySelector('[data-a=skipall]'); if (sk) sk.onclick = () => { Sfx.click(); camp.levelQueue.length = 0; finishAll(); };
@@ -5976,14 +6003,14 @@ function infOpenPause() { const S = UI.S, camp = UI.camp; openModal('pause', m =
 function infQuit() { UI.S = null; UI.camp = null; $('game').classList.remove('inf-run'); const w = $('infWild'); if (w) w.remove(); $('hack').classList.add('hidden'); UI.hack = null; showTitle(); }
 
 /* ---- LV3 power choice (level-up card + hero card) ---- */
-function infTrainHTML(camp, h, onCard) { if (!camp || !camp.inf || !h) return ''; const d = heroDef(h.id) || {}; if (!d.train || !d.train.length || h.trainedChoice || h.noXP || heroLevel(h) < CONFIG.trainLevel) return '';
+function infTrainHTML(camp, h, onCard, late) { if (!camp || !camp.inf || !h) return ''; const d = heroDef(h.id) || {}; if (!d.train || !d.train.length || h.trainedChoice || h.noXP || heroLevel(h) < CONFIG.trainLevel) return '';
   if (!baseRevealed(h)) return `<div class="note inf-train-wait">🎓 LV3 power choice: waits until ${esc(h.codename)}'s base power is revealed on a call${onCard ? '' : ' (then pick it on the hero card)'}.</div>`;
-  return `<div class="inf-train" data-hero="${h.id}"><div class="note good">🎓 LV3 power choice: pick 1 of 2. Permanent: the other is locked out.</div><div class="tropts">${d.train.map(p => `<button class="tropt" data-inftrain="${p}"><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div>
+  return `<div class="inf-train" data-hero="${h.id}"><div class="note good">${late ? `🎓 <b>LV3 power now available:</b> ${esc(h.codename)}\'s base power is revealed, so the LV3 choice they passed is unlocked. Pick 1 of 2. Permanent: the other is locked out.` : '🎓 LV3 power choice: pick 1 of 2. Permanent: the other is locked out.'}</div><div class="tropts">${d.train.map(p => `<button class="tropt" data-inftrain="${p}"><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div>
    <div class="row inf-trconf hidden"><button class="btn pri" data-a="inftrainyes">CONFIRM</button><button class="btn ghost" data-a="inftrainno">CANCEL</button></div></div>`; }
 function infTrainBind(root, id, rerender) { const box = root.querySelector(`.inf-train[data-hero="${id}"]`); if (!box) return; let sel = null; const conf = box.querySelector('.inf-trconf');
   box.querySelectorAll('[data-inftrain]').forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); sel = b.dataset.inftrain; Sfx.click(); box.querySelectorAll('[data-inftrain]').forEach(x => x.classList.toggle('on', x === b)); conf.classList.remove('hidden'); conf.querySelector('[data-a=inftrainyes]').textContent = 'CONFIRM ' + POWERS[sel].name.toUpperCase(); });
   conf.querySelector('[data-a=inftrainno]').onclick = ev => { ev.preventDefault(); ev.stopPropagation(); sel = null; conf.classList.add('hidden'); box.querySelectorAll('[data-inftrain]').forEach(x => x.classList.remove('on')); };
-  conf.querySelector('[data-a=inftrainyes]').onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (!sel) return; const camp = UI.camp; if (trainHero(camp, id, sel)) { Sfx.fanfare(); radioLog(id, '🎓 Learned ' + POWERS[sel].name + '.'); } if (rerender) rerender(); }; }
+  conf.querySelector('[data-a=inftrainyes]').onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (!sel) return; const camp = UI.camp; if (trainHero(camp, id, sel)) { Sfx.fanfare(); radioLog(id, '🎓 Learned ' + POWERS[sel].name + '.'); toast('🎓 ' + esc(camp.heroes[id].codename) + ' learned ' + esc(POWERS[sel].name) + '.'); } if (rerender) rerender(); }; }
 
 /* ---- SHIFT OVER ---- */
 function showInfOver() { const camp = UI.camp, S = UI.S, r = (camp && camp.inf && camp.inf.result) || infResult(camp, S); const I = CONFIG.infinite, losses = Math.ceil(I.cityMax / I.cityHit), b = infBest();
@@ -6009,8 +6036,17 @@ function infHelpHTML(sec) { const I = CONFIG.infinite, losses = Math.ceil(I.city
     `🏙 City ${I.cityMax}. Each failed or missed call and each lost or missed hack costs ${I.cityHit}. No healing: the run ends on loss ${losses}. Your first hack is a free practice.`,
     `Two hacks per stage. Injuries are not healed at 06:00 / 18:00.`,
     `🎖 Rank points come only at 06:00 / 18:00 (max rank when Stage 8 starts). 🩹 Med Kit and ⚡ Jump Start unlock at their ranks and refill to 1 at every 06:00 / 18:00. 🎲 Stat points: tap 🎲 next to your rank.`,
-    `LV3 power choice and LV8 base power upgrade (Mk II) are on the level-up card (or the hero card).`,
+    `LV3 power choice and LV8 base power upgrade (Mk II) show at the top of the level-up card (or on the hero card). A hero who passes LV3 or LV8 before their base power is revealed is offered them at the next level-up after the reveal.`,
     `🗺 Night City from 18:00, Day City from 06:00 (your MAP setting is not used here). 💾 A checkpoint is saved at every 06:00 / 18:00: CONTINUE ♾ starts from there.`]); }
+
+/* v1.37.0 Infinite level-up: every new / late power notice (LV3 choice, LV8 Mk II) at the very top of the level-up card. */
+function infPowerTopHTML(camp, h, items) { if (!items.length) return ''; const d = heroDef(h.id) || {}, sig = SIGNATURES[d.power]; let html = '';
+  for (const it of items) {
+    if (it.k === 3) html += it.kind === 'wait' ? `<div class="note inf-train-wait">🎓 LV3 power choice: waits until ${esc(h.codename)}'s base power is revealed on a call. When it is, the next level-up offers it here.</div>` : infTrainHTML(camp, h, false, it.kind === 'late');
+    else if (it.kind === 'locked' || it.kind === 'late-locked') html += `<div class="note inf-mk2-wait">✦ LV${CONFIG.signatureLevel} Mk II upgrade${it.kind === 'late-locked' ? ' is unlocked too' : ''}: ${baseRevealed(h) ? 'pick the LV3 power first' + (it.kind === 'late-locked' ? ' (above), then upgrade here' : '') : `waits until ${esc(h.codename)}'s base power is revealed and the LV3 power is picked`}.</div>`;
+    else if (sig && POWERS[sig] && POWERS[d.power]) html += `<div class="mk2-offer inf-mk2"><div class="note good">✦ <b>${it.kind === 'late' ? `LV${CONFIG.signatureLevel} Mk II upgrade now available` : 'Mk II upgrade available'}</b> (optional, permanent): replace <b>${esc(POWERS[d.power].name)}</b> with <b>${esc(POWERS[sig].name)}</b>. <small>${esc(POWERS[sig].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d.power].name)}</b> with <b>${esc(POWERS[sig].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div>`;
+  }
+  return `<div class="inf-pw-top" role="status"><div class="inf-pw-head">🆕 NEW POWER ${items.some(i => i.kind === 'late' || i.kind === 'late-locked') ? 'NOW AVAILABLE' : items.every(i => i.kind === 'wait' || i.kind === 'locked') ? 'LOCKED FOR NOW' : 'AVAILABLE'}</div>${html}</div>`; }
 
 /* ---------- v1.9.0 Looks: visual only. Stored apart from the save (nightdesk.look.v1). ---------- */
 const LOOK_KEY = 'nightdesk.look.v1';
