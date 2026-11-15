@@ -1013,7 +1013,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.34.1';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.34.2';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -6018,6 +6018,14 @@ const MUSIC_CREDITS_CC0 = 'cinameng (James Gargette), Centurion_of_war, DST, Min
 const musicUrl = (look, id) => 'music/' + look + '/' + id + '.m4a';
 function musicAllUrls(first) { const looks = Object.keys(MUSIC_LIB); if (first) looks.sort((a, b) => (b === first) - (a === first)); const out = [];
   for (const l of looks) { const L = MUSIC_LIB[l]; for (const t of [L.menu, ...L.gameplay, ...L.finale]) { out.push(musicUrl(l, t.id)); if (t.alt) out.push(musicUrl(l, t.alt)); } } return out; }
+// v1.34.2: Infinite reuses S.finale for City HP, which is not a campaign finale.
+// Stage N is infStage N-1. Standard shift music for Stages 1–7; finale music from Stage 8 on.
+function musicMode(S, screen, hasPendingBoss) {
+  if (screen !== 'game' || !S) return 'menu';
+  if (S.inf) return (S.infStage >= 7) ? 'finale' : 'play';
+  if ((S.finale && !S.finale.won) || hasPendingBoss) return 'finale';
+  return 'play';
+}
 const Music = {
   vol: 60, sel: {}, ctx: null, bus: null, filter: null, ch: [], cur: null, level: 0, want: 0, wantT: 0, finStage: 0, ducked: 1, pv: null, dl: { done: 0, total: 0, state: 'idle' }, _t: 0, unlocked: false,
   load() { try { const v = JSON.parse(Store.get(MUSIC_KEY) || '{}'); if (typeof v.vol === 'number') this.vol = Math.max(0, Math.min(100, v.vol)); if (v.sel && typeof v.sel === 'object') this.sel = v.sel; } catch (e) { } },
@@ -6035,7 +6043,7 @@ const Music = {
       const pe = new Audio(); pe.crossOrigin = 'anonymous'; const pg = ctx.createGain(); pg.gain.value = 0; try { ctx.createMediaElementSource(pe).connect(pg); } catch (e) { } pg.connect(ctx.destination); this.pv = { el: pe, g: pg, timer: null, on: false }; }
     if (!this.unlocked) { this.unlocked = true; for (const c of this.ch.concat(this.pv ? [this.pv] : [])) { const p = c.el.play(); if (p && p.catch) p.catch(() => { }); c.el.pause(); } }
   },
-  mode() { if (UI.screen !== 'game' || !UI.S) return 'menu'; const S = UI.S; if ((S.finale && !S.finale.won) || pendingCalls(S).some(c => c.tpl && c.tpl.boss)) return 'finale'; return 'play'; },
+  mode() { const S = UI.S; return musicMode(S, UI.screen, !!(S && pendingCalls(S).some(c => c.tpl && c.tpl.boss))); },
   target() { const look = this.look(), mode = this.mode(); if (mode === 'menu') return { look, mode, t: MUSIC_LIB[look].menu, file: MUSIC_LIB[look].menu.id };
     const t = this.pick(mode === 'finale' ? 'finale' : 'gameplay', look); const useAlt = t.alt && (mode === 'finale' ? this.finStage > 0 : this.level > 0); return { look, mode, t, file: useAlt ? t.alt : t.id }; },
   tension(now) { // pending calls -> 0 calm (0-1), 1 busy (2-4), 2 swamped (5+); up after 1.5 s, down after 4 s
