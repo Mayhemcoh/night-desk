@@ -1013,7 +1013,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.34.0';
+<script>window.ND_VERSION='nd-v1.34.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1081,7 +1081,7 @@ const CONFIG = {
   xpTaperFloor: 0.2,        // DESIGN: the taper never cuts a share below this fraction
   xpLogMax: 10,             // recent XP entries kept per hero
   lateJoinXPPerShift: 900,  // DESIGN: heroes hired after shift 1 arrive with this much XP per shift they missed
-  xpFirstPoint: 1000, xpPointStep: 300, xpMaxPoints: 9,
+  xpFirstPoint: 1000, xpPointStep: 300, infXpPointStep: 600, xpMaxPoints: 9, // v1.34.1: Infinite only uses infXpPointStep after LV2
   statMax: 10, teamCap: 10,
   score: { success: 100, fail: -40, missed: -60, perfect: 25, hack: 50 },
   // grade = score / (calls that came in this shift * 100) thresholds
@@ -2453,7 +2453,7 @@ function ensureExtraHeroes(camp) { if (!extrasDue(camp)) return false; let made 
 function medianLevel(camp) { const lv = (camp.pool || []).map(id => camp.heroes[id]).filter(h => h && !h.noXP).map(heroLevel).sort((a, b) => a - b); if (!lv.length) return 1;
   const n = lv.length; return n % 2 ? lv[(n - 1) / 2] : Math.round((lv[n / 2 - 1] + lv[n / 2]) / 2); } // even count: mean of the two middle levels, .5 rounds up
 function extraJoinLevel(camp) { const r = CONFIG.extraJoinLevel; return clamp(medianLevel(camp), r.min, r.max); }
-function extraJoinXP(camp, h) { const L = extraJoinLevel(camp); if (L <= heroLevel(h)) return 0; return Math.max(0, xpTableNext(L - 2, h) - h.xp); }
+function extraJoinXP(camp, h) { const L = extraJoinLevel(camp); if (L <= heroLevel(h)) return 0; return Math.max(0, xpTableNext(L - 2, h, camp) - h.xp); }
 /* Arrival (2b): grants the median-level XP as BANKED points (normal level-up queue, the player allocates), reveals the base power. Idempotent. */
 function extraOnboardBegin(camp) { if (!extrasDue(camp)) return []; ensureExtraHeroes(camp); const ids = [];
   for (const d of EXTRA_HEROES) { if (d.joinShiftIdx === undefined || camp.shiftIdx < d.joinShiftIdx) continue; const h = camp.heroes[d.id]; if (!h || h.joinXPGiven) continue;
@@ -3152,13 +3152,14 @@ function resolveDisruption(camp, S, call, key) {
 
 /* ---------- Review & XP ---------- */
 /* ---------- XP & leveling (v2) ---------- */
-function xpTableNext(points, h) { return CONFIG.xpFirstPoint + CONFIG.xpPointStep * points + ((h && h.xpOffset) || 0); }
-function xpPrevThreshold(h) { return h.xpPointsEarned > 0 ? xpTableNext(h.xpPointsEarned - 1, h) : 0; }
-function xpCapTotal(h) { return xpTableNext(CONFIG.xpMaxPoints - 1, h); }
+function xpPointStep(camp) { const c = camp || (typeof UI !== 'undefined' && UI && UI.camp); return (c && c.inf) ? CONFIG.infXpPointStep : CONFIG.xpPointStep; } // v1.34.1: Infinite 600/level after LV2; campaign stays 300
+function xpTableNext(points, h, camp) { return CONFIG.xpFirstPoint + xpPointStep(camp) * points + ((h && h.xpOffset) || 0); }
+function xpPrevThreshold(h, camp) { return h.xpPointsEarned > 0 ? xpTableNext(h.xpPointsEarned - 1, h, camp) : 0; }
+function xpCapTotal(h, camp) { return xpTableNext(CONFIG.xpMaxPoints - 1, h, camp); }
 function heroLevel(h) { return 1 + h.xpPointsEarned; }
 function isMaxed(h) { return h.noXP || h.xpPointsEarned >= CONFIG.xpMaxPoints; }
-function xpFrac(h) { if (isMaxed(h)) return 1; const a = xpPrevThreshold(h), b = xpTableNext(h.xpPointsEarned, h); return clamp((h.xp - a) / (b - a), 0, 1); }
-function xpRoom(h) { return isMaxed(h) ? 0 : Math.max(0, xpCapTotal(h) - h.xp); }
+function xpFrac(h, camp) { if (isMaxed(h)) return 1; const a = xpPrevThreshold(h, camp), b = xpTableNext(h.xpPointsEarned, h, camp); return clamp((h.xp - a) / (b - a), 0, 1); }
+function xpRoom(h, camp) { return isMaxed(h) ? 0 : Math.max(0, xpCapTotal(h, camp) - h.xp); }
 // Pure: works out every hero's XP for a reviewed call. No state is changed.
 function moraleXPMult(m) { const t = CONFIG.moraleXP || [0.5, 1, 2]; return t[clamp(Math.round(m || 0), -1, 1) + 1]; }
 /* v1.18.0 pairing morale. Pure: which synergy / friction pairs on this team count for a review with outcome `success`, and the per-hero
@@ -3207,15 +3208,15 @@ function computeXP(camp, S, call, R, xo) { xo = xo || {}; const mOf = h => xo.mo
     if (call.perfect === h.id) { p.perfect = x * CONFIG.perfectXpBonus; x *= 1 + CONFIG.perfectXpBonus; }
     const tap = Math.max(CONFIG.xpTaperFloor, 1 - CONFIG.xpLevelTaper * (heroLevel(h) - 1)); if (tap < 1 && !isMaxed(h)) { p.taper = -x * (1 - tap); x *= tap; }
     const amt = Math.round(x); for (const k in p) p[k] = Math.round(p[k]);
-    const gain = h.noXP ? 0 : Math.min(amt, xpRoom(h)); res.perHero[h.id] = { amt, gain, wasted: amt - gain, parts: p, maxed: isMaxed(h) };
+    const gain = h.noXP ? 0 : Math.min(amt, xpRoom(h, camp)); res.perHero[h.id] = { amt, gain, wasted: amt - gain, parts: p, maxed: isMaxed(h) };
   }
   Object.assign(res, { pool: Math.round(pool), riskMult, mult, boost, thrMet }); return res;
 }
 function addXP(camp, h, amt, S, meta) {
-  if (h.noXP || amt <= 0) return 0; amt = Math.min(Math.round(amt), xpRoom(h)); if (amt <= 0) return 0;
+  if (h.noXP || amt <= 0) return 0; amt = Math.min(Math.round(amt), xpRoom(h, camp)); if (amt <= 0) return 0;
   h.xp += amt; if (S) S.stats.xp += amt; camp.totals.xp += amt; let gained = 0;
   if (meta) { h.xpLog = h.xpLog || []; h.xpLog.unshift({ shift: (S ? S.idx : camp.shiftIdx) + 1, call: meta.call, amt, reason: meta.reason }); h.xpLog.length = Math.min(h.xpLog.length, CONFIG.xpLogMax); }
-  while (h.xpPointsEarned < CONFIG.xpMaxPoints && h.xp >= xpTableNext(h.xpPointsEarned, h)) {
+  while (h.xpPointsEarned < CONFIG.xpMaxPoints && h.xp >= xpTableNext(h.xpPointsEarned, h, camp)) {
     h.xpPointsEarned++; h.unspentPoints++; gained++; h.level = heroLevel(h); h.pendingLevelUps = (h.pendingLevelUps || 0) + 1;
     (camp.levelQueue = camp.levelQueue || []).push({ heroId: h.id, level: h.level });
     Bus.emit('levelUp', { hero: h, level: h.level });
