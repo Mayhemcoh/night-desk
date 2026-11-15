@@ -639,6 +639,32 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .hints li.hnote{opacity:.85;font-size:13px}
 @media (max-width:480px),(max-height:700px){.calltext .txt.caller{font-size:14px;line-height:1.3;margin-bottom:4px}.hints{font-size:13.5px;line-height:1.3}.hints li{margin-bottom:2px}}
 @media (orientation:portrait) and (max-height:700px){.sheet.bfix .radarbox canvas{width:176px;height:176px}} /* v1.29.0: keep the caller's hints near the top on short phones */
+/* v1.34.0 ♾ Infinite Shift */
+.btn.inf-btn{border-color:var(--cyan);color:var(--cyan);background:rgba(62,240,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.btn.inf-btn small{font:500 11px system-ui,sans-serif;color:var(--txt);letter-spacing:0;text-transform:none}
+.btn.inf-btn.pri{color:#04121a;background:var(--cyan)}
+.inf-best{font-size:12px;color:var(--cyan)}
+.inf-logo{color:var(--cyan)}
+.inf-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+@media (max-width:420px){.inf-opts{grid-template-columns:1fr}}
+.inf-opt{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:8px;text-align:left;color:inherit;display:flex;flex-direction:column;gap:2px;min-height:56px}
+.inf-opt.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.inf-opt small{color:var(--dim);font-size:11px}
+.inf-mini{position:relative;cursor:pointer}
+.inf-mini.picked{box-shadow:0 0 0 2px var(--cyan) inset;background:rgba(62,240,255,.08)}
+.inf-mini.full{opacity:.45}
+.inf-mini.inf-extra{box-shadow:0 0 0 1px #ffd166 inset}
+.inf-i{position:absolute;top:4px;right:4px;border:0;background:none;color:var(--dim);font-size:15px;padding:2px 4px}
+.inf-count{font:700 14px ui-monospace,monospace;margin-bottom:6px}.inf-count.ok{color:var(--cyan)}
+.inf-pickgrid{margin-top:8px}
+#radio .ramp{white-space:normal;overflow:visible;text-overflow:clip;color:var(--cyan)}
+#finale.inf .bar.boss i{background:var(--cyan)}
+#game.inf-run #rankBox{position:relative}
+.inf-wild{position:absolute;right:0;bottom:-3px;border:1px solid #ffd166;background:#2a2410;color:#ffd166;border-radius:9px;font:700 12px/16px system-ui;padding:0 5px;cursor:pointer;animation:infPulse 1.6s ease-in-out infinite;z-index:2}
+#game.inf-run #rankBox:has(.inf-wild:not(.hidden)) #rankName{padding-right:30px}
+@keyframes infPulse{50%{box-shadow:0 0 10px #ffd166}}
+.reduce-fx .inf-wild{animation:none}
+.inf-train .tropt.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -987,7 +1013,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.33.1';
+<script>window.ND_VERSION='nd-v1.34.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1080,6 +1106,10 @@ const CONFIG = {
   dotDuration: 2.2,
   trainingAfterShifts: [2, 4, 6],
   campaignShifts: 8,
+  // v1.34.0 ♾ Infinite Shift: one endless shift; a ramp every 12 game hours (06:00 / 18:00) steps up to the next shift's settings
+  infinite: { crew: 10, startHour: 18, stageHours: 12, secPerGameHour: 60, cityMax: 200, cityHit: 9,
+    rankPerRamp: [28, 28, 28, 28, 28, 28, 27], // rank points come ONLY from ramps: 195 (max rank) when Stage 8 starts
+    s8Spawn: 6.0, rampSpawnMult: 0.95, spawnFloor: 4.0, fadeMs: 2000 },
   hack: { avInterval: 0.55, avZone: 4, holdTime: 0.5, keyShowAfter: 3, timeMin: 45, timeMax: 75, lives: 3 },
   autoReviewDelay: 0.6,              // auto-play helper review speed
   pendingMusicBoost: 3,              // music speeds up with this many pending
@@ -2410,11 +2440,12 @@ function newCampaign(seed, opts) {
   ensureRogueBoss(c); // v1.13.0: seeded + saved now, revealed only on Shift 8 (Classic random calls)
   return c;
 }
-function rosterForShift(camp, idx) { const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i));
+function rosterForShift(camp, idx) { if (camp && camp.inf) return (camp.pool || []).slice(); // v1.34.0 Infinite Shift: the whole crew of 10, always
+  const ids = []; for (let i = 0; i <= idx; i++) ids.push(...shiftJoiners(camp, i));
   if (!camp.v113Finale) for (const d of EXTRA_HEROES) if (d.joinShiftIdx !== undefined && idx >= d.joinShiftIdx) ids.push(d.id); // v1.14.0: Zenith + Drizzle join at Shift 6 (all modes, all mission sets); Solstice only via solsticeJoin
   return ids; }
 /* ---------- v1.14.0 extra heroes: Zenith, Drizzle (Shift 6) and Solstice (finale trigger) ---------- */
-function extrasDue(camp) { return !camp.v113Finale && camp.shiftIdx >= CONFIG.extraJoinShiftIdx && camp.shiftIdx < CONFIG.campaignShifts; }
+function extrasDue(camp) { return !camp.inf && !camp.v113Finale && camp.shiftIdx >= CONFIG.extraJoinShiftIdx && camp.shiftIdx < CONFIG.campaignShifts; }
 function ensureExtraHeroes(camp) { if (!extrasDue(camp)) return false; let made = false;
   for (const d of EXTRA_HEROES) if (d.joinShiftIdx !== undefined && camp.shiftIdx >= d.joinShiftIdx && !camp.heroes[d.id]) { camp.heroes[d.id] = makeHeroV114(d); made = true; }
   if (!camp.drizzle) camp.drizzle = { skips: 0, volunteering: false }; if (!camp.solstice) camp.solstice = { joined: false };
@@ -2433,7 +2464,7 @@ function extraOnboardPending(camp) { if (!extrasDue(camp)) return null; const id
   const hs = ids.map(id => camp.heroes[id]); if (hs.some(h => !h || !h.joinXPGiven)) return 'intro';
   if (hs.some(h => h.unspentPoints > 0)) return 'levels'; if (hs.some(h => canTrain(h))) return 'train'; return null; }
 function campaignFailCount(camp, S) { return (camp.heroFails || 0) + ((S && S.heroFails) || 0); } // fails + missed hero calls (boss calls included); hack-console fails/timeouts excluded
-function solsticeJoin(camp, S, reason) { if (camp.v113Finale || (camp.solstice && camp.solstice.joined) || camp.heroes.solstice) return false;
+function solsticeJoin(camp, S, reason) { if (camp.inf || camp.v113Finale || (camp.solstice && camp.solstice.joined) || camp.heroes.solstice) return false;
   const h = camp.heroes.solstice = makeHeroV114(heroDef('solstice')); h.joined = CONFIG.campaignShifts; camp.solstice = Object.assign(camp.solstice || {}, { joined: true, reason, t: S ? S.t : 0 }); camp.seenBaseReveal = camp.seenBaseReveal || {}; camp.seenBaseReveal.solstice = true;
   if (!camp.roster.includes('solstice')) camp.roster.push('solstice'); if (S && S.roster && !S.roster.includes('solstice')) S.roster.push('solstice');
   Bus.emit('solsticeJoined', { reason, hero: h }); return true; }
@@ -3025,13 +3056,14 @@ function refuseRequest(camp, call) { const rh = camp.heroes[call.requestHero]; i
 function tick(camp, S, dt) {
   if (S.over) return;
   S.t += dt;
+  if (S.inf) infTickRamps(camp, S);
   // scheduled hacks
-  for (const hq of S.hackQueue) if (!hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); c.hackOrd = S.hackQueue.indexOf(hq); if (hq.district !== undefined) c.restoreDistrict = hq.district; }
+  for (const hq of S.hackQueue) if (!hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); c.hackOrd = hq.ord !== undefined ? hq.ord : S.hackQueue.indexOf(hq); if (S.inf && hq.practice) c.practice = true; if (hq.district !== undefined) c.restoreDistrict = hq.district; }
   if (S.deckMode) tickDeck(camp, S, dt);
   // spawn
-  else if (S.t >= S.nextSpawn && S.t < CONFIG.spawnStopAt) {
+  else if (S.t >= S.nextSpawn && (S.inf || S.t < CONFIG.spawnStopAt)) {
     if (pendingCalls(S).length < CONFIG.maxPending && !(S.finale && S.finale.won)) { const u = pickLegacyUnit(camp, S, S.spawnRng, CONFIG.maxPending - pendingCalls(S).length); if (u) spawnLegacyUnit(camp, S, u); }
-    let iv = Math.max(CONFIG.spawnMin, CONFIG.spawnBase + CONFIG.spawnPerShift * S.idx); if (S.plan.dense) iv *= CONFIG.denseShiftSpawnMult;
+    let iv = Math.max(CONFIG.spawnMin, CONFIG.spawnBase + CONFIG.spawnPerShift * S.idx); if (S.plan.dense) iv *= CONFIG.denseShiftSpawnMult; if (S.inf) iv = infSpawnInterval(S);
     S.nextSpawn = S.t + iv * (1 + (S.spawnRng() * 2 - 1) * CONFIG.spawnJitter);
   }
   if (!S.deckMode && S.legacyFinale) tickLegacyFinale(camp, S);
@@ -3041,7 +3073,8 @@ function tick(camp, S, dt) {
         if (ex) { ex.extendUsed = true; c.extended = true; c.expiresAt += CONFIG.extendExpirySeconds; if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.expiresAt = c.expiresAt; o.extended = true; } } powerEv(camp, S, { hero: ex.id, power: ex.powers.find(p => POWERS[p].extendExpiry), kind: 'time', callUid: c.uid, text: `+${CONFIG.extendExpirySeconds} s on "${c.tpl.title}" (once per shift), does not change the %` }); } }
       if (S.t >= c.expiresAt) { c.stage = 'closed'; c.result = 'missed'; S.stats.missed++; if (c.requestHero) refuseRequest(camp, c);
         if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; } } // a linked pair is ONE miss
-        Bus.emit('missed', c); noteCallFailed(camp, S, c, 'missed'); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale) missionFailed(camp, S, c, 'missed'); }
+        if (S.inf && c.tpl.type === 'hack') S.stats.hackLost = (S.stats.hackLost || 0) + 1;
+        Bus.emit('missed', c); noteCallFailed(camp, S, c, 'missed'); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale || S.inf) missionFailed(camp, S, c, 'missed'); }
       continue;
     }
     if (c.stage === 'travel' || c.stage === 'work') {
@@ -3282,7 +3315,7 @@ function applyReview(camp, S, call, R) {
   for (const [a, b] of SYNERGY_PAIRS) if (call.team.includes(a) && call.team.includes(b)) { camp.heroes[a].pairCount[b] = (camp.heroes[a].pairCount[b] || 0) + 1; camp.heroes[b].pairCount[a] = (camp.heroes[b].pairCount[a] || 0) + 1; }
   for (const [a, b] of R.info.conPairs) { const k = pairKey(a, b); if (R.success) { camp.conflictWins[k] = (camp.conflictWins[k] || 0) + 1; if (camp.conflictWins[k] >= CONFIG.conflictNeutralWins) { camp.conflictNeutral[k] = true; out.conflictResolved = CONFLICT_RESOLVE[k]; } } else camp.conflictWins[k] = 0; }
   for (const h of team) { if (h.state === 'awaitingReview') afterReview(camp, h, call, S); }
-  if (call.tpl.mission) missionReviewed(camp, S, call, R, out); else if (S.legacyFinale) legacyFinaleReviewed(camp, S, call, R);
+  if (call.tpl.mission) missionReviewed(camp, S, call, R, out); else if (S.inf) infReviewed(camp, S, call, R); else if (S.legacyFinale) legacyFinaleReviewed(camp, S, call, R);
   Bus.emit('reviewed', { call, R, out });
   return out;
 }
@@ -3320,9 +3353,9 @@ function addHackBonus(S, b) { if (!S || !b || !b.total) return 0; S.stats.hackBo
 function finishHack(camp, S, call, win) {
   call.stage = 'closed'; call.result = win ? 'success' : 'fail'; call.reviewed = true;
   if (win) { S.stats.hacks++; if (call.restoreDistrict !== undefined && !S.online.includes(call.restoreDistrict)) { S.online.push(call.restoreDistrict); Bus.emit('districtOnline', call.restoreDistrict); } }
-  else S.stats.fail++;
+  else { S.stats.fail++; if (S.inf) S.stats.hackLost = (S.stats.hackLost || 0) + 1; }
   if (call.tpl.mission) { if (win && call.tpl.hack && /Night Mayor/.test(call.tpl.title) && S.finale) bossDamage(camp, S, call, 1); if (!win) missionFailed(camp, S, call, 'fail'); }
-  else if (S.legacyFinale && !win) missionFailed(camp, S, call, 'fail');
+  else if ((S.legacyFinale || S.inf) && !win) missionFailed(camp, S, call, 'fail');
   Bus.emit('hackDone', { call, win });
 }
 
@@ -3629,6 +3662,7 @@ function setupMission(camp, S, c, extra) {
 function declinePartner(camp, S, call) { const o = S.calls.find(x => x.uid === call.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; Bus.emit('declined', { call: o, by: call }); } }
 function missionFailed(camp, S, c, how) { // fail or miss: follow-up, finale City damage, boss re-spawn
   const t = c.tpl;
+  if (S.inf) { infCityHit(camp, S, c); return; } // v1.34.0
   if (t.onFail && t.onFail.spawn && !S.spawned[t.onFail.spawn] && !S.followQ.some(f => f.id === t.onFail.spawn)) S.followQ.push({ t: S.t + CONFIG.followUpDelay, id: t.onFail.spawn, district: c.district });
   if (S.finale && !S.finale.won) { const dmg = t.followUpOf ? CONFIG.finaleCityFollowUp : CONFIG.finaleCityHit; const was = S.finale.city; S.finale.city = Math.max(0, S.finale.city - dmg); Bus.emit('cityHit', { call: c, dmg, city: S.finale.city });
     if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } }
@@ -3748,6 +3782,93 @@ function aiDisruptAlways(camp, S, c, opts) { let guard = 0;
     if (!best) break; resolveDisruption(camp, S, c, best.o.key); } }
 function aiTrainingTeam(camp, S, c) { const av = camp.roster.filter(id => canDispatchHero(camp, id)); return av.find(id => !trainingBlock(camp, c, id)) || null; } // v1.14.1: same rule as the UI
 
+/* ---------- v1.34.0 ♾ Infinite Shift (engine) ----------
+   One shift that never ends. Stage n runs 12 game hours (720 s at 1x); at every ramp (06:00 / 18:00) the call settings step up to the
+   next shift (Shift 1..8), rank points arrive (only from ramps), unlocked desk tools refill to 1, and a checkpoint is taken (UI).
+   City health 200, 9 per failed/missed call or lost/missed hack (the practice hack is free); the run ends when it reaches 0. */
+const INF_STAGE_SEC = () => CONFIG.infinite.stageHours * CONFIG.infinite.secPerGameHour;
+function infIsDay(stage) { return stage % 2 === 1; } // stage 0 starts 18:00 (night), stage 1 starts 06:00 (day), ...
+function infPlan(idx) { const p = CONFIG.shifts[Math.min(idx, CONFIG.shifts.length - 1)]; // same shift settings, minus blackout / finale / boss
+  return Object.assign({}, p, { blackout: false, finale: false, seconds: undefined, joins: 0 }); }
+function pickRoster10(seed) { // Random Heroes for Infinite: the balanced draft of 8 plus 2 more (never Zenith/Drizzle: they are not in HERO_DEFS)
+  const base = pickRoster(seed), rest = HERO_DEFS.map(d => d.id).filter(id => !base.includes(id)), r = mulberry32((seed ^ 0xA5A5A5) >>> 0);
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  return base.concat(rest.slice(0, CONFIG.infinite.crew - base.length)); }
+function infCrewPool(crewMode, seed, picks) { if (crewMode === 'classic') return LEGACY_POOL.concat(['zenith', 'drizzle']);
+  if (crewMode === 'selection') return infValidPicks(picks); return pickRoster10(seed); }
+function infValidPicks(p) { if (!Array.isArray(p) || p.length !== CONFIG.infinite.crew || new Set(p).size !== p.length || p.some(id => !HERO_DEFS.some(d => d.id === id))) throw new Error('bad infinite crew'); return p.slice(); }
+function newInfiniteRun(crewMode, opts) { opts = opts || {}; const seed = (opts.seed >>> 0) || ((Math.random() * 1e9) >>> 0); // Seed box is ignored: every run is random
+  crewMode = ['selection', 'random', 'classic'].includes(crewMode) ? crewMode : 'random';
+  const pool = infCrewPool(crewMode, seed, opts.picks);
+  const c = newCampaign(seed, { mode: 'classic', missionSet: 'legacy', missionBag: opts.missionBag });
+  delete c.rogue; c.mode = c.rosterMode = crewMode; c.pool = pool; c.heroes = {}; for (const id of pool) c.heroes[id] = makeHeroV114(heroDef(id));
+  c.roster = pool.slice(); c.phase = 'inf'; c.shiftIdx = 0;
+  c.inf = { v: 1, crewMode, ramps: 0, t: 0, city: CONFIG.infinite.cityMax, hackN: 0, practiceDone: false, stats: null, startedAt: Date.now() };
+  return c; }
+function infStageOf(S) { return S.infStage; }
+function infSpawnInterval(S) { const I = CONFIG.infinite, st = S.infStage;
+  if (st < 7) { let iv = Math.max(CONFIG.spawnMin, CONFIG.spawnBase + CONFIG.spawnPerShift * st); if (CONFIG.shifts[st].dense) iv *= CONFIG.denseShiftSpawnMult; return iv; }
+  return Math.max(I.spawnFloor, I.s8Spawn * Math.pow(I.rampSpawnMult, st - 7)); }
+function infScheduleHacks(camp, S) { const p = S.plan, base = S.stageStart, half = INF_STAGE_SEC() / 2; // twice the shift's hacks per 12-hour stage
+  for (const k of [0, 1]) for (const h of (p.hacks || [])) { const t = base + k * half + Math.min(h, half - 20);
+    const q = { t, ord: camp.inf.hackN++ }; if (!camp.inf.practiceDone && S.infStage === 0) { q.practice = true; camp.inf.practiceDone = true; } S.hackQueue.push(q); }
+  S.hackQueue.sort((a, b) => a.t - b.t); }
+function startInfinite(camp) { // fresh start (t=0) or resume from the last checkpoint (camp.inf.t = ramp time)
+  const I = CONFIG.infinite, inf = camp.inf, stage = inf.ramps, idx = Math.min(stage, CONFIG.shifts.length - 1);
+  camp.shiftIdx = idx; camp.roster = camp.pool.slice(); camp.phase = 'inf';
+  for (const id of camp.roster) { const h = camp.heroes[id]; if (!h.joined) h.joined = 1; const downed = h.state === 'downed';
+    Object.assign(h, { state: downed ? 'downed' : 'available', stateTimer: 0, stateDur: 0, streak: h.streak || 0, streak2: h.streak2 || 0, form: h.form || 'day', buff: [0, 0, 0, 0, 0], retryUsed: false, callUid: null, formToggled: false, burnt: false, extendUsed: false, respecUsed: false, visionReady: false, portalReady: false, portalUsed: false, radiant: false, gloom: false });
+    h.injuries = h.injuries || 0; h.revealed = h.revealed || {}; if (h.lifeTradeChoice === undefined) h.lifeTradeChoice = 3; h.morale = h.morale || 0; h.flags = h.flags || {}; }
+  const seed = (camp.seed + stage * 7919) >>> 0, plan = infPlan(idx);
+  const S = { idx, plan, t: inf.t || 0, speed: 1, calls: [], uid: 1 + (inf.uid || 0), spawnRng: mulberry32(seed), rollRng: mulberry32(seed ^ 0x9e3779b9), rollNonce: newRollNonce() >>> 0, hackRng: mulberry32(seed ^ 0x51ed27), seed, roster: camp.roster.slice(),
+    nextSpawn: (inf.t || 0) + CONFIG.spawnFirst, stats: Object.assign({ success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0, hackLost: 0, cityHits: 0 }, inf.stats || {}), tools: { medkit: 0, jump: 0 }, injuryLog: [],
+    online: [0, 1, 2, 3, 4, 5], hackQueue: [], pairShift: {}, over: false, log: [], usedTemplates: {}, deckMode: false, inf: true, infStage: stage, stageStart: inf.t || 0,
+    seconds: 1e12, spawnStopAt: 1e12, spawned: {}, followQ: [], sabotages: [], dupErrors: 0, heroFails: 0 };
+  S.finale = { city: inf.city, cityMax: I.cityMax, inf: true, bossHP: 0, bossMax: 0, won: false, lost: inf.city <= 0 };
+  infScheduleHacks(camp, S);
+  return S; }
+function infClock(S) { const I = CONFIG.infinite, mins = I.startHour * 60 + Math.floor(S.t / I.secPerGameHour * 60); const day = Math.floor(mins / 1440) + 1, m = mins % 1440;
+  return { day, hh: Math.floor(m / 60), mm: m % 60, text: String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0') }; }
+function infStageLabel(stage) { return 'Stage ' + (stage + 1); }
+function infSettingsLabel(stage) { return stage < 7 ? 'Shift ' + (stage + 1) : stage === 7 ? 'Shift 8' : 'Shift 8 +' + (stage - 7); }
+function infTickRamps(camp, S) { if (S.over) return; const len = INF_STAGE_SEC(); let n = 0; while (S.t >= S.stageStart + len && n++ < 4) infRamp(camp, S); }
+function infRamp(camp, S) { // one ramp: next stage settings, rank points, tool refill, per-shift counters reset; the UI saves the checkpoint on 'infRamp'
+  const I = CONFIG.infinite, inf = camp.inf; S.stageStart += INF_STAGE_SEC(); inf.ramps++; S.infStage = inf.ramps;
+  const idx = Math.min(S.infStage, CONFIG.shifts.length - 1); S.idx = idx; camp.shiftIdx = idx; S.plan = infPlan(idx);
+  const unlockedBefore = { medkit: toolUnlocked(camp, 'medkit'), jump: toolUnlocked(camp, 'jump') };
+  const pts = I.rankPerRamp[inf.ramps - 1] || 0, before = camp.rank, rewards = []; let wild = 0;
+  if (pts) { camp.rankPts = Math.min(CONFIG.rankThresholds[CONFIG.rankThresholds.length - 1], camp.rankPts + pts);
+    while (camp.rank < CONFIG.rankThresholds.length && camp.rankPts >= CONFIG.rankThresholds[camp.rank]) camp.rank++;
+    camp.wildQueue = camp.wildQueue || []; camp.wildGiven = camp.wildGiven || 0;
+    for (let r = before + 1; r <= camp.rank; r++) { const rw = rankReward(r); rewards.push({ rank: r, reward: rw });
+      if (rw === 'wildcard' && camp.wildGiven + camp.wildQueue.length + (camp.wildDiscarded || 0) < CONFIG.maxWildcards) { camp.wildQueue.push({ stat: rollWildStat(camp), rolledAt: idx }); wild++; } }
+    camp.pendingWild = camp.wildQueue.length; }
+  S.tools = { medkit: 0, jump: 0 }; // refill: 1 each once unlocked; never stacks (S.tools counts uses)
+  for (const id of camp.roster) { const h = camp.heroes[id]; if (!h) continue; h.morale = h.nextMorale || 0; h.nextMorale = 0; if (h.flags) { h.flags.requestedRefused = 0; h.flags.granted = 0; }
+    h.retryUsed = false; h.extendUsed = false; h.respecUsed = false; h.portalUsed = false; h.formToggled = false; }
+  S.pairShift = {}; infScheduleHacks(camp, S); S.nextSpawn = Math.min(S.nextSpawn, S.t + infSpawnInterval(S));
+  const ev = { ramp: inf.ramps, stage: S.infStage, idx, day: infIsDay(S.infStage), clock: infClock(S), pts, rank: camp.rank, rankBefore: before, rewards, wild,
+    refilled: ['medkit', 'jump'].filter(t => unlockedBefore[t]), unlocked: ['medkit', 'jump'].filter(t => !unlockedBefore[t] && toolUnlocked(camp, t)) };
+  infSnapshotStats(camp, S); Bus.emit('infRamp', ev); return ev; }
+function infSnapshotStats(camp, S) { const inf = camp.inf; inf.t = S.stageStart; inf.city = S.finale.city; inf.stats = Object.assign({}, S.stats); inf.uid = S.uid; }
+function infReviewed(camp, S, call, R) { if (!R.success) { missionFailed(camp, S, call, 'fail'); return; } for (const id of call.team || []) { const h = camp.heroes[id]; if (h) h.infWins = (h.infWins || 0) + 1; } }
+function infCityHit(camp, S, c) { if (!S.finale || S.over) return; if (c && c.practice) { Bus.emit('cityHit', { call: c, dmg: 0, city: S.finale.city, practice: true }); return; }
+  const dmg = CONFIG.infinite.cityHit, was = S.finale.city; S.finale.city = Math.max(0, was - dmg); S.stats.cityHits = (S.stats.cityHits || 0) + 1;
+  Bus.emit('cityHit', { call: c, dmg, city: S.finale.city, max: S.finale.cityMax });
+  if (was > 0 && S.finale.city === 0) infGameOver(camp, S); }
+function infResult(camp, S) { const st = S.stats, top = Object.values(camp.heroes).filter(h => camp.pool.includes(h.id)).map(h => ({ id: h.id, n: (h.infWins || 0) })).sort((a, b) => b.n - a.n)[0];
+  return { t: S.t, stage: S.infStage, clock: infClock(S), score: shiftScore(S), success: st.success, fail: st.fail, missed: st.missed, perfect: st.perfect, hacks: st.hacks, hackLost: st.hackLost || 0,
+    cityHits: st.cityHits || 0, injuries: st.injuries || 0, rank: camp.rank, top: top && top.n ? top : null, crewMode: camp.inf.crewMode }; }
+function infGameOver(camp, S) { if (S.over) return; S.over = true; S.finale.lost = true;
+  for (const c of S.calls) if (c.stage === 'pending') { c.stage = 'closed'; c.result = 'dropped'; }
+  camp.inf.result = infResult(camp, S); camp.phase = 'infOver'; Bus.emit('infOver', camp.inf.result); }
+function infCheckpoint(camp, S) { // JSON-safe copy of the run at the last ramp (heroes back at the desk; injuries / downed kept)
+  infSnapshotStats(camp, S); const c = JSON.parse(JSON.stringify(camp));
+  for (const id in c.heroes) { const h = c.heroes[id]; if (h.state !== 'downed') h.state = 'available'; h.callUid = null; h.stateTimer = 0; h.stateDur = 0; }
+  return { v: 1, ver: (typeof window !== 'undefined' && window.ND_VERSION) || '', savedAt: Date.now(), camp: c }; }
+function infRestore(obj) { if (!obj || obj.v !== 1 || !obj.camp || !obj.camp.inf || !Array.isArray(obj.camp.pool) || obj.camp.pool.length !== CONFIG.infinite.crew) throw new Error('bad infinite save');
+  const c = obj.camp; for (const id of c.pool) if (!c.heroes[id] || !heroDef(id)) throw new Error('bad infinite hero'); c.missionBag = c.missionBag || emptyMissionBag(); c.wildQueue = c.wildQueue || []; c.levelQueue = c.levelQueue || []; return c; }
+
 /* ================= AUDIO (WebAudio synth SFX; music in music.js) ================= */
 const Sfx = {
   ctx: null, master: null, on: true, music: null, step: 0, nextNote: 0, tempo: 1,
@@ -3801,7 +3922,7 @@ function saveMissionBag(bag) {
 }
 UI.missionBag = loadMissionBag();
 function onMissionBagChange(bag) { saveMissionBag(bag); } // engine hook
-function saveCamp() { if (UI.S && UI.snapshot) { Store.set(SAVE_KEY, UI.snapshot); return; } if (UI.camp) Store.set(SAVE_KEY, JSON.stringify(UI.camp)); } // v1.7: mid-shift saves = shift-start snapshot (+ persisted picks)
+function saveCamp() { if (UI.camp && UI.camp.inf) return; /* v1.34.0: Infinite Shift saves only at ramps, in its own slot */ if (UI.S && UI.snapshot) { Store.set(SAVE_KEY, UI.snapshot); return; } if (UI.camp) Store.set(SAVE_KEY, JSON.stringify(UI.camp)); } // v1.7: mid-shift saves = shift-start snapshot (+ persisted picks)
 function loadCamp() { // loads + migrates (v1 -> v2). Never throws: a bad save returns null and sets UI.saveError.
   const raw = Store.get(SAVE_KEY); if (!raw) return null;
   try { const c = JSON.parse(raw); const wasV5 = c && c.v === 5; const wasV4 = c && c.v === 4; const wasV3 = c && c.v === 3; const m = migrateCamp(c); if (!wasV5) { if (wasV4) Store.set('nightdesk.save.v4.bak', raw); if (wasV3) Store.set('nightdesk.save.v3.bak', raw); Store.set(SAVE_KEY + '.bak', raw); Store.set(SAVE_KEY, JSON.stringify(m)); UI.migrated = true; } return m; }
@@ -4026,6 +4147,7 @@ function drawMap(t) {
   const online = S ? S.online : [0, 1, 2, 3, 4, 5];
   const sc = (typeof mapStyleStaticCanvas === 'function') ? mapStyleStaticCanvas(W, H, T, online) : null;
   if (sc) g.drawImage(sc, 0, 0); else { g.fillStyle = T.bg; g.fillRect(0, 0, W, H); }
+  { const fa = (typeof mapStyleFadeAlpha === 'function') ? mapStyleFadeAlpha() : 0; if (fa > 0 && sc && MapStyle.prevStatic && MapStyle.prevStatic.width === sc.width && MapStyle.prevStatic.height === sc.height) { g.save(); g.globalAlpha = fa; g.drawImage(MapStyle.prevStatic, 0, 0); g.restore(); } } // v1.34.0: 2 s day/night crossfade
   // Classic keeps twinkling windows on the live layer when Look effects are on
   if ((typeof mapStyleIsArt !== 'function' || !mapStyleIsArt()) && LV && S) {
     for (const b of buildings()) {
@@ -4133,10 +4255,10 @@ function updateQueue() {
     else if (c.disruption && !c.disruption.resolved) { bar.style.width = (100 * c.disruption.timer / CONFIG.disruptionTimer) + '%'; bar.style.background = '#ff2244'; } else bar.style.width = '0'; }
 }
 function callIcon(cl) { const tpl = cl.tpl; return tpl.boss ? '☠' : tpl.type === 'hack' ? '⌘' : cl.pairUid || tpl.type === 'competing' ? '⇄' : tpl.training ? '🎓' : tpl.story ? '📖' : cl.requestHero ? '🙋' : cl.autoHero ? '🔒' : tpl.sabotage ? '🗡' : cl.followUp ? '↪' : '!'; }
-function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return;
+function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return; if (F.inf && typeof infUpdateFinale === 'function') { infUpdateFinale(S, F); return; }
   $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; const BM = F.bossMax || 5; $('bossBar').style.width = (100 * F.bossHP / BM) + '%'; $('bossVal').textContent = F.bossHP + '/' + BM; const bl = $('bossLbl'); if (bl) bl.textContent = F.rogue ? '☠ ' + bossName(S).toUpperCase() : '☠ NIGHT MAYOR'; }
 function finBanner(text, lost) { if (hackOverlaysHeld()) { HackHold.fins.push({ text, lost }); return; } const b = $('finBanner'); if (!b) return; clearTimeout(finBannerTimer); b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); finBannerTimer = setTimeout(() => b.classList.add('hidden'), 4200); }
-function updateTop() { const S = UI.S, camp = UI.camp; updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts; $('scoreLbl').textContent = shiftScore(S);
+function updateTop() { const S = UI.S, camp = UI.camp; if (S && S.inf && typeof infUpdateTop === 'function') { infUpdateTop(S, camp); return; } updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts; $('scoreLbl').textContent = shiftScore(S);
   $('rankName').textContent = 'Rank ' + camp.rank + ' · ' + CONFIG.rankNames[camp.rank - 1]; const lo = CONFIG.rankThresholds[camp.rank - 1], hi = CONFIG.rankThresholds[camp.rank]; const pts = camp.rankPts + S.stats.success; $('rankBar').style.width = hi ? (100 * clamp((pts - lo) / (hi - lo), 0, 1)) + '%' : '100%';
   $('btnSpeed').textContent = S.speed + '×'; $('btnPause').textContent = UI.userPaused ? '▶' : '⏸'; $('pausedTag').classList.toggle('hidden', !UI.userPaused); $('btnTools').classList.toggle('on', toolUnlocked(camp, 'medkit')); }
 
@@ -4154,7 +4276,7 @@ FX.burst = function () { if (hackOverlaysHeld()) return; const w = innerWidth; f
 function toolFor(camp, S, id) { const hh = camp.heroes[id]; if (!S || !hh) return null;
   if (hh.state === 'downed' && toolUnlocked(camp, 'jump') && S.tools.jump < 1) return 'jump';
   if (hh.injuries > 0 && hh.state !== 'downed' && toolUnlocked(camp, 'medkit') && S.tools.medkit < 1) return 'medkit'; return null; }
-function toolBlockReason(camp, S, t) { const rk = CONFIG.rankRewards.indexOf(t); if (!toolUnlocked(camp, t)) return `${t === 'jump' ? 'Jump Start' : 'Med Kit'} unlocks at rank ${rk}`; if (S && S.tools[t] >= 1) return 'Used this shift'; if (!S) return 'Only during a shift'; return ''; }
+function toolBlockReason(camp, S, t) { const rk = CONFIG.rankRewards.indexOf(t); if (!toolUnlocked(camp, t)) return `${t === 'jump' ? 'Jump Start' : 'Med Kit'} unlocks at rank ${rk}`; if (S && S.tools[t] >= 1) return S.inf ? 'Used: refills at 06:00 / 18:00' : 'Used this shift'; if (!S) return 'Only during a shift'; return ''; }
 function confirmTool(id, t) { const hh = UI.camp.heroes[id]; const n = t === 'jump' ? '⚡ Jump Start' : '🩹 Med Kit';
   confirmBox(`${n}: ${esc(hh.codename)}?`, t === 'jump' ? 'Revive this downed hero (they stay injured, −1 all). 1 per shift.' : 'Heal one injury. 1 per shift.', t === 'jump' ? 'REVIVE' : 'USE MED KIT', () => { closeModal(); useToolUI(id, t); }); }
 function useToolUI(id, t) { const camp = UI.camp, S = UI.S; if (!useTool(camp, S, t, id)) return false; const hh = camp.heroes[id];
@@ -4701,11 +4823,12 @@ function heroInfoBuild(m, id, opts) {
       `<div class="bgrid"><div><p class="txt">${esc(hh.bio)}</p><div class="note">State: <b style="color:${STATE_COL[hh.state]}">${stateLabel(hh)}</b>${hh.morale ? ` · morale ${hh.morale > 0 ? '+1 😊 (2× base XP)' : '−1 😠 (½ base XP)'}` : ''}${hasPower(hh, 'swap') ? ` · ${hh.form === 'night' ? '🌙 Night form' : '☀ Day form'}` : ''}</div>
        ${overlay ? heroCallHTML(camp, hh, opts.call) : ''}${injStateCardHTML(camp, hh)}
        <div class="note"><div class="xpbar ${isMaxed(hh) ? 'max' : ''}" style="width:100%;height:8px"><i style="width:${100 * xpFrac(hh)}%"></i></div><div style="font:12px ui-monospace,monospace;margin-top:3px">${xpText(hh)} · ★${hh.unspentPoints} unspent</div>${thr}</div>
-       ${synP.map(x => `<div class="note ${synIn(x) ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(x).codename)}${synIn(x) ? '' : ' <small>(not in this campaign)</small>'}</div>`).join('')}${extraStateHTML(camp, hh)}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}</div>
+       ${synP.map(x => `<div class="note ${synIn(x) ? 'good' : ''}">🔗 Synergy partner: ${esc(heroDef(x).codename)}${synIn(x) ? '' : ' <small>(not in this campaign)</small>'}</div>`).join('')}${extraStateHTML(camp, hh)}<h4 style="margin:8px 0 2px">Powers</h4>${powerListHTML(hh)}${camp.inf && typeof infTrainHTML === 'function' ? infTrainHTML(camp, hh, true) : ''}</div>
        <div><div class="radarbox"><canvas class="rad"></canvas><div class="statrow herostats">${st.map((v, i) => statChip(i, v, hh.stats[i], effReasons(camp, hh, i), UI.recentPick && UI.recentPick.id === id && UI.recentPick.stat === i && Date.now() - UI.recentPick.t < 2500)).join('')}</div>${st.some((v, i) => v !== hh.stats[i]) ? '<div class="note" style="font-size:11px">Big number = trained stat. (n now) = what it counts as right now.</div>' : ''}</div><h4 style="margin:8px 0 2px">Recent XP</h4>${log}</div></div>`,
       overlay ? `<button class="btn pri" data-a="close" aria-label="Close hero info">✕ BACK TO BRIEFING</button>` : `<button class="btn ghost" data-a="close">CLOSE</button>${injToolBtnHTML(camp, hh)}${canToggle ? '<button class="btn" data-a="form">🌗 TOGGLE FORM</button>' : ''}${canRespec(hh) ? '<button class="btn" data-a="respec">♻ FOUND HIMSELF</button>' : (hasPower(hh, 'respecOncePerShift') && hh.respecUsed ? '<button class="btn" disabled>♻ USED THIS SHIFT</button>' : '')}${hh.noXP ? '' : `<button class="btn pri" data-a="spend">SPEND ★${hh.unspentPoints}</button>`}`);
     { const v = injuryView(camp, hh); drawRadar(P.B.querySelector('.rad'), { team: st, base: v.penalty ? v.base : null }); } P.F.querySelector('[data-a=close]').onclick = () => closeIt(); if (overlay) { const hx = h('button', 'hc-x', '✕'); hx.setAttribute('aria-label', 'Close'); hx.dataset.a = 'x'; hx.onclick = () => closeIt(); P.H.appendChild(hx); }
     P.F.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { if (useToolUI(id, b.dataset.tool)) { toast(b.dataset.tool === 'jump' ? `⚡ ${esc(hh.codename)} is back in action` : `🩹 ${esc(hh.codename)} patched up`); render(); } });
+    if (camp.inf && typeof infTrainBind === 'function') infTrainBind(P.B, id, render);
     const sp = P.F.querySelector('[data-a=spend]'); if (sp) sp.onclick = () => openAllocate(id, () => openHeroInfo(id));
     const fm = P.F.querySelector('[data-a=form]'); if (fm) fm.onclick = () => { hh.form = hh.form === 'day' ? 'night' : 'day'; hh.formToggled = true; powerEv(UI.camp, UI.S, { hero: id, power: hh.powers.find(p => POWERS[p].manualToggle), kind: 'toggle', text: 'toggled to ' + (hh.form === 'night' ? 'Night' : 'Day') + ' form' }); Sfx.chime(); radio(id, hh.form === 'night' ? 'Night mode. Knuckles out.' : 'Day mode. Glasses on.'); render(); };
     const rs = P.F.querySelector('[data-a=respec]'); if (rs) rs.onclick = () => openRespec(id, () => openHeroInfo(id));
@@ -4769,7 +4892,7 @@ function openTools() {
 }
 function togRow(key, label, val) { return `<div class="tglrow"><span>${label}</span><button class="tgl ${val ? 'on' : ''}" data-tg="${key}"></button></div>`; }
 function openPause() {
-  const S = UI.S; openModal('pause', m => { const render = () => {
+  const S = UI.S; if (S && S.inf && typeof infOpenPause === 'function') { infOpenPause(); return; } openModal('pause', m => { const render = () => {
     const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
       `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
@@ -4805,6 +4928,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `${RN} No Hard calls before Shift ${d}. Disruptions start at Shift ${C.disruptionsFromShift}, requests at Shift 5, and Shift 7 is extra busy.`,
     `${RN} Finale boss: a hero who isn't in your crew goes rogue.`],
     'You pick the mode when you start, and it stays the same for the whole campaign. Everything else in this guide works in both modes.') +
+  (typeof infHelpHTML === 'function' ? infHelpHTML(sec) : '') +
   sec('📍 Answering a call', [
     `Tap a pin on the map to open its briefing. <b>Time stops while any panel is open.</b> ⏸ pauses; 1×/2× sets the speed.`,
     `Put heroes in the slots (1 to 4), then press DISPATCH. Heroes travel, work, come back and rest before they're ready again.`,
@@ -4906,12 +5030,13 @@ function openLevelUpChoice(onDone) {
       const tiles = STATS.map((s, i) => { const v = h.stats[i], mx = v >= CONFIG.statMax; return `<button class="lvtile ${sel === i ? 'sel' : ''} ${mx ? 'max' : ''}" data-s="${i}" ${mx ? 'disabled' : ''} style="--c:${STAT_COLORS[s]}"><span class="k">${i + 1}</span><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}</small><span class="vv">${mx ? 'MAX' : `${v} → <em>${v + 1}</em>`}</span></button>`; }).join('');
       const P = sheetParts(m, `<span style="font-size:28px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill lvbadge" style="background:${h.color}">LEVEL UP! LV ${e.level}</span>${N > 1 ? `<span class="pill lvcount">${idx + 1} of ${N}</span>` : ''}`,
         `${mk2Html}<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
-         ${f.training ? `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>` : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
+         ${f.training ? (camp.inf && typeof infTrainHTML === 'function' ? infTrainHTML(camp, h) : `<div class="note good">🎓 Training unlocked: pick a power at the next training session.</div>`) : ''}${f.max ? `<div class="note">🏁 Max level reached.</div>` : ''}
          ${more > 0 ? `<div class="note">+${more} more banked · <button class="lnk" data-a="all">SPEND ALL…</button></div>` : ''}${q.length >= 2 ? `<div style="text-align:center;margin-top:6px"><button class="lnk" data-a="skipall">SKIP ALL (bank ${q.length})</button></div>` : ''}</div></div>`,
         `<button class="btn ghost" data-a="later">DECIDE LATER</button><button class="btn pri" data-a="ok" ${sel < 0 ? 'disabled' : ''}>CONFIRM +1 STAT</button>`);
       drawRadar(P.B.querySelector('.rad'), { team: h.stats, preview: sel >= 0 ? h.stats.map((v, i) => v + (i === sel ? 1 : 0)) : null });
       P.B.querySelectorAll('[data-s]').forEach(b => b.onclick = () => select(+b.dataset.s));
       P.F.querySelector('[data-a=later]').onclick = later; P.F.querySelector('[data-a=ok]').onclick = confirm;
+      if (camp.inf && typeof infTrainBind === 'function') infTrainBind(P.B, h.id, render);
       const offer = P.B.querySelector('.mk2-offer');
       if (offer) {
         const showConfirm = on => { const c = offer.querySelector('.mk2-confirm'); const a = offer.querySelector('.mk2-actions'); if (c) { c.classList.toggle('hidden', !on); c.hidden = !on; } if (a) a.classList.toggle('hidden', on); };
@@ -5070,11 +5195,12 @@ function openSabotage(sb) { const camp = UI.camp, S = UI.S, hh = camp.heroes[sb.
 /* ---------- screens ---------- */
 function showScreen(html, after) { UI.screen = 'menu'; $('game').classList.add('hidden'); const s = $('screen'); s.classList.remove('hidden'); s.innerHTML = `<div class="scr">${html}</div>`; s.scrollTop = 0; if (after) after(s); }
 function showTitle() {
-  const save = loadCamp(); UI.S = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null;
+  const save = loadCamp(); UI.S = null; if (typeof mapStyleForce === 'function') mapStyleForce(null); if (UI.camp && UI.camp.inf) UI.camp = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null;
   showScreen(`<div class="logo">NIGHT<span>DESK</span></div><div class="tag">Dispatch reformed ex-villains. Save the city. Survive the shift.</div>
    ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span> · <span class="cont-callmode">${callModeIcon(save.missionSet)} ${callModeLabel(save.missionSet)}</span></button>` : ''}
    <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
-   <div class="card"><h3>Seed (optional)</h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
+   ${typeof infTitleHTML === 'function' ? infTitleHTML() : ''}
+   <div class="card"><h3>Seed (optional) <small class="seed-hint" style="color:var(--dim);font-weight:400">· New Campaign only</small></h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
    <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
    <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
    ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
@@ -5082,6 +5208,7 @@ function showTitle() {
    <div class="verrow"><div class="tag ver" id="verLbl">Version ${esc(ndVersionLabel())}</div><button class="btn small ghost" data-a="credits">CREDITS</button></div>`, s => {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
     s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); const v = parseInt($('seedIn').value, 10); showNewCampaign(isNaN(v) ? ((Math.random() * 1e9) >>> 0) : v, false, !!save); };
+    if (typeof infTitleBind === 'function') infTitleBind(s);
     s.querySelector('[data-a=look]').onclick = () => { Sfx.init(); Sfx.click(); openLooks(); };
     s.querySelector('[data-a=map]').onclick = () => { Sfx.init(); Sfx.click(); openMapStyle(); };
     s.querySelector('[data-a=music]').onclick = () => { Sfx.init(); Sfx.click(); openMusic(); };
@@ -5327,7 +5454,7 @@ function showEnd() {
   const camp = UI.camp; camp.phase = 'end'; saveCamp(); const t = camp.totals; const gp = camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / Math.max(1, camp.grades.length); const fg = gp >= 3.5 ? 'S' : gp >= 2.5 ? 'A' : gp >= 1.5 ? 'B' : gp >= 0.5 ? 'C' : 'D';
   if (fg === 'S') FX.confetti();
   showScreen(`<div class="logo" style="font-size:32px;margin-top:2vh">CAMPAIGN COMPLETE</div><div class="card"><div class="grade ${fg}">${fg}</div><p class="tag">Final agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}</p>
-   <table class="sum"><tr><td>Total score</td><td>${t.score}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Injuries</td><td>${t.injuries || 0}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries}</td></tr><tr><td>XP</td><td>${t.xp}</td></tr><tr><td>Shift grades</td><td>${camp.grades.join(' ')}</td></tr></table>${camp.finale && camp.finale.rogue && camp.finale.bossId && heroDef(camp.finale.bossId) ? `<p class="txt rogue-end">☠ Shift 8 rogue: <b>${esc(heroDef(camp.finale.bossId).codename)}</b> ${camp.finale.won ? 'stood down.' : 'got away.'} ${esc((camp.rogue && camp.rogue.motive) || '')}</p>` : ''}</div>
+   <table class="sum"><tr><td>Total score</td><td>${t.score}</td></tr><tr><td>Successes</td><td>${t.success}</td></tr><tr><td>Failures</td><td>${t.fail}</td></tr><tr><td>Missed</td><td>${t.missed}</td></tr><tr><td>Perfect Picks</td><td>${t.perfect}</td></tr><tr><td>Hacks</td><td>${t.hacks}</td></tr><tr><td>Injuries</td><td>${t.injuries || 0}</td></tr><tr><td>XP</td><td>${t.xp}</td></tr><tr><td>Shift grades</td><td>${camp.grades.join(' ')}</td></tr></table>${camp.finale && camp.finale.rogue && camp.finale.bossId && heroDef(camp.finale.bossId) ? `<p class="txt rogue-end">☠ Shift 8 rogue: <b>${esc(heroDef(camp.finale.bossId).codename)}</b> ${camp.finale.won ? 'stood down.' : 'got away.'} ${esc((camp.rogue && camp.rogue.motive) || '')}</p>` : ''}</div>
    <div class="email">From: R. Halvorsen\nSubject: Review period complete\n\n${fg === 'S' || fg === 'A' ? 'The board voted to keep the agency open. They also voted to put your photo in the lobby. It is slightly crooked. That is on purpose.' : fg === 'B' ? 'The agency survives another quarter. That is a win in this economy.' : 'We are... still open? Somehow? I will take it. Please read the manual next time.'}</div>
    <button class="btn pri" data-a="new">NEW CAMPAIGN</button><button class="btn ghost" data-a="title">TITLE</button>`, s => { s.querySelector('[data-a=new]').onclick = () => { UI.camp = newCampaign(0); saveCamp(); routeCamp(); }; s.querySelector('[data-a=title]').onclick = showTitle; });
 }
@@ -5346,7 +5473,7 @@ Bus.on('declined', d => { if (UI.sim) return; radioLog(null, `⇄ "${d.call.tpl.
 Bus.on('followUp', c => { if (UI.sim) return; Sfx.alarm(); radio(null, `↪ Follow-up in ${DISTRICTS[c.district].name}: ${c.tpl.title}. That last one came back to bite us.`); toast('↪ Follow-up: ' + esc(c.tpl.title)); });
 Bus.on('bossRespawn', c => { if (UI.sim) return; if (UI.S && UI.S.finale && UI.S.finale.rogue) { radio(null, `☠ ${bossName(UI.S)} is back: ${c.tpl.title}.`); return; } radio(null, `☠ The Night Mayor's signal is back: ${c.tpl.title}.`); });
 Bus.on('rogueArrives', c => { if (UI.sim) return; Sfx.alarm(); if (UI.S && UI.S.finale && UI.S.finale.rogue) radio(null, `☠ ${bossName(UI.S)} has gone rogue: ${c.tpl.title}! Win the ☠ calls to wear down their resolve (${UI.S.finale.bossHP}).`); }); // fallback Night Mayor pins announce via the 'spawn' handler
-Bus.on('cityHit', d => { if (UI.sim) return; radioLog(null, `🏙 City −${d.dmg} (${d.call.tpl.title}). City at ${d.city}.`, 'bad'); const f = $('finale'); if (f) { f.classList.remove('hit'); void f.offsetWidth; f.classList.add('hit'); } });
+Bus.on('cityHit', d => { if (UI.sim) return; if (d.practice) { radioLog(null, `🎓 Practice hack: no City damage.`); return; } radioLog(null, `🏙 City −${d.dmg} (${d.call.tpl.title}). City at ${d.city}${d.max ? '/' + d.max : ''}.`, 'bad'); const f = $('finale'); if (f) { f.classList.remove('hit'); void f.offsetWidth; f.classList.add('hit'); } });
 Bus.on('bossHit', d => { if (UI.sim) return; Sfx.chime(); if (UI.S && UI.S.finale && UI.S.finale.rogue) { radio(null, `☠ Hit! ${bossName(UI.S)}'s resolve down to ${d.hp}/${UI.S.finale.bossMax}.`); return; } radio(null, `☠ Hit! Night Mayor signal down to ${d.hp}/5.`); });
 Bus.on('bossDown', () => { if (UI.sim) return; Sfx.fanfare(); FX.burst(); if (UI.S && UI.S.finale && UI.S.finale.rogue) { const n = esc(bossName(UI.S)); finBanner(`☠ ${n.toUpperCase()} STANDS DOWN!<br><small>Victory. The shift ends once the open calls are done.</small>`); radio(null, `${n} stands down. Wrap up the open calls and we are done.`); return; } finBanner('☠ NIGHT MAYOR OFF THE AIR!<br><small>Victory. The shift ends once the open calls are done.</small>'); radio(null, 'The Night Mayor is off the air. Wrap up the open calls and we are done.'); });
 Bus.on('cityLost', () => { if (UI.sim) return; Sfx.thud(); shake(); finBanner('🏙 CITY LOST<br><small>Keep going: the grade is capped at C.</small>', true); radio(null, 'We lost the city tonight. Keep working, but this one is going in the record.'); });
@@ -5363,7 +5490,7 @@ Bus.on('districtOnline', d => { if (UI.sim) return; toast('💡 ' + DISTRICTS[d]
 Bus.on('skillPoint', d => { if (UI.sim) return; });
 Bus.on('levelUp', d => { if (UI.sim) return; if (UI.S && UI.camp) replayPick(d.hero, d.level); { const sl = UI.camp.seenLevelUp = UI.camp.seenLevelUp || {}; if ((sl[d.hero.id] || 1) < d.level) { sl[d.hero.id] = d.level; Celebrate.fired++; } } // v1.2: no banners; the point is queued in camp.levelQueue
   if (UI.auto && UI.S) { const h = d.hero; const ord = [0, 1, 2, 3, 4].filter(i => h.stats[i] < CONFIG.statMax).sort((a, b) => h.stats[a] - h.stats[b]); if (ord.length) allocate(UI.camp, h.id, ord[0]); pruneLevelQueue(UI.camp); } });
-Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'mk2' ? `✦ ${esc(d.hero.codename)} can upgrade to ${esc(POWERS[d.power].name)} (optional: LEVEL UP card or hero info).` : d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
+Bus.on('powerEligible', d => { if (UI.sim || UI.screen !== 'game') return; toast(d.kind === 'mk2' ? `✦ ${esc(d.hero.codename)} can upgrade to ${esc(POWERS[d.power].name)} (optional: LEVEL UP card or hero info).` : d.kind === 'signature' ? `✦ ${esc(d.hero.codename)} unlocked a Signature power: ${esc(POWERS[d.power].name)}!` : UI.camp && UI.camp.inf ? `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: pick a power on the hero card.` : `🎓 ${esc(d.hero.codename)} reached LV ${CONFIG.trainLevel}: eligible for training after shift ${CONFIG.trainingAfterShifts.find(x => x > UI.S.idx) || '—'}.`, 4500); });
 Bus.on('injured', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; if (!hh) return; injToast(d.id, d.downed ? `✚ ${esc(hh.codename)} is DOWNED` : `🩹 ${esc(hh.codename)} injured (−1 all)`); if (UI.S) radio(d.id, d.downed ? "I'm down. Seriously down. Tag someone else in." : 'Ow. Still walking. Mostly.'); });
 Bus.on('healed', d => { if (UI.sim || !UI.camp) return; const hh = UI.camp.heroes[d.id]; injToast(d.id + 'h', `💚 ${esc(hh.codename)} healed${d.source === 'medkit' ? ' (Med Kit)' : d.by ? ' by ' + esc(UI.camp.heroes[d.by].codename) : ''}`); });
 Bus.on('revived', d => { if (UI.sim || !UI.camp) return; injToast(d.id + 'r', `⚡ ${esc(UI.camp.heroes[d.id].codename)} is back in action`); });
@@ -5392,7 +5519,7 @@ function frame(now) {
       Sfx.musicUpdate(pendingCalls(S).length, !isPaused());
       if (UI.shiftOverPending && !UI.modals.length && !UI.hack) {
         if (typeof kickRevealQueue === 'function' && RevealPop && RevealPop.q.length) { kickRevealQueue(); }
-        else { UI.shiftOverPending = false; showSummary(); }
+        else { UI.shiftOverPending = false; if (S.inf && typeof showInfOver === 'function') showInfOver(); else showSummary(); }
       }
       else if (UI.shiftOverPending && UI.modals.length && UI.modals[0].kind !== 'review' && UI.modals[0].kind !== 'levelup' && UI.modals[0].kind !== 'powerreveal') { closeModal(); }
     }
@@ -5538,9 +5665,16 @@ const MAP_STYLES = [
     prev: 'map/nightcity-prev.webp', prevFallback: 'map/nightcity-prev.jpg' },
   { id: 'blueprint', name: 'Blueprint', desc: 'Teal hologram city — wireframe towers and grid.',
     art: 'map/blueprint.webp', fallback: 'map/blueprint.jpg',
-    prev: 'map/blueprint-prev.webp', prevFallback: 'map/blueprint-prev.jpg' }
+    prev: 'map/blueprint-prev.webp', prevFallback: 'map/blueprint-prev.jpg' },
+  { id: 'daycity', name: 'Day City', desc: 'The same city in daylight — sunny streets and landmarks.',
+    art: 'map/daycity.webp', fallback: 'map/daycity.jpg',
+    prev: 'map/daycity-prev.webp', prevFallback: 'map/daycity-prev.jpg' }
 ];
-var MapStyle = { id: 'nightcity', imgs: {}, ready: {}, static: null, staticKey: '', fail: {} };
+var MapStyle = { id: 'nightcity', forced: null, imgs: {}, ready: {}, static: null, staticKey: '', fail: {}, prevStatic: null, fadeStart: 0 };
+// v1.34.0: ♾ Infinite Shift forces Night City (18:00–06:00) / Day City (06:00–18:00) and ignores the player's MAP setting
+function mapStyleEffId() { return MapStyle.forced || MapStyle.id; }
+function mapStyleForce(id, fade) { const was = mapStyleEffId(); MapStyle.forced = id || null; if (mapStyleEffId() === was) return; if (fade && MapStyle.static) { MapStyle.prevStatic = MapStyle.static; MapStyle.fadeStart = performance.now(); } else MapStyle.prevStatic = null; mapStyleEnsure(mapStyleEffId()); mapStyleInvalidate(); }
+function mapStyleFadeAlpha() { if (!MapStyle.prevStatic) return 0; const ms = (typeof CONFIG !== 'undefined' && CONFIG.infinite && CONFIG.infinite.fadeMs) || 2000; const p = (performance.now() - MapStyle.fadeStart) / ms; if (p >= 1) { MapStyle.prevStatic = null; return 0; } return 1 - p; }
 function mapStyleLoad() {
   let v = null; try { v = JSON.parse(localStorage.getItem(MAP_STYLE_KEY)); } catch (e) { }
   // v1.20.1: Classic removed — migrate saved "classic" (and unknown ids) to Night City
@@ -5549,7 +5683,7 @@ function mapStyleLoad() {
   if (!v || v.id !== id) mapStyleSave();
 }
 function mapStyleSave() { try { localStorage.setItem(MAP_STYLE_KEY, JSON.stringify({ id: MapStyle.id })); } catch (e) { } }
-function mapStyleGet() { return MAP_STYLES.find(s => s.id === MapStyle.id) || MAP_STYLES[0]; }
+function mapStyleGet() { const id = mapStyleEffId(); return MAP_STYLES.find(s => s.id === id) || MAP_STYLES[0]; }
 function mapStyleIsArt() { const s = mapStyleGet(); return !!(s && s.art && MapStyle.ready[s.id]); }
 function mapStyleInvalidate() { if (!MapStyle) return; MapStyle.static = null; MapStyle.staticKey = ''; }
 function mapStyleSet(id) {
@@ -5578,7 +5712,7 @@ function mapStylePreviewHTML(id) {
 function openMapStyle(fromPause) {
   openModal('mapstyle', m => { const render = () => {
     const P = sheetParts(m, '<h2>🗺 City Map</h2><span class="pill">Visual only</span>',
-      `<p class="txt">Choose how the city looks. Gameplay, call positions and your save are not affected. Works with every 🎨 Look (pins, HQ and trails follow the Look; city art keeps its paint and may get a light Look tint).</p>
+      `${MapStyle.forced ? '<div class="note">♾ Infinite Shift always uses Night City (18:00–06:00) and Day City (06:00–18:00). Your pick here applies to Story and Random Calls campaigns.</div>' : ''}<p class="txt">Choose how the city looks. Gameplay, call positions and your save are not affected. Works with every 🎨 Look (pins, HQ and trails follow the Look; city art keeps its paint and may get a light Look tint).</p>
        <div class="lk-grid">${MAP_STYLES.map(s => `<button class="lk-card ${s.id === MapStyle.id ? 'on' : ''}" data-ms-id="${s.id}" aria-pressed="${s.id === MapStyle.id}">${mapStylePreviewHTML(s.id)}<b>${s.name}</b><small>${s.desc}</small></button>`).join('')}</div>`,
       '<button class="btn pri" data-a="done">DONE</button>');
     P.B.querySelectorAll('[data-ms-id]').forEach(b => b.onclick = () => { mapStyleSet(b.dataset.msId); try { Sfx.click(); } catch (e) { } render(); });
@@ -5589,12 +5723,12 @@ function openMapStyle(fromPause) {
 function mapStyleStaticCanvas(W, H, T, online) {
   const look = (typeof LookState !== 'undefined' && LookState.look) || 'current';
   const onSig = (online && online.length) ? online.slice().sort().join('') : 'all';
-  const key = MapStyle.id + '|' + look + '|' + W + 'x' + H + '|' + onSig + '|' + (MapStyle.ready[MapStyle.id] ? 'r' : 'w');
+  const eid = mapStyleEffId(); const key = eid + '|' + look + '|' + W + 'x' + H + '|' + onSig + '|' + (MapStyle.ready[eid] ? 'r' : 'w');
   if (MapStyle.static && MapStyle.staticKey === key) return MapStyle.static;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
-  if (mapStyleIsArt() && MapStyle.imgs[MapStyle.id]) {
-    g.drawImage(MapStyle.imgs[MapStyle.id], 0, 0, W, H);
+  if (mapStyleIsArt() && MapStyle.imgs[eid]) {
+    g.drawImage(MapStyle.imgs[eid], 0, 0, W, H);
     if (T.tint && T.tint !== 'transparent') { g.fillStyle = T.tint; g.fillRect(0, 0, W, H); }
   } else {
     // Internal emergency fallback only (art still loading or failed). Not a player option.
@@ -5640,6 +5774,146 @@ function paintCallCluster(g, x, y, col) {
 }
 mapStyleLoad();
 for (const s of MAP_STYLES) if (s.art) mapStyleEnsure(s.id);
+
+/* ---------- v1.34.0 ♾ Infinite Shift (UI) ----------
+   Title button, crew picker (10 heroes), HUD, ramp chat lines, checkpoints (own save slot), 🎲 stat badge, LV3 power choice, SHIFT OVER screen. */
+const INF_SAVE_KEY = 'nightdesk.infinite.v1', INF_BEST_KEY = 'nightdesk.infbest.v1';
+function infLoadCheckpoint() { try { const raw = localStorage.getItem(INF_SAVE_KEY); if (!raw) return null; return infRestore(JSON.parse(raw)); } catch (e) { return null; } }
+function infSaveCheckpoint() { if (!UI.camp || !UI.camp.inf || !UI.S) return false; try { localStorage.setItem(INF_SAVE_KEY, JSON.stringify(infCheckpoint(UI.camp, UI.S))); return true; } catch (e) { return false; } }
+function infClearCheckpoint() { try { localStorage.removeItem(INF_SAVE_KEY); } catch (e) { } }
+function infBest() { try { return JSON.parse(localStorage.getItem(INF_BEST_KEY)) || null; } catch (e) { return null; } }
+function infSaveBest(r) { const b = infBest(); const better = !b || r.t > b.t || (r.t === b.t && r.score > b.score);
+  if (better) try { localStorage.setItem(INF_BEST_KEY, JSON.stringify({ t: r.t, stage: r.stage, score: r.score, success: r.success, rank: r.rank, at: Date.now() })); } catch (e) { } return better; }
+function infDur(t) { const m = Math.floor(t / CONFIG.infinite.secPerGameHour * 60); return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; }
+function infCpLabel(cp) { const ck = infClock({ t: cp.inf.t || 0 }); return `${infStageLabel(cp.inf.ramps)} · Day ${ck.day} ${ck.text}`; }
+
+/* ---- title ---- */
+function infTitleHTML() { const cp = infLoadCheckpoint(), b = infBest();
+  return `${cp ? `<button class="btn inf-btn inf-cont" data-a="infcont">CONTINUE ♾ · ${esc(infCpLabel(cp))}</button>` : ''}
+   <button class="btn inf-btn" data-a="inf">♾ INFINITE SHIFT<small>A separate mode · one endless shift · always random</small></button>
+   ${b ? `<div class="tag inf-best">♾ Best run: ${infDur(b.t)} · ${infStageLabel(b.stage)} · score ${b.score}</div>` : ''}`; }
+function infTitleBind(s) {
+  const n = s.querySelector('[data-a=inf]'); if (n) n.onclick = () => { Sfx.init(); Sfx.click(); const cp = infLoadCheckpoint();
+    if (cp) confirmBox('New Infinite Shift?', `Your saved Infinite run (${esc(infCpLabel(cp))}) will be replaced when the new run starts. Your campaign save is not touched.`, 'NEW RUN', () => showInfCrew('random')); else showInfCrew('random'); };
+  const c = s.querySelector('[data-a=infcont]'); if (c) c.onclick = () => { Sfx.init(); const cp = infLoadCheckpoint(); if (cp) infBegin(cp, true); else showTitle(); };
+}
+
+/* ---- crew picker ---- */
+const InfSel = { mode: 'random', seed: 0, picks: [] };
+function infMini(id, extra) { const d = heroDef(id); return `<div class="mini inf-mini ${extra || ''}" data-hid="${id}" style="border-color:${d.color}66"><span class="e">${d.emoji}</span><div><b>${esc(d.codename)}</b><small>${d.stats.map((v, i) => STATS[i] + v).join(' ')}</small></div><button class="inf-i" data-info="${id}" aria-label="Hero info">ⓘ</button></div>`; }
+function showInfCrew(mode) { if (mode) InfSel.mode = mode; if (!InfSel.seed) InfSel.seed = (Math.random() * 1e9) >>> 0; mapStyleForce(null);
+  const M = InfSel.mode, opt = (k, ic, t, sub) => `<button class="inf-opt ${M === k ? 'on' : ''}" data-mode="${k}" aria-pressed="${M === k}"><b>${ic} ${t}</b><small>${sub}</small></button>`;
+  let body = '', ready = true;
+  if (M === 'random') { const pool = pickRoster10(InfSel.seed); body = `<div class="grid2">${pool.map(id => infMini(id)).join('')}</div><button class="btn" data-a="reroll">🎲 REROLL</button>`; }
+  else if (M === 'classic') { body = `<div class="grid2">${LEGACY_POOL.concat(['zenith', 'drizzle']).map(id => infMini(id, ['zenith', 'drizzle'].includes(id) ? 'inf-extra' : '')).join('')}</div><div class="note">⭐ Zenith and Drizzle join only with Original Crew.</div>`; }
+  else { const p = InfSel.picks; ready = p.length === CONFIG.infinite.crew;
+    body = `<div class="inf-count ${ready ? 'ok' : ''}">Picked <b>${p.length}</b> of ${CONFIG.infinite.crew}</div><div class="row"><button class="btn small" data-a="fill">FILL RANDOMLY</button><button class="btn small ghost" data-a="clear">CLEAR</button></div>
+     <div class="grid2 inf-pickgrid">${HERO_DEFS.map(d => infMini(d.id, p.includes(d.id) ? 'picked' : (p.length >= CONFIG.infinite.crew ? 'full' : ''))).join('')}</div>`; }
+  showScreen(`<div class="logo inf-logo" style="font-size:30px;margin-top:2vh">♾ INFINITE SHIFT</div><p class="tag">One endless shift. Survive as long as you can.</p>
+   <div class="card"><h3>Choose your crew of 10</h3><div class="inf-opts">${opt('selection', '🧩', 'Hero Selection', 'Pick any 10')}${opt('random', '🎲', 'Random Heroes', 'A balanced 10 · REROLL')}${opt('classic', '🏛', 'Original Crew', 'Original 8 + Zenith + Drizzle')}</div></div>
+   <div class="card inf-crew">${body}</div>
+   <div class="note">All 10 heroes start at LV1 · 🏙 City 200 · 🎲 Random Calls · the Seed box is not used.</div>
+   <button class="btn pri" data-a="go" ${ready ? '' : 'disabled'}>START SHIFT</button><button class="btn ghost" data-a="back">TITLE</button>`, s => {
+    s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showInfCrew(b.dataset.mode); });
+    s.querySelectorAll('[data-info]').forEach(b => b.onclick = ev => { ev.stopPropagation(); openCodex(b.dataset.info); });
+    const rr = s.querySelector('[data-a=reroll]'); if (rr) rr.onclick = () => { Sfx.click(); InfSel.seed = (Math.random() * 1e9) >>> 0; showInfCrew(); };
+    const fl = s.querySelector('[data-a=fill]'); if (fl) fl.onclick = () => { Sfx.click(); const r = pickRoster10((Math.random() * 1e9) >>> 0); const p = InfSel.picks; for (const id of r) { if (p.length >= CONFIG.infinite.crew) break; if (!p.includes(id)) p.push(id); } showInfCrew(); };
+    const cl = s.querySelector('[data-a=clear]'); if (cl) cl.onclick = () => { InfSel.picks = []; showInfCrew(); };
+    if (M === 'selection') s.querySelectorAll('.inf-pickgrid [data-hid]').forEach(el => el.onclick = () => { const id = el.dataset.hid, p = InfSel.picks, i = p.indexOf(id);
+      if (i >= 0) p.splice(i, 1); else if (p.length < CONFIG.infinite.crew) p.push(id); else { toast('You already have 10. Tap a picked hero to remove them.'); return; } Sfx.click(); showInfCrew(); });
+    s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); infStartNew(); };
+    s.querySelector('[data-a=back]').onclick = showTitle; });
+}
+function infStartNew() { const M = InfSel.mode; const camp = newInfiniteRun(M, { seed: M === 'random' ? InfSel.seed : (Math.random() * 1e9) >>> 0, picks: InfSel.picks.slice(), missionBag: cloneMissionBag(UI.missionBag || loadMissionBag()) });
+  InfSel.seed = 0; infBegin(camp, false); }
+
+/* ---- run ---- */
+function infBegin(camp, resumed) {
+  UI.camp = camp; UI.snapshot = null; UI.shiftPicks = {}; UI.replay = {}; UI.earnedMem = {}; UI.bankedAtStart = {}; for (const id in camp.heroes) UI.bankedAtStart[id] = camp.heroes[id].unspentPoints || 0;
+  camp.rollNonce = newRollNonce(); camp.rollNonceFor = camp.shiftIdx;
+  UI.S = startInfinite(camp); mapStyleForce(infIsDay(UI.S.infStage) ? 'daycity' : 'nightcity', false);
+  UI.screen = 'game'; UI.userPaused = false; UI.shiftOverPending = false; $('screen').classList.add('hidden'); $('game').classList.remove('hidden'); $('game').classList.add('inf-run');
+  $('radio').innerHTML = ''; $('toasts').innerHTML = ''; $('queue')._sig = null; buildRoster(); updateRoster(); updateQueue(); updateTop();
+  const ck = infClock(UI.S);
+  if (resumed) radioLog(null, `♾ Resumed from checkpoint · ${infStageLabel(UI.S.infStage)} · Day ${ck.day} ${ck.text} · City ${UI.S.finale.city}/${UI.S.finale.cityMax}`, 'ramp');
+  else { radioLog(null, `♾ Infinite Shift begins · 🌙 18:00 · Night City · City ${CONFIG.infinite.cityMax}. Survive as long as you can.`, 'ramp'); infSaveCheckpoint(); }
+}
+function infRampLines(d) { const I = CONFIG.infinite;
+  const l1 = `${d.day ? '🌅' : '🌙'} ${d.clock.text} · ${d.day ? 'Sunrise: Day City' : 'Sunset: Night City'} · ${infStageLabel(d.stage)} begins · 💾 Checkpoint saved`;
+  const parts = []; if (d.pts) parts.push(`🎖 +${d.pts} rank pts` + (d.rank > d.rankBefore ? `: Rank ${d.rank} ${CONFIG.rankNames[d.rank - 1]}` : ''));
+  const nm = { medkit: '🩹 Med Kit', jump: '⚡ Jump Start' }; for (const t of d.unlocked) parts.push(`${nm[t]} unlocked`); for (const t of d.refilled) parts.push(`${nm[t]} refilled`);
+  if (d.wild) parts.push(`🎲 ${d.wild} stat point${d.wild > 1 ? 's' : ''} (tap 🎲 by your rank)`);
+  if (d.stage >= 7) parts.push(`⏩ a call every ${(UI.S ? infSpawnInterval(UI.S) : I.s8Spawn).toFixed(1)} s`);
+  return parts.length ? [l1, parts.join(' · ')] : [l1]; }
+Bus.on('infRamp', d => { if (UI.sim || !UI.camp || !UI.camp.inf) return; mapStyleForce(d.day ? 'daycity' : 'nightcity', true); infSaveCheckpoint(); for (const l of infRampLines(d)) radioLog(null, l, 'ramp'); });
+Bus.on('infOver', r => { if (UI.sim || !UI.camp || !UI.camp.inf) return; infClearCheckpoint(); UI.infNewBest = infSaveBest(r); try { Sfx.thud(); shake(); } catch (e) { } radioLog(null, '🏙 The City has fallen. SHIFT OVER.', 'bad'); UI.shiftOverPending = true; });
+
+/* ---- HUD ---- */
+function infUpdateFinale(S, F) { const el = $('finale'); el.classList.add('inf'); const pct = 100 * F.city / F.cityMax;
+  $('cityBar').style.width = pct + '%'; $('cityBar').style.background = pct > 50 ? '#4cd97b' : pct > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city + '/' + F.cityMax;
+  const len = CONFIG.infinite.stageHours * CONFIG.infinite.secPerGameHour; $('bossBar').style.width = (100 * clamp((S.t - S.stageStart) / len, 0, 1)) + '%'; $('bossVal').textContent = infSettingsLabel(S.infStage);
+  const bl = $('bossLbl'); if (bl) bl.textContent = `♾ ${infStageLabel(S.infStage).toUpperCase()} · next ${infIsDay(S.infStage) ? '18:00' : '06:00'}`; }
+function infUpdateTop(S, camp) { updateFinale(); const ck = infClock(S); $('clock').textContent = ck.text; $('shiftLbl').textContent = 'DAY ' + ck.day + ' · ♾'; $('scoreLbl').textContent = shiftScore(S);
+  $('rankName').textContent = 'Rank ' + camp.rank + ' · ' + CONFIG.rankNames[camp.rank - 1]; const lo = CONFIG.rankThresholds[camp.rank - 1], hi = CONFIG.rankThresholds[camp.rank]; $('rankBar').style.width = hi ? (100 * clamp((camp.rankPts - lo) / (hi - lo), 0, 1)) + '%' : '100%';
+  $('btnSpeed').textContent = S.speed + '×'; $('btnPause').textContent = UI.userPaused ? '▶' : '⏸'; $('pausedTag').classList.toggle('hidden', !UI.userPaused); $('btnTools').classList.toggle('on', toolUnlocked(camp, 'medkit'));
+  let b = $('infWild'); const n = (camp.wildQueue || []).length;
+  if (!b && n) { b = document.createElement('button'); b.id = 'infWild'; b.className = 'inf-wild'; b.setAttribute('aria-label', 'Assign stat points'); $('rankBox').appendChild(b);
+    b.onclick = ev => { ev.stopPropagation(); if (!UI.S || UI.S.over || UI.modals.length || UI.hack) return; Sfx.click(); openWildcardReveal(() => updateTop()); }; }
+  if (b) { b.classList.toggle('hidden', !n); b.textContent = '🎲' + (n > 1 ? n : ''); } }
+function infOpenPause() { const S = UI.S, camp = UI.camp; openModal('pause', m => { const render = () => { const cp = infLoadCheckpoint();
+    const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">♾ Infinite Shift</span>`,
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
+       <div class="tglrow callmode-row"><span>♾ Infinite Shift · 🎲 Random Calls · ${esc(infStageLabel(S.infStage))} (${esc(infSettingsLabel(S.infStage))} settings)</span></div>
+       <div class="tglrow"><span>💾 Last checkpoint: <b>${cp ? esc(infCpLabel(cp)) : '—'}</b></span></div>
+       <div class="tglrow"><span id="verLbl">Night Desk ${esc(ndVersionLabel())}</span></div>
+       <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button></div>
+       <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
+       <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
+    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
+    P.B.querySelector('[data-a=help]').onclick = () => openHelp();
+    P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
+    P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
+    P.B.querySelector('[data-a=music]').onclick = () => openMusic(true);
+    P.B.querySelector('[data-a=quit]').onclick = () => { if (!confirm(`Quit to title? Progress since the last checkpoint${cp ? ' (' + infCpLabel(cp) + ')' : ''} is lost. CONTINUE ♾ resumes from there.`)) return; closeModal(); infQuit(); };
+    P.F.querySelector('[data-a=resume]').onclick = () => { closeModal(); UI.userPaused = false; }; }; render(); m.onClose = () => { UI.userPaused = false; }; }); }
+function infQuit() { UI.S = null; UI.camp = null; $('game').classList.remove('inf-run'); const w = $('infWild'); if (w) w.remove(); $('hack').classList.add('hidden'); UI.hack = null; showTitle(); }
+
+/* ---- LV3 power choice (level-up card + hero card) ---- */
+function infTrainHTML(camp, h, onCard) { if (!camp || !camp.inf || !h) return ''; const d = heroDef(h.id) || {}; if (!d.train || !d.train.length || h.trainedChoice || h.noXP || heroLevel(h) < CONFIG.trainLevel) return '';
+  if (!baseRevealed(h)) return `<div class="note inf-train-wait">🎓 LV3 power choice: waits until ${esc(h.codename)}'s base power is revealed on a call${onCard ? '' : ' (then pick it on the hero card)'}.</div>`;
+  return `<div class="inf-train" data-hero="${h.id}"><div class="note good">🎓 LV3 power choice: pick 1 of 2. Permanent: the other is locked out.</div><div class="tropts">${d.train.map(p => `<button class="tropt" data-inftrain="${p}"><b>${esc(POWERS[p].name)}</b><p class="txt" style="font-size:13px;margin:4px 0 0">${esc(POWERS[p].desc)}</p></button>`).join('')}</div>
+   <div class="row inf-trconf hidden"><button class="btn pri" data-a="inftrainyes">CONFIRM</button><button class="btn ghost" data-a="inftrainno">CANCEL</button></div></div>`; }
+function infTrainBind(root, id, rerender) { const box = root.querySelector(`.inf-train[data-hero="${id}"]`); if (!box) return; let sel = null; const conf = box.querySelector('.inf-trconf');
+  box.querySelectorAll('[data-inftrain]').forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); sel = b.dataset.inftrain; Sfx.click(); box.querySelectorAll('[data-inftrain]').forEach(x => x.classList.toggle('on', x === b)); conf.classList.remove('hidden'); conf.querySelector('[data-a=inftrainyes]').textContent = 'CONFIRM ' + POWERS[sel].name.toUpperCase(); });
+  conf.querySelector('[data-a=inftrainno]').onclick = ev => { ev.preventDefault(); ev.stopPropagation(); sel = null; conf.classList.add('hidden'); box.querySelectorAll('[data-inftrain]').forEach(x => x.classList.remove('on')); };
+  conf.querySelector('[data-a=inftrainyes]').onclick = ev => { ev.preventDefault(); ev.stopPropagation(); if (!sel) return; const camp = UI.camp; if (trainHero(camp, id, sel)) { Sfx.fanfare(); radioLog(id, '🎓 Learned ' + POWERS[sel].name + '.'); } if (rerender) rerender(); }; }
+
+/* ---- SHIFT OVER ---- */
+function showInfOver() { const camp = UI.camp, S = UI.S, r = (camp && camp.inf && camp.inf.result) || infResult(camp, S); const I = CONFIG.infinite, losses = Math.ceil(I.cityMax / I.cityHit), b = infBest();
+  mapStyleForce(null); $('game').classList.remove('inf-run'); const w = $('infWild'); if (w) w.remove();
+  const top = r.top && camp.heroes[r.top.id];
+  showScreen(`<div class="logo inf-logo" style="font-size:32px;margin-top:2vh">SHIFT OVER</div><p class="tag">The City fell on Day ${r.clock.day} at ${r.clock.text}.</p>
+   <div class="card inf-over">${UI.infNewBest ? '<div class="note good">🏆 New best run!</div>' : ''}
+   <table class="sum"><tr><td>⏱ Time survived</td><td>${infDur(r.t)}</td></tr><tr><td>♾ Stage reached</td><td>${r.stage + 1} (${esc(infSettingsLabel(r.stage))} settings)</td></tr><tr><td>Score</td><td>${r.score}</td></tr>
+   <tr><td>✅ Wins</td><td>${r.success}</td></tr><tr><td>❌ Fails</td><td>${r.fail}</td></tr><tr><td>⌛ Missed</td><td>${r.missed}</td></tr><tr><td>⌘ Hacks won / lost</td><td>${r.hacks} / ${r.hackLost}</td></tr>
+   <tr><td>🏙 City losses</td><td>${r.cityHits} of ${losses}</td></tr><tr><td>⭐ Perfect picks</td><td>${r.perfect}</td></tr><tr><td>🩹 Injuries</td><td>${r.injuries}</td></tr>
+   <tr><td>🦸 Top hero</td><td>${top ? `${top.emoji} ${esc(top.codename)} (${r.top.n} wins)` : '—'}</td></tr><tr><td>🎖 Final rank</td><td>${r.rank} · ${esc(CONFIG.rankNames[r.rank - 1])}</td></tr></table>
+   ${b ? `<p class="tag">♾ Best run: ${infDur(b.t)} · Stage ${b.stage + 1} · score ${b.score}</p>` : ''}</div>
+   <button class="btn pri inf-btn" data-a="again">♾ NEW INFINITE SHIFT</button><button class="btn ghost" data-a="title">TITLE</button>`, s => {
+    s.querySelector('[data-a=again]').onclick = () => { UI.S = null; UI.camp = null; showInfCrew(); };
+    s.querySelector('[data-a=title]').onclick = () => { UI.S = null; UI.camp = null; showTitle(); }; }); }
+
+/* ---- How to play ---- */
+function infHelpHTML(sec) { const I = CONFIG.infinite, losses = Math.ceil(I.cityMax / I.cityHit);
+  return sec('♾ Infinite Shift', [
+    `A separate mode: one endless shift with a crew of 10, all at LV1. Calls are always random (🎲 Random Calls rules). The Seed box is not used.`,
+    `<b>Crew:</b> 🧩 Hero Selection (pick 10), 🎲 Random Heroes (a balanced 10; REROLL) or 🏛 Original Crew (Original 8 + Zenith + Drizzle, the only way to get those two).`,
+    `The clock starts at 18:00. Every 12 game hours (06:00 and 18:00; 12 minutes at 1×) a new stage begins with the next shift's settings. After Stage 8, calls keep coming faster.`,
+    `🏙 City ${I.cityMax}. Each failed or missed call and each lost or missed hack costs ${I.cityHit}. No healing: the run ends on loss ${losses}. Your first hack is a free practice.`,
+    `Two hacks per stage. Injuries are not healed at 06:00 / 18:00.`,
+    `🎖 Rank points come only at 06:00 / 18:00 (max rank when Stage 8 starts). 🩹 Med Kit and ⚡ Jump Start unlock at their ranks and refill to 1 at every 06:00 / 18:00. 🎲 Stat points: tap 🎲 next to your rank.`,
+    `LV3 power choice and LV8 base power upgrade (Mk II) are on the level-up card (or the hero card).`,
+    `🗺 Night City from 18:00, Day City from 06:00 (your MAP setting is not used here). 💾 A checkpoint is saved at every 06:00 / 18:00: CONTINUE ♾ starts from there.`]); }
 
 /* ---------- v1.9.0 Looks: visual only. Stored apart from the save (nightdesk.look.v1). ---------- */
 const LOOK_KEY = 'nightdesk.look.v1';
