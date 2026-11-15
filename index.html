@@ -210,7 +210,7 @@ html[data-look="comic"] #hReboot b{color:#b91c1c!important}
   #hPad.open{transform:none}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
 .help li{margin-bottom:4px}
-.help h3{margin:14px 0 4px;font-size:15px;color:var(--cyan)}.help h3:first-child{margin-top:0}.help ul{margin:0;padding-left:18px}.help li{overflow-wrap:anywhere}
+.help h3{margin:14px 0 4px;font-size:15px;color:var(--cyan)}.help h3:first-child{margin-top:0}.help ul{margin:0;padding-left:18px}.help li{overflow-wrap:anywhere}.help .hint{margin:0 0 6px;font-size:13px;opacity:.85}.help .mtag{display:inline-block;font-size:11px;font-weight:700;line-height:1.5;padding:0 6px;border-radius:9px;margin-right:4px;white-space:nowrap;vertical-align:1px}.help .mtag{color:inherit}.help .mtag.st{background:rgba(79,179,255,.2);border:1px solid #4fb3ff}.help .mtag.rn{background:rgba(255,176,58,.2);border:1px solid #ffb03a}
 @media (orientation:landscape) and (max-height:520px){.radarbox canvas{width:150px;height:150px}.slot{min-height:64px}.sh-h{padding:6px 10px}.sh-f .btn{min-height:44px}#radio{max-width:45%;font-size:11px}}
 
 /* ---- leveling v2 ---- */
@@ -987,7 +987,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.33.0';
+<script>window.ND_VERSION='nd-v1.33.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4786,39 +4786,69 @@ function openPause() {
     P.B.querySelector('[data-a=quit]').onclick = () => { if (!confirm("Quit to title and lose this shift's progress? (Stat points you spent from points banked before the shift are kept.)")) return; closeModal(); UI.camp = JSON.parse(UI.snapshot); UI.S = null; showRevertNote(UI.camp); saveCamp(); showTitle(); };
     P.F.querySelector('[data-a=resume]').onclick = () => { closeModal(); UI.userPaused = false; }; }; render(); m.onClose = () => { UI.userPaused = false; }; });
 }
-/* v1.33.0: How to play rewritten: short, plain sections; every number reads CONFIG so the guide can't drift from the rules. */
-function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.toLocaleString('en-US'), rk = t => C.rankRewards.indexOf(t);
+/* v1.33.1: How to play: adds Story vs Random Calls, starting a campaign, between shifts and menus; mode-only lines are tagged 📘 Story / 🎲 Random. Numbers read CONFIG. */
+function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.toLocaleString('en-US'), rk = t => C.rankRewards.indexOf(t), and = a => a.join(', ').replace(/, ([^,]*)$/, ' and $1');
   const stats = STATS.map(s => `<b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b>`).join(', ');
-  const sec = (title, items) => `<h3>${title}</h3><ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  const ST = '<span class="mtag st">📘 Story</span>', RN = '<span class="mtag rn">🎲 Random</span>';
+  const sec = (title, items, intro) => `<h3>${title}</h3>${intro ? `<p class="hint">${intro}</p>` : ''}<ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  const d = C.shifts[0].diff[2] === 0 && C.shifts[1].diff[2] === 0 ? 3 : 1;
   return `<div class="help">` +
   sec('🎯 The goal', [
-    `Run the hero dispatch desk for ${C.campaignShifts} shifts. Send heroes to calls and win as many as you can. Each shift gets a grade from S to D. ⏸ pauses; 1×/2× sets the speed.`]) +
+    `Run the hero dispatch desk for ${C.campaignShifts} night shifts. Send heroes to calls and win as many as you can. Each shift ends with a grade from S to D.`,
+    `<b>Start:</b> tap NEW CAMPAIGN, choose how you get your crew of 8, then tap START STORY CAMPAIGN or START RANDOM CAMPAIGN.`,
+    `<b>Crew:</b> 🧩 Hero Selection (pick any 8 of ${HERO_DEFS.length}), 🎲 Random Heroes (a balanced random 8; REROLL as often as you like) or 🏛 Original 8 (the classic crew). 5 heroes start, 1 joins at Shift 2 and 2 more at Shift 4.`]) +
+  sec('📘 Story vs 🎲 Random Calls', [
+    `${ST} Each night has its own hand-written set of calls, so it plays like a planned episode.`,
+    `${ST} Only in Story: 🎓 training calls, 📖 story calls at HQ, 🗡 sabotage, ↪ follow-up calls, and set calls that always bring a radio choice (from Shift 1).`,
+    `${ST} Finale boss: the Night Mayor.`,
+    `${RN} Calls are drawn at random from a big pool at a steady pace. A call won't come back until 90% of the pool has been used, even across campaigns.`,
+    `${RN} No Hard calls before Shift ${d}. Disruptions start at Shift ${C.disruptionsFromShift}, requests at Shift 5, and Shift 7 is extra busy.`,
+    `${RN} Finale boss: a hero who isn't in your crew goes rogue.`],
+    'You pick the mode when you start, and it stays the same for the whole campaign. Everything else in this guide works in both modes.') +
   sec('📍 Answering a call', [
-    `Tap a pin on the map to open its briefing. <b>Time stops while any panel is open.</b>`,
-    `Put heroes in the slots (1 to 4), then press DISPATCH.`,
+    `Tap a pin on the map to open its briefing. <b>Time stops while any panel is open.</b> ⏸ pauses; 1×/2× sets the speed.`,
+    `Put heroes in the slots (1 to 4), then press DISPATCH. Heroes travel, work, come back and rest before they're ready again.`,
     `Colored words in the call hint at the stats it needs: ${stats}.`,
-    `Team stats add up (max ${C.teamCap} each). The closer the team matches the call, the better the chance. 🔗 Synergy helps; ⚡ conflict hurts.`,
+    `Team stats add up (max ${C.teamCap} each). The closer the team matches the call, the better the chance. 🔗 Synergy helps; ⚡ conflict hurts (from Shift ${C.conflictsFromShift}).`,
     `🎲 The chance is hidden unless you slot a hero with an odds power: Read the Board, Run the Numbers, Glimpse Ahead or Odds-O-Meter.`,
     `⛔ <b>Instant fail</b> means this team can't win. Change it.`,
+    `★ <b>Double XP</b>: some calls name a stat target. Reach it to double the XP.`,
     `⏱ A pin that runs out of time counts as missed.`]) +
+  sec('🗺 Map pins', [
+    `! normal call · ⌘ hack · ⇄ choice · 🙋 request · 🔒 a hero is already locked in · ☠ boss`,
+    `${ST} 🎓 training · 📖 story · 🗡 sabotage · ↪ follow-up`]) +
   sec('★ After a mission', [
     `Tap the REVIEW pin to see the result. Those heroes can't go out again until you do.`,
     `📈 Only wins give XP, and the team shares it: fewer heroes, bigger share. Riskier sends pay a bit more.`,
     `🩹 Failed Normal and Hard calls can injure heroes (−1 to every stat). A second injury knocks them out for the shift.`]) +
+  sec('🌙 Between shifts', [
+    `You see the grade and score. Wins and good grades raise your rank, and some ranks give rewards: the Med Kit (rank ${rk('medkit')}), Jump Start (rank ${rk('jump')}), +${C.hackTimeBonus}s on hacks (rank ${rk('hacktime')}) and 🃏 wildcard points (+1 to a random stat, for a hero you pick).`,
+    `🧰 Med Kit heals an injury and Jump Start revives a knocked-out hero. Use each once per shift from the 🧰 button. Tap the rank bar for your Dispatcher File.`,
+    `🎓 Training Day comes after ${and(T.map(x => `Shift ${x}`))}.`,
+    `💾 The game saves itself. If you quit mid-shift, CONTINUE restarts that shift.`]) +
   sec('🎓 Levels and powers', [
     `XP raises a hero's level: LV 2 at ${n(C.xpFirstPoint)} XP, LV 3 at ${n(C.xpFirstPoint + C.xpPointStep)}, LV 4 at ${n(C.xpFirstPoint + 2 * C.xpPointStep)}, and so on up to LV ${C.levelCap}. Each level gives a skill point: pick a stat for +1, or tap DECIDE LATER and spend it later from the hero card.`,
     `⚡ <b>Base power:</b> every hero has one. It shows ??? until it first works.`,
-    `🎓 <b>LV ${C.trainLevel} power choice:</b> at Training Day (after ${T.map(x => `Shift ${x}`).join(', ').replace(/, ([^,]*)$/, ' and $1')}), pick one of two new powers. It's permanent, and the base power must be revealed first.`,
+    `🎓 <b>LV ${C.trainLevel} power choice:</b> pick one of two new powers at Training Day. ${ST} A 🎓 training call can also teach it on the spot. It's permanent, and the base power must be revealed first.`,
     `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one.`]) +
   sec('⌘ Special calls', [
-    `<b>Hack calls:</b> solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit.`,
-    `<b>✋ Disruptions</b> (from Shift ${C.disruptionsFromShift}): answer the radio fast. Each answer tests one team stat; ⭐ answers are usually best.`,
+    `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit. You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
+    `<b>✋ Disruptions:</b> mid-job, the radio asks you to pick an answer fast. Each answer tests one team stat; ⭐ answers are usually best.`,
     `<b>⇄ Choice calls:</b> pick one option, or one of two linked calls; the other closes. Risky options can injure even on a win.`,
-    `<b>🙋 Requests</b> (from Shift 6): send a hero who asks and their morale goes up; refuse the same hero twice and it drops. 🔗 and ⚡ pairs on 3 reviewed calls together in a shift go up or down too. Morale only changes XP: +1 doubles it, −1 halves it.`]) +
+    `<b>🙋 Requests:</b> a hero asks for a call. Send them and their morale goes up; refuse the same hero twice and it drops next shift. ${ST} From Shift 2. ${RN} From Shift 5.`,
+    `<b>😊 Morale</b> only changes XP: +1 doubles it, −1 halves it. 🔗 and ⚡ pairs on 3 reviewed calls together in a shift also go up or down.`,
+    `${ST} <b>🎓 Training calls</b> (Shifts 3–6) have no timer. Send one hero to learn rooftop shortcuts (faster travel, up to ${C.routeMax} heroes) or a LV ${C.trainLevel} power.`,
+    `${ST} <b>📖 Story calls</b> happen at HQ. One hero goes automatically, and you choose how it ends.`,
+    `${ST} <b>🗡 Sabotage:</b> a teammate gets pulled off mid-job. Pick one of 3 ways out, fast. <b>↪ Follow-ups:</b> failing some calls brings a new call.`,
+    `<b>Shift 5 blackout:</b> four districts go dark. Win the ⌘ hacks to bring them back.`]) +
   sec('🦸 Extra heroes and the finale', [
     `Shift ${C.extraJoinShiftIdx + 1}: Zenith and Drizzle join. 💧 Drizzle adds himself to a call after ${C.drizzle.skipsBeforeVolunteer} missions without him; tap his slot to remove him.`,
-    `Shift ${C.campaignShifts} is the finale, with ☠ boss calls and a City bar. If ${C.solstice.bossFails} boss calls fail, or the campaign reaches ${C.solstice.campaignFails} failed or missed calls, Solstice joins and blocks one injury per hero.`,
-    `🧰 Wins raise your rank (tap the rank bar to see it). Rank ${rk('medkit')} unlocks the Med Kit (heals an injury) and rank ${rk('jump')} unlocks Jump Start (revives a knocked-out hero). Each works once per shift.`]) +
+    `Shift ${C.campaignShifts} is the finale. ☠ Boss calls keep coming back until the boss is beaten. Each win knocks off 1 point. ${ST} The Night Mayor. ${RN} A rogue hero, whose toughness depends on their Endurance.`,
+    `🏙 Failed or missed calls cost City points. If the City hits 0, that shift's grade can't be better than C.`,
+    `☀️ If ${C.solstice.bossFails} boss calls fail, or the campaign reaches ${C.solstice.campaignFails} failed or missed calls, Solstice joins and blocks one injury per hero. 🦅 If your grades have been mostly C and D, the Comptroller joins for Shift ${C.campaignShifts}.`]) +
+  sec('⚙ Menus', [
+    `On the title screen: 🦸 HEROES (every hero's file), 🎨 LOOK (${LOOKS.length} visual styles), 🗺 MAP (map style), 🎵 MUSIC, and an optional seed to replay the same draft.`,
+    `Settings include sound, vibration and ♾ unlimited hacking attempts.`]) +
   sec('⌨ Keys (optional)', [
     `Space pause · 1–9, 0, -, = pick heroes · Enter dispatch · Esc close · S or ←/→ switch linked calls`,
     `Level up: 1–5 pick a stat · Enter confirm · Esc decide later`,
