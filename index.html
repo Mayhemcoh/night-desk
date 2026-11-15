@@ -529,16 +529,14 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .sheet.bfix .bdock .slot:not(.full){justify-content:center;padding-top:4px}
 .sheet.bfix .bdock .slot .e{font-size:24px}
 .sheet.bfix .bdock .slot .voltag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin:1px 0}
-.sheet.bfix .bhint{font-size:11px;line-height:14px;height:14px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet.bfix .bdock .tray{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:2px}
 .sheet.bfix .bdock .chipwrap{flex:0 0 78px;width:78px}
 .sheet.bfix .bdock .chip{height:64px;min-height:0;overflow:hidden}
 .sheet.bfix .bbtns{display:flex;gap:8px}.sheet.bfix .bbtns .btn{flex:1}
-@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot{height:74px}.sheet.bfix .bhint{display:none}.sheet.bfix .bdock .chip{height:58px}.sheet.bfix .bdock .chip .e{font-size:20px}}
+@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot{height:74px}.sheet.bfix .bdock .chip{height:58px}.sheet.bfix .bdock .chip .e{font-size:20px}}
 @media (orientation:landscape) and (max-height:520px){
  .sheet.bfix .sh-f{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:4px 8px;padding:4px 8px}
  .sheet.bfix .bdock{display:grid;grid-template-columns:minmax(150px,38%) minmax(0,1fr);gap:6px;align-items:stretch}
- .sheet.bfix .bhint{display:none}
  .sheet.bfix .bdock .slots{gap:4px}
  .sheet.bfix .bdock .slot{height:58px;padding:14px 2px 2px;font-size:10px}
  .sheet.bfix .bdock .slot:not(.full)>div{font-size:16px!important}
@@ -1017,7 +1015,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.35.0';
+<script>window.ND_VERSION='nd-v1.35.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4475,7 +4473,7 @@ function openBriefing(c) {
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
          <div class="binfo">${callTextHTML(tpl)}${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
-        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Slide to scroll · Tap a hero to add · Hold to drag into a slot · Tap a slot to remove</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
+        `<div class="bdock"><div class="slots">${slots}</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
       { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
