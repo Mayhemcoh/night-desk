@@ -1030,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.37.0';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.38.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3454,6 +3454,17 @@ function infPowerNotices(camp, e, session) {
   return out; }
 function infMarkPowerNotices(camp, e, items, session) { const h = camp && camp.heroes[e.heroId]; if (!h) return;
   for (const it of items) if (it.kind === 'late' || it.kind === 'late-locked' || it.kind === 'new') { h.infPw = h.infPw || {}; h.infPw[it.k] = true; if (session && it.kind !== 'new') session.add(h.id + ':' + it.k); } }
+/* v1.38.0 CAMPAIGN ONLY: the Mk II (LV8 base power upgrade) notice on the level-up card. Unlock rules are unchanged
+   (canUpgradeMk2: LV 8+, LV3 power learned, base power still equipped). 'new' on the LV8 card when it is already
+   available there; otherwise 'late' on the first level-up card after it becomes available. Shown once per hero
+   (h.mk2Shown, saved with the campaign; a save from before it was shown re-detects it). Infinite never calls this. */
+function campMk2Notice(camp, e) {
+  if (!camp || camp.inf || !e) return []; const h = camp.heroes[e.heroId]; if (!h || h.signature || !canUpgradeMk2(h)) return [];
+  const d = heroDef(h.id) || {}, sig = SIGNATURES[d.power]; if (!sig || !POWERS[sig] || POWERS[sig].retry) return [];
+  if (e.level === CONFIG.signatureLevel) return [{ k: 8, kind: 'new' }];
+  if (e.level > CONFIG.signatureLevel && !h.mk2Shown) return [{ k: 8, kind: 'late' }];
+  return []; }
+function campMarkMk2Notice(camp, e, items) { const h = camp && camp.heroes[e.heroId]; if (h && items.length) h.mk2Shown = true; }
 function chooseLevelStat(camp, stat) { const q = pruneLevelQueue(camp); if (!q.length) return false; const e = q[0]; if (!allocate(camp, e.heroId, stat)) return false; q.shift(); return true; }
 function bankLevel(camp) { const q = pruneLevelQueue(camp); if (!q.length) return false; q.shift(); return true; }
 function undoAllocation(camp, id, batch, queue) { const h = camp.heroes[id]; batch.forEach((n, i) => { h.stats[i] -= n; h.unspentPoints += n; }); if (queue) camp.levelQueue = JSON.parse(queue); pruneLevelQueue(camp); return true; }
@@ -5077,7 +5088,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `XP raises a hero's level: LV 2 at ${n(C.xpFirstPoint)} XP, LV 3 at ${n(C.xpFirstPoint + C.xpPointStep)}, LV 4 at ${n(C.xpFirstPoint + 2 * C.xpPointStep)}, and so on up to LV ${C.levelCap}. Each level gives a skill point: pick a stat for +1, or tap DECIDE LATER and spend it later from the hero card.`,
     `⚡ <b>Base power:</b> every hero has one. It shows ??? until it first works.`,
     `🎓 <b>LV ${C.trainLevel} power choice:</b> pick one of two new powers at Training Day. ${ST} A 🎓 training call can also teach it on the spot. It's permanent, and the base power must be revealed first.`,
-    `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one.`]) +
+    `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one. It shows at the top of the level-up card the first time it's available (the LV ${C.signatureLevel} card, or the next level-up after training if that comes later), and stays on the hero card.`]) +
   sec('⌘ Special calls', [
     `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit. You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
     `<b>✋ Disruptions:</b> mid-job, the radio asks you to pick an answer fast. Each answer tests one team stat; ⭐ answers are usually best.`,
@@ -5150,7 +5161,8 @@ function openLevelUpChoice(onDone) {
       const N = idx + q.length, more = h.unspentPoints - 1;
       const d0 = heroDef(h.id) || {}, sig0 = SIGNATURES[d0.power], mk2Ready = !!(f.mk2 && sig0 && POWERS[sig0] && POWERS[d0.power]);
       const infItems = camp.inf && typeof infPowerNotices === 'function' ? infPowerNotices(camp, e, pwSession) : null; if (infItems) infMarkPowerNotices(camp, e, infItems, pwSession); // v1.37.0 Infinite only
-      const mk2Html = infItems && (infItems.length || !(h.signature && e.level === CONFIG.signatureLevel)) ? infPowerTopHTML(camp, h, infItems) : !mk2Ready ? (h.signature && e.level === CONFIG.signatureLevel ? `<div class="note good">✦ Mk II already unlocked: ${esc(POWERS[SIGNATURES[d0.power]].name)}.</div>` : '') : `<details class="mk2-offer" open><summary>✦ Mk II upgrade available (optional)</summary><div class="mk2-body"><p class="txt" style="margin:6px 0">At LV ${CONFIG.signatureLevel}, ${esc(h.codename)} can replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>. Optional and permanent. The stat pick below is a separate choice — upgrade now, pick a stat, both, or skip and upgrade later from the hero card.</p><div class="pw" style="border-left-color:${h.color}"><b>${esc(POWERS[sig0].name)}</b> <span class="pill">MK II</span><small>${esc(POWERS[sig0].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div></details>`;
+      if (!camp.inf && !m.mk2Seen) m.mk2Seen = {}; const campMk2 = !camp.inf && typeof campMk2Notice === 'function' ? (m.mk2Seen[idx] || (m.mk2Seen[idx] = campMk2Notice(camp, e))) : null; if (campMk2 && campMk2.length) campMarkMk2Notice(camp, e, campMk2); // v1.38.0 campaign Mk II: top, first time available
+      const mk2Html = campMk2 && campMk2.length && canUpgradeMk2(h) ? infPowerTopHTML(camp, h, campMk2) : infItems && (infItems.length || !(h.signature && e.level === CONFIG.signatureLevel)) ? infPowerTopHTML(camp, h, infItems) : !mk2Ready ? (h.signature && e.level === CONFIG.signatureLevel ? `<div class="note good">✦ Mk II already unlocked: ${esc(POWERS[SIGNATURES[d0.power]].name)}.</div>` : '') : `<details class="mk2-offer" open><summary>✦ Mk II upgrade available (optional)</summary><div class="mk2-body"><p class="txt" style="margin:6px 0">At LV ${CONFIG.signatureLevel}, ${esc(h.codename)} can replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>. Optional and permanent. The stat pick below is a separate choice — upgrade now, pick a stat, both, or skip and upgrade later from the hero card.</p><div class="pw" style="border-left-color:${h.color}"><b>${esc(POWERS[sig0].name)}</b> <span class="pill">MK II</span><small>${esc(POWERS[sig0].desc)}</small></div><div class="mk2-actions"><button class="btn pri small" data-a="mk2go">⬆ UPGRADE TO MK II</button><button class="btn ghost small" data-a="mk2later">NOT NOW</button></div><div class="mk2-confirm hidden" hidden><p class="txt">Replace <b>${esc(POWERS[d0.power].name)}</b> with <b>${esc(POWERS[sig0].name)}</b>? This cannot be undone.</p><button class="btn pri small" data-a="mk2yes">CONFIRM UPGRADE</button><button class="btn ghost small" data-a="mk2no">BACK</button></div></div></details>`;
       const tiles = STATS.map((s, i) => { const v = h.stats[i], mx = v >= CONFIG.statMax; return `<button class="lvtile ${sel === i ? 'sel' : ''} ${mx ? 'max' : ''}" data-s="${i}" ${mx ? 'disabled' : ''} style="--c:${STAT_COLORS[s]}"><span class="k">${i + 1}</span><b style="color:${STAT_COLORS[s]}">${STAT_NAMES[s]}</b><small>${STAT_DESC[s]}</small><span class="vv">${mx ? 'MAX' : `${v} → <em>${v + 1}</em>`}</span></button>`; }).join('');
       const P = sheetParts(m, `<span style="font-size:28px">${h.emoji}</span><h2>${esc(h.codename)}</h2><span class="pill lvbadge" style="background:${h.color}">LEVEL UP! LV ${e.level}</span>${N > 1 ? `<span class="pill lvcount">${idx + 1} of ${N}</span>` : ''}`,
         `${mk2Html}<div class="lvgrid"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow"><span style="color:#ff9f1c">⬢ now</span><span style="color:#3ef0ff">⬡ with +1</span></div></div><div><p class="txt" style="margin:0 0 6px">Pick a stat for the new skill point. Confirming is final.</p><div class="lvtiles">${tiles}</div>
