@@ -669,6 +669,11 @@ html.reduce-fx .sheet.bfix .bdock .slots.full-shake{animation:none}
 .reduce-fx .inf-wild{animation:none}
 .inf-train .tropt.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
 
+/* v1.36.0 instant-fail notices: red, full width, top of briefing */
+.note.if-notice{background:#3a0d14;border:2px solid var(--red);border-left-width:5px;color:#ffe3e6;font-size:13px;margin:0 0 6px}
+.note.instafail-note.if-notice{background:#5a0f1a}
+.chip.afrisk{box-shadow:inset 0 0 0 2px var(--red)}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -977,6 +982,10 @@ html[data-look="crt"] #app::after{will-change:transform;transform:translateZ(0)}
 
 /* v1.29.0 hint list follows each Look's body-text colour */
 html[data-look="comic"] .hints li{color:#111!important}
+
+/* v1.36.0: instant-fail notices stay red in every Look */
+html[data-look] .note.if-notice{background:#ffd6d9!important;border:2px solid #d0102a!important;border-left-width:6px!important;color:#5a0010!important}
+html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;color:#fff!important}
 </style></head><body>
 <div id="app">
   <div id="game" class="hidden">
@@ -1016,7 +1025,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.35.2';
+<script>window.ND_VERSION='nd-v1.36.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4445,8 +4454,7 @@ function openBriefing(c) {
       if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. ${showOdds ? `The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).` : 'Only the team that actually goes counts.'}</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
       if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
-      if (info.forced && !showOdds) notes += `<div class="note warn instafail-note" role="alert">⛔ <b>Instant fail:</b> ${esc(String(info.forced).replace(/[.!\s]+$/, ''))}. This team will fail if you dispatch it.</div>`; // v1.32.0: auto-fail criteria met (no % shown)
-      if (tpl.overCapFail) notes += `<div class="note warn">⚠ Auto-fail if ${esc(STAT_NAMES[STATS[tpl.overCapFail.stat]])} goes over ${tpl.overCapFail.value}</div>`;
+      const ifr = instantFailNotes(camp, c, info); m.ifStrong = !!ifr.strong; // v1.36.0: instant-fail risk + live instant-fail warning, always shown (never a %), placed at the top of the briefing
       if (tpl.bonusThreshold) notes += `<div class="note good">★ Double XP if ${esc(STAT_NAMES[STATS[tpl.bonusThreshold.stat]])} reaches ${tpl.bonusThreshold.value}</div>`;
       if (tpl.disruption && !tpl.disruption.always && S.idx + 1 >= CONFIG.disruptionsFromShift) notes += `<div class="note">📻 Things may get disrupted mid-mission. Keep the radio close.</div>`;
       let links = '';
@@ -4463,7 +4471,7 @@ function openBriefing(c) {
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
-        return `<span class="chipwrap"><button class="chip ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
+        return `<span class="chipwrap"><button class="chip ${afList(tpl).some(x => x.heroId === id) ? 'afrisk' : ''} ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
       const chanceBox = !any ? '' : !showOdds && !(tpl.disruption && tpl.disruption.always && !info.forced) ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
@@ -4472,10 +4480,10 @@ function openBriefing(c) {
       const workEst = workTimeFor(camp, c, c.assigned.filter(Boolean));
       if (c.difficulty === 'hard') notes += `<div class="note">Hard: takes longer</div>`;
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
-        `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
+        `${ifr.html}<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
          <div class="binfo">${callTextHTML(tpl)}${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
         `<div class="bdock"><div class="slots">${slots}</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
-      { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
+      { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; const ifn = P.B.querySelector('.if-notice'); if (ifn && ifn.offsetTop - sc.scrollTop < 0) sc.scrollTop = Math.max(0, ifn.offsetTop - 4); } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
@@ -4517,6 +4525,28 @@ function openBriefing(c) {
     m.onClose = () => { clearSlotTints(); if (UI.slotTintCtx && UI.slotTintCtx.modal === m) UI.slotTintCtx = null; };
     UI.slotTintCtx = { modal: m, mapFor: (hid) => slotTintMapForHero(camp.heroes[hid], (c.assigned || []).length) };
   });
+}
+/* v1.36.0 INSTANT-FAIL NOTICES (all modes, odds power or not, never a %). Before the trigger is on the team: a short red
+   "Instant-fail risk" line naming it (hero-specific auto-fail for heroes in this roster, or a stat limit). Once the team
+   actually triggers it: the strong "Instant fail" warning. Rendered at the very top of the briefing body so it is on screen. */
+function ifNames(camp, ids) { const n = ids.map(id => esc(camp.heroes[id] ? camp.heroes[id].codename : id)); return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + ' or ' + n[n.length - 1]; }
+function instantFailNotes(camp, c, info) {
+  const tpl = c.tpl, team = (info && info.ids) || c.assigned.filter(Boolean), out = { pre: [], strong: '', html: '' };
+  const afIds = afList(tpl).map(x => x.heroId).filter(id => camp.roster.includes(id) || c.assigned.includes(id));
+  const oc = tpl.overCapFail, ocName = oc ? STAT_NAMES[STATS[oc.stat]] : '';
+  if (info && info.forced) {
+    const af = afList(tpl).find(x => team.includes(x.heroId));
+    const tv = oc && info.team ? info.team[oc.stat] : null;
+    if (af) { const nm = ifNames(camp, [af.heroId]); out.strong = `⛔ <b>Instant fail:</b> ${nm} on the team means this call cannot succeed. Take ${nm} off before you dispatch.`; }
+    else if (oc && tv != null && tv > oc.value) out.strong = `⛔ <b>Instant fail:</b> the team's ${ocName} is ${Math.round(tv * 10) / 10}, over the limit of ${oc.value}. This team will fail if you dispatch it.`;
+    else out.strong = `⛔ <b>Instant fail:</b> ${esc(String(info.forced).replace(/[.!\s]+$/, ''))}. This team will fail if you dispatch it.`;
+  } else {
+    if (afIds.length) out.pre.push(`⛔ <b>Instant fail if</b> ${ifNames(camp, afIds)} is sent.`);
+    if (oc) out.pre.push(`⛔ <b>Instant fail if</b> the team's ${ocName} goes over ${oc.value}.`);
+  }
+  if (out.strong) out.html = `<div class="note warn instafail-note if-notice" role="alert">${out.strong}</div>`;
+  else if (out.pre.length) out.html = `<div class="note warn if-risk if-notice" aria-label="Instant-fail risk">${out.pre.join('<br>')}</div>`;
+  return out;
 }
 function attachDrag(btn, onDrop) {
   let sx, sy, ghost = null, id = null;
@@ -5002,7 +5032,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `Colored words in the call hint at the stats it needs: ${stats}.`,
     `Team stats add up (max ${C.teamCap} each). The closer the team matches the call, the better the chance. 🔗 Synergy helps; ⚡ conflict hurts (from Shift ${C.conflictsFromShift}).`,
     `🎲 The chance is hidden unless you slot a hero with an odds power: Read the Board, Run the Numbers, Glimpse Ahead or Odds-O-Meter.`,
-    `⛔ <b>Instant fail</b> means this team can't win. Change it.`,
+    `⛔ A red <b>Instant fail if…</b> line at the top of a briefing names what makes that call fail on the spot (a hero who must not go, or a stat that must not go over a limit). If it turns into <b>Instant fail:</b>, this team can't win. Change it.`,
     `★ <b>Double XP</b>: some calls name a stat target. Reach it to double the XP.`,
     `⏱ A pin that runs out of time counts as missed.`]) +
   sec('🗺 Map pins', [
