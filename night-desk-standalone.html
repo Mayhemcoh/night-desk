@@ -553,6 +553,7 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 .sheet.bfix .bdock .tray .chip,.sheet.bfix .bdock .tray .chipwrap{touch-action:pan-x}
 .sheet.bfix .bdock .chip.hs-lift,.sheet.bfix .bdock .slot.hs-lift{transform:scale(1.08) translateY(-6px);box-shadow:0 8px 18px #0008;z-index:6;transition:transform .12s,box-shadow .12s;position:relative}
 .sheet.bfix .bdock .tray.hs-drag{touch-action:none;overflow-x:hidden}
+.sheet.bfix .bdock .tray .hinfo::before{inset:-2px} /* v1.35.2: keep the roster 'i' hit area off the card body and the gaps so a tap assigns */
 .sheet.bfix .bdock .slots.full-shake{animation:slotshake .35s}
 @keyframes slotshake{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 html.reduce-fx .sheet.bfix .bdock .chip.hs-lift,html.reduce-fx .sheet.bfix .bdock .slot.hs-lift{transition:none;transform:scale(1.04)}
@@ -1015,7 +1016,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.35.1';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.35.2';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -5625,7 +5626,7 @@ function initInput() {
   });
   document.addEventListener('keyup', e => { if (UI.hack && e.key === ' ') UI.hack.game.holding = false; if (UI.hack && (e.key === 'm' || e.key === 'M')) UI.hack.zoom = false; });
   // mobile hardening: no pinch zoom, no double-tap zoom, no context menu, no rubber-band
-  document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); const sc = e.target.closest && e.target.closest('#queue,#roster,.sh-b,#screen'); if (!sc) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); if (trayG && trayG.mode === 'drag') { if (e.cancelable) e.preventDefault(); return; } const sc = e.target.closest && e.target.closest('#queue,#roster,.sh-b,#screen,.bscroll,.bdock .tray'); if (!sc) e.preventDefault(); }, { passive: false }); // v1.35.2: the briefing roster tray lives in the footer (.sh-f), not .sh-b, so it must be allowed to pan natively; a hero hold-drag still blocks scrolling
   document.addEventListener('gesturestart', e => e.preventDefault());
   document.addEventListener('dblclick', e => e.preventDefault());
   document.addEventListener('contextmenu', e => e.preventDefault());
