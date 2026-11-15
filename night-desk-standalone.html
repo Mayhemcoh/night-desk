@@ -550,11 +550,15 @@ ul.cred{margin:4px 0 8px 18px;padding:0}ul.cred li{margin:6px 0;line-height:1.35
 @media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.full{padding-top:14px}.sheet.bfix .bdock .slot .e{font-size:18px}}
 @media (orientation:landscape) and (max-height:520px){.sheet.bfix .bdock .slot.full .e{display:none}.sheet.bfix .bdock .slot.full{padding-top:20px;justify-content:flex-start}}
 
-/* v1.18.2 briefing tray hold-to-scroll */
-.sheet.bfix .bdock .tray{touch-action:none}
-.sheet.bfix .bdock .tray.hs-armed{outline:2px dashed var(--accent,#7fd3ff);outline-offset:-2px}
-.sheet.bfix .bdock .tray.hs-armed .chip{transform:scale(.94);transition:transform .12s}
-.hs-cue{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-100%);background:var(--accent,#7fd3ff);color:#000;font:700 12px system-ui,sans-serif;padding:3px 9px;border-radius:10px;white-space:nowrap}
+/* v1.35.0 briefing roster: native swipe/wheel scroll; hold-to-drag lift */
+.sheet.bfix .bdock .tray{touch-action:pan-x}
+.sheet.bfix .bdock .tray .chip,.sheet.bfix .bdock .tray .chipwrap{touch-action:pan-x}
+.sheet.bfix .bdock .chip.hs-lift,.sheet.bfix .bdock .slot.hs-lift{transform:scale(1.08) translateY(-6px);box-shadow:0 8px 18px #0008;z-index:6;transition:transform .12s,box-shadow .12s;position:relative}
+.sheet.bfix .bdock .tray.hs-drag{touch-action:none;overflow-x:hidden}
+.sheet.bfix .bdock .slots.full-shake{animation:slotshake .35s}
+@keyframes slotshake{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+html.reduce-fx .sheet.bfix .bdock .chip.hs-lift,html.reduce-fx .sheet.bfix .bdock .slot.hs-lift{transition:none;transform:scale(1.04)}
+html.reduce-fx .sheet.bfix .bdock .slots.full-shake{animation:none}
 
 /* v1.19.0 hero hacking-power chips */
 .hpowers .hpwr{flex:none;min-height:36px;padding:4px 8px;font-size:12px;font-weight:700;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--txt);touch-action:manipulation;white-space:nowrap}
@@ -1013,7 +1017,7 @@ html[data-look="comic"] .hints li{color:#111!important}
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.34.2';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.35.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -4471,15 +4475,15 @@ function openBriefing(c) {
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${tpl.training && tpl.training.noExpiry ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
          <div class="binfo">${callTextHTML(tpl)}${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
-        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Hold the row, then slide, to scroll · Tap or drag a hero to add · Tap a slot to remove</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
+        `<div class="bdock"><div class="slots">${slots}</div><div class="bhint">Slide to scroll · Tap a hero to add · Hold to drag into a slot · Tap a slot to remove</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
       { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; } // v1.15.1: locked dock layout
       drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => { const hh = camp.heroes[info.healer]; if (hh) { hh.lifeTradeChoice = +b.dataset.lt; Sfx.click(); render(); } });
-      m.sheet.querySelectorAll('.slot').forEach(s => s.onclick = () => { const i = +s.dataset.slot; if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); });
-      m.sheet.querySelectorAll('.chip').forEach(b => { const f = slotIdx => assign(b.dataset.hero, slotIdx); if (b.closest('.bdock .tray')) b.__onDrop = f; else attachDrag(b, f); }); // v1.18.2: briefing tray chips use the hold-to-scroll arbiter below
+      m.sheet.querySelectorAll('.slot').forEach(s => { const i = +s.dataset.slot; s.__onDrop = toIdx => assign(c.assigned[i], toIdx, i); s.onclick = () => { if (c.assigned[i]) { if (c.assigned[i] !== c.autoHero) { removeVolunteer(c, c.assigned[i]); c.assigned[i] = null; } sel = i; } else sel = sel === i ? null : i; Sfx.click(); render(); }; });
+      m.sheet.querySelectorAll('.chip').forEach(b => { const f = (slotIdx, fromSlot) => assign(b.dataset.hero, slotIdx, fromSlot); if (b.closest('.bdock .tray')) b.__onDrop = f; else attachDrag(b, f); }); // v1.35.0: tray chips use the scroll/tap/hold-drag arbiter below
       m.sheet.querySelectorAll('[data-info]').forEach(b => { b.addEventListener('pointerdown', e => e.stopPropagation()); b.onclick = e => { e.stopPropagation(); e.preventDefault(); openHeroCard(b.dataset.info, c, () => { if (UI.modals[0] === m) render(); }); }; }); // v1.9.4
       P.H.querySelectorAll('[data-a=pairswitch]:not([disabled])').forEach(b => b.onclick = () => m.switchPair());
       P.H.querySelectorAll('.pair-ab [data-ab]:not([disabled])').forEach(b => b.onclick = () => { if (b.dataset.ab !== pairLetter(c)) m.switchPair(); });
@@ -4488,7 +4492,27 @@ function openBriefing(c) {
       P.F.querySelector('[data-a=go]').onclick = () => doDispatch();
       m.keyHero = i => { const id = camp.roster[i]; if (id) assign(id, null); }; m.enter = () => doDispatch();
     };
-    const assign = (id, slotIdx) => { if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; } if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return; ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined; let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null)); if (i < 0 || i >= c.assigned.length) return; if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; } if (c.assigned[i] === c.autoHero && c.autoHero) return; const tintMap = tapAssign ? slotTintMapForHero(camp.heroes[id], c.assigned.length) : null; c.assigned[i] = id; sel = null; Sfx.click(); render(); if (tintMap) flashSlotTints(tintMap); };
+    const cueFull = () => { toast('All slots are full.', 1800); const el = m.sheet.querySelector('.bdock .slots'); if (el) { el.classList.remove('full-shake'); void el.offsetWidth; el.classList.add('full-shake'); } };
+    const assign = (id, slotIdx, fromSlot) => {
+      if (fromSlot != null && c.assigned[fromSlot] === id) {
+        if (id === c.autoHero) return;
+        if (slotIdx === null || slotIdx === undefined) { removeVolunteer(c, id); c.assigned[fromSlot] = null; sel = null; Sfx.click(); render(); return; }
+        if (slotIdx === fromSlot) return;
+        if (!canFillSlot(camp, c, id, slotIdx)) { toast('That slot is exclusive (Squeeze In).'); return; }
+        const other = c.assigned[slotIdx]; if (other === c.autoHero && c.autoHero) return;
+        if (other && !canFillSlot(camp, c, other, fromSlot)) { toast('That slot is exclusive (Squeeze In).'); return; }
+        c.assigned[slotIdx] = id; c.assigned[fromSlot] = other || null; sel = null; Sfx.click(); render(); return;
+      }
+      if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; }
+      if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return;
+      ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined;
+      let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null));
+      if (i < 0 || i >= c.assigned.length) { if (tapAssign) cueFull(); return; }
+      if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; }
+      if (c.assigned[i] === c.autoHero && c.autoHero) return;
+      const tintMap = tapAssign ? slotTintMapForHero(camp.heroes[id], c.assigned.length) : null;
+      c.assigned[i] = id; sel = null; Sfx.click(); render(); if (tintMap) flashSlotTints(tintMap);
+    };
     const doDispatch = () => { if (c.tpl.type === 'competing' && (c.option === null || c.option === undefined)) { toast('Pick one of the two options first.'); return; } if (!c.assigned.some(Boolean) || c.stage !== 'pending') return; if (dispatch(camp, S, c)) { Sfx.whoosh(); closeModal(); const id = c.team[0]; radio(id, ['On it, boss.', 'Rolling out.', 'Leaving now. Do not touch my snacks.', 'Copy. En route.'][c.uid % 4]); tutorial('disp', 'Heroes travel ➜ work ⚙ ➜ return ↩. When the pin turns into ★ REVIEW, tap it to see how it went.'); } };
     render(); m.render = render;
     m.onClose = () => { clearSlotTints(); if (UI.slotTintCtx && UI.slotTintCtx.modal === m) UI.slotTintCtx = null; };
@@ -4504,41 +4528,83 @@ function attachDrag(btn, onDrop) {
   btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
 }
 
-/* v1.18.2 BRIEFING TRAY GESTURES (Craig t110/t111): touch and move at once = drag the hero (any direction); release quickly without moving = tap-assign;
-   hold still ~300 ms (10 px wobble allowed) = scroll mode (cue: dashed outline, chips shrink, "slide to scroll" label, short vibration if supported),
-   then the row follows the finger until release. A held release assigns nothing. Disabled chips can be held to scroll. Native panning can't be
-   switched on mid-gesture, so the tray is touch-action:none and the game moves scrollLeft itself (no momentum). Scoped to the fixed briefing tray only. */
-const TRAY_HOLD_MS = 300, TRAY_JITTER = 10;
-let trayG = null, traySuppressUntil = 0;
+/* v1.35.0 BRIEFING ROSTER GESTURES: the tray scrolls natively (swipe / mouse-wheel). A short tap on a hero
+   assigns them to the first open slot (or the selected empty slot). Hold still ~350 ms (10 px wobble allowed)
+   to pick a hero up — lift/scale + a short vibration if supported — then drag into a chosen slot, or onto an
+   occupied slot to replace/swap. Moving before the hold fires cancels the hold and is a scroll (never a drag).
+   Hold a filled slot to drag to another slot (swap) or back to the tray (unassign). A short tap on a filled
+   slot still removes that hero. Disabled / busy / downed chips do not assign. Scoped to the fixed briefing dock. */
+const TRAY_HOLD_MS = 350, TRAY_JITTER = 10;
+let trayG = null, traySuppressUntil = 0, slotSuppressUntil = 0;
+function trayLift(g, on) {
+  if (g.chip) g.chip.classList.toggle('hs-lift', !!on);
+  if (g.tr) { g.tr.classList.toggle('hs-drag', !!on); if (!on) { g.tr.style.overflowX = ''; } else { g.slLock = g.tr.scrollLeft; g.tr.style.overflowX = 'hidden'; } }
+}
+function trayStartDrag(g, x, y) {
+  if (g.mode === 'drag') return; g.mode = 'drag';
+  const emoji = (g.chip.querySelector('.e') || g.chip).textContent.trim().slice(0, 4);
+  g.ghost = h('div', 'ghostdrag', emoji); g.ghost.style.left = x + 'px'; g.ghost.style.top = y + 'px'; document.body.appendChild(g.ghost);
+  trayLift(g, true);
+  try { if (navigator.vibrate) navigator.vibrate(15); } catch (_) {}
+  try { (g.cap || g.tr).setPointerCapture(g.id); } catch (_) {}
+}
 function trayGestureEnd(e, cancel) {
   const g = trayG; if (!g || (e && e.pointerId !== g.id)) return; trayG = null; clearTimeout(g.timer);
-  g.tr.classList.remove('hs-armed'); if (g.cue) g.cue.remove(); document.querySelectorAll('.slot.drop').forEach(s => s.classList.remove('drop'));
-  // v1.23.0: clear drag tints; tap-assign flashes inside assign()
-  if (g.mode !== 'pending') clearSlotTints();
-  else if (cancel) clearSlotTints();
-  if (g.mode === 'drag') { g.ghost.remove(); if (!cancel && e && e.type === 'pointerup' && g.chip.isConnected) { const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) g.chip.__onDrop(+s.dataset.slot); } clearSlotTints(); }
-  else if (g.mode === 'pending' && !cancel && e && e.type === 'pointerup' && g.ok && g.chip.isConnected) g.chip.__onDrop(null);
-  else clearSlotTints();
-  traySuppressUntil = performance.now() + 400; }
+  trayLift(g, false); if (g.ghost) g.ghost.remove(); document.querySelectorAll('.slot.drop').forEach(s => s.classList.remove('drop'));
+  const over = (!cancel && e && e.type === 'pointerup') ? document.elementFromPoint(e.clientX, e.clientY) : null;
+  const dropSlot = over && over.closest && over.closest('.sheet.bfix .bdock .slot');
+  const overTray = over && over.closest && over.closest('.sheet.bfix .bdock .tray');
+  if (g.mode === 'drag' && g.ok && g.chip && g.chip.isConnected) {
+    if (dropSlot) g.chip.__onDrop(+dropSlot.dataset.slot, g.fromSlot);
+    else if (g.fromSlot != null && overTray) g.chip.__onDrop(null, g.fromSlot);
+  } else if (g.mode === 'pending' && !cancel && e && e.type === 'pointerup' && g.ok && g.fromSlot == null && g.chip && g.chip.isConnected) {
+    g.chip.__onDrop(null);
+  }
+  clearSlotTints();
+  // Leftover click: suppress on tray chips after a tray gesture; suppress on slots only after a slot hold-drag
+  // (a short slot tap must still remove the hero).
+  if (g.fromSlot == null) traySuppressUntil = performance.now() + 400;
+  else if (g.mode !== 'pending') slotSuppressUntil = performance.now() + 400;
+}
 document.addEventListener('pointerdown', e => {
-  const tr = e.target.closest && e.target.closest('.sheet.bfix .bdock .tray'); if (!tr || e.target.closest('.hinfo') || e.button > 0) return;
+  if (e.button > 0 || (e.target.closest && e.target.closest('.hinfo'))) return;
+  const dock = e.target.closest && e.target.closest('.sheet.bfix .bdock'); if (!dock) return;
+  const tr = dock.querySelector('.tray');
+  const slot = e.target.closest('.slot');
+  const onTray = !!(e.target.closest('.tray') && tr);
+  const onSlot = !!(slot && dock.contains(slot) && slot.classList.contains('full'));
+  if (!onTray && !onSlot) return;
   if (trayG) trayGestureEnd(null, true);
-  const chip = e.target.closest('.chip'); const g = trayG = { tr, chip, ok: !!(chip && !chip.disabled && chip.__onDrop), id: e.pointerId, x0: e.clientX, y0: e.clientY, sl0: tr.scrollLeft, mode: 'pending', ghost: null, cue: null };
-  try { tr.setPointerCapture(e.pointerId); } catch (_) {}
-  if (g.ok && chip && chip.dataset.hero && UI.slotTintCtx) applySlotTints(UI.slotTintCtx.mapFor(chip.dataset.hero));
-  g.timer = setTimeout(() => { if (trayG !== g || g.mode !== 'pending') return; g.mode = 'scroll'; clearSlotTints(); tr.classList.add('hs-armed');
-    const c = h('div', 'hs-cue', '⇆ slide to scroll'); const r = tr.getBoundingClientRect(); c.style.left = (r.left + r.width / 2) + 'px'; c.style.top = (r.top - 6) + 'px'; document.body.appendChild(c); g.cue = c;
-    try { if (navigator.vibrate) navigator.vibrate(15); } catch (_) {} }, TRAY_HOLD_MS);
-  e.preventDefault(); }, true);
+  const chip = onSlot ? slot : e.target.closest('.chip');
+  const fromSlot = onSlot ? +slot.dataset.slot : null;
+  const locked = onSlot && slot.classList.contains('lock');
+  const ok = onSlot ? !!(chip && !locked && chip.__onDrop) : !!(chip && !chip.disabled && chip.__onDrop);
+  const cap = onSlot ? slot : tr;
+  const g = trayG = { tr, cap, chip, ok, fromSlot, id: e.pointerId, x0: e.clientX, y0: e.clientY, sl0: tr ? tr.scrollLeft : 0, mode: 'pending', ghost: null };
+  if (g.ok && !onSlot && chip && chip.dataset.hero && UI.slotTintCtx) applySlotTints(UI.slotTintCtx.mapFor(chip.dataset.hero));
+  g.timer = setTimeout(() => { if (trayG !== g || g.mode !== 'pending') return; if (g.ok) trayStartDrag(g, g.x0, g.y0); else g.mode = 'dead'; }, TRAY_HOLD_MS);
+  // Do not preventDefault on the tray: native swipe / wheel scrolling must work. Slots aren't a scroll surface.
+}, true);
 document.addEventListener('pointermove', e => {
-  const g = trayG; if (!g || e.pointerId !== g.id) return; if (!g.tr.isConnected) { trayGestureEnd(null, true); return; }
+  const g = trayG; if (!g || e.pointerId !== g.id) return; if ((g.tr && !g.tr.isConnected) || (g.chip && !g.chip.isConnected)) { trayGestureEnd(null, true); return; }
   const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
-  if (g.mode === 'pending' && Math.hypot(dx, dy) > TRAY_JITTER) { clearTimeout(g.timer); if (g.ok) { g.mode = 'drag'; g.ghost = h('div', 'ghostdrag', g.chip.querySelector('.e').textContent); document.body.appendChild(g.ghost); } else g.mode = 'dead'; }
-  if (g.mode === 'drag') { g.ghost.style.left = e.clientX + 'px'; g.ghost.style.top = e.clientY + 'px'; document.querySelectorAll('.slot').forEach(s => s.classList.remove('drop')); const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.slot'); if (s) s.classList.add('drop'); }
-  else if (g.mode === 'scroll') g.tr.scrollLeft = g.sl0 - dx; }, true);
+  if (g.mode === 'pending' && Math.hypot(dx, dy) > TRAY_JITTER) { clearTimeout(g.timer); g.mode = 'scroll'; clearSlotTints(); }
+  if (g.mode === 'drag') {
+    if (e.cancelable) e.preventDefault();
+    if (g.tr) g.tr.scrollLeft = g.slLock != null ? g.slLock : g.sl0;
+    g.ghost.style.left = e.clientX + 'px'; g.ghost.style.top = e.clientY + 'px';
+    document.querySelectorAll('.sheet.bfix .slot').forEach(s => s.classList.remove('drop'));
+    const el = document.elementFromPoint(e.clientX, e.clientY); const s = el && el.closest('.sheet.bfix .slot'); if (s) s.classList.add('drop');
+  }
+}, { capture: true, passive: false });
 document.addEventListener('pointerup', e => trayGestureEnd(e, false), true);
 document.addEventListener('pointercancel', e => trayGestureEnd(e, true), true);
-document.addEventListener('click', e => { if (performance.now() < traySuppressUntil && e.target.closest && e.target.closest('.bdock .tray .chip')) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+document.addEventListener('click', e => {
+  if (!e.target.closest) return;
+  const now = performance.now();
+  if (now < traySuppressUntil && e.target.closest('.bdock .tray .chip')) { e.stopImmediatePropagation(); e.preventDefault(); }
+  else if (now < slotSuppressUntil && e.target.closest('.bdock .slot')) { e.stopImmediatePropagation(); e.preventDefault(); }
+}, true);
 
 /* ---------- disruption ---------- */
 function disruptionStatList(tpl, team) { const D = disruptionDef(tpl.disruption); const st = [...new Set(((D && D.rounds && D.rounds[0]) || []).map(o => o.stat))]; // v1.8.1 briefing hint
@@ -4933,6 +4999,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
   sec('📍 Answering a call', [
     `Tap a pin on the map to open its briefing. <b>Time stops while any panel is open.</b> ⏸ pauses; 1×/2× sets the speed.`,
     `Put heroes in the slots (1 to 4), then press DISPATCH. Heroes travel, work, come back and rest before they're ready again.`,
+    `Slide the hero row to scroll. Tap a hero to fill the first open slot, or hold and drag them into a chosen slot. Tap a filled slot to remove that hero.`,
     `Colored words in the call hint at the stats it needs: ${stats}.`,
     `Team stats add up (max ${C.teamCap} each). The closer the team matches the call, the better the chance. 🔗 Synergy helps; ⚡ conflict hurts (from Shift ${C.conflictsFromShift}).`,
     `🎲 The chance is hidden unless you slot a hero with an odds power: Read the Board, Run the Numbers, Glimpse Ahead or Odds-O-Meter.`,
