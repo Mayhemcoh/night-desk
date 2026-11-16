@@ -1030,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.39.1';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.39.2';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2684,7 +2684,7 @@ function spawnCall(camp, S, tpl, extra) {
   if (tpl.type === 'request') c.requestHero = heroLockable(camp, S, tpl.requestHero) ? tpl.requestHero : null; // v1.39.1: the pool only offers it when the hero is free (legacyUnits); never ask for a busy hero
   else if (tpl.mission) setupMission(camp, S, c, extra);
   else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); const pick = cand[Math.floor(rng() * cand.length)]; c.requestHero = heroLockable(camp, S, pick) ? pick : null; } // v1.39.1: same rng draw as before; a busy / downed hero does not ask
-  if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && camp.heroes[tpl.autoHero].state === 'available' && rng() < 0.5 && heroLockable(camp, S, tpl.autoHero)) /* v1.39.1: not reserved by / slotted on another open call */ { c.autoHero = tpl.autoHero; c.assigned[0] = tpl.autoHero; }
+  if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && rng() < 0.5) c.lockable = tpl.autoHero; /* v1.39.2: the 50% roll stays at spawn as a hidden flag; the hero is only picked (if free) the first time the briefing is opened: decideLock() */
   c.willDisrupt = tpl.mission ? !!(tpl.disruption && tpl.disruption.always) : !!(tpl.disruption && S.idx + 1 >= CONFIG.disruptionsFromShift && rng() < CONFIG.disruptionChance);
   S.calls.push(c); if (camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c);
   if (tpl.boss && S.finale && S.t + 1e-9 >= finaleLastBossT(S)) S.finale.lateBossSpawned = true; // v1.21.0
@@ -3013,10 +3013,24 @@ const LOCK_SHIFT = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
 function lockShift(camp, S) { if (LOCK_SHIFT && camp && S && S.calls) LOCK_SHIFT.set(camp, S); }
 function heroLockCall(camp, S, id, except) { if (!id || !camp) return null; if (!S) { S = LOCK_SHIFT && LOCK_SHIFT.get(camp); if (!S || (except && !S.calls.includes(except))) return null; } if (!S || !S.calls) return null;
   return S.calls.find(x => x !== except && x.stage === 'pending' && x.autoHero === id) || null; }
-function heroLockable(camp, S, id) { // free to be locked onto (or asked for by) a new call: on the crew, Ready, not reserved by another lock, not already slotted on another open call
+function heroLockable(camp, S, id, self) { // free to be locked onto (or asked for by) a new call: on the crew, Ready, not reserved by another lock, not already slotted on another open call (v1.39.2: `self` = the call deciding its lock)
   if (!id || !camp.heroes[id] || !(camp.roster || []).includes(id) || !canDispatchHero(camp, id)) return false;
-  if (S && S.calls && S.calls.some(x => x.stage === 'pending' && (x.autoHero === id || (x.assigned || []).includes(id)))) return false;
+  if (S && S.calls && S.calls.some(x => x !== self && x.stage === 'pending' && (x.autoHero === id || (x.assigned || []).includes(id)))) return false;
   return true; }
+/* v1.39.2: a 🔒 call decides its locked hero ONCE, the first time its briefing is opened (player, linked-pair switch, or the auto-play AI planning a team).
+   Before that nobody is locked or reserved. Only a hero free at that moment is locked; if none is, the call stays a normal unlocked call for good. */
+function decideLock(camp, S, c) {
+  if (!c || c.lockDecided || c.stage !== 'pending') return null; c.lockDecided = true;
+  if (!c.lockable || c.autoHero || c.tpl.story) return null;
+  const free = id => heroLockable(camp, S, id, c) && !(c.tpl.banned && c.tpl.banned[id]);
+  let id = null;
+  if (c.lockable === 'pick') { const t = c.tpl, roster = camp.roster.filter(x => x !== 'comptroller' && x !== 'solstice'); id = ((t.autoPick && t.autoPick.candidates) || []).find(x => roster.includes(x) && free(x)) || null; if (id) c.autoLine = (t.autoPick.lines || {})[id] || ''; }
+  else id = free(c.lockable) ? c.lockable : null;
+  if (!id) { c.lockMissed = c.lockable; return null; }
+  const k = c.assigned.indexOf(id); if (k > 0) c.assigned[k] = null;
+  const prev = c.assigned[0]; c.autoHero = id; c.assigned[0] = id;
+  if (prev && prev !== id) { const j = c.assigned.findIndex((x, i) => i > 0 && !x); if (j > 0) c.assigned[j] = prev; else if (c.volunteer === prev) c.volunteer = null; }
+  Bus.emit('lockPicked', { call: c, hero: id }); return id; }
 function lockWillFree(camp, S) { return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && id !== 'comptroller' && id !== 'solstice' && h.state !== 'downed'; }); }
 function checkLocks(camp, S) { // safety net: a lock whose hero stopped being usable is released (story calls hand over to a free hero)
   for (const c of S.calls) { if (c.stage !== 'pending' || !c.autoHero || canDispatchHero(camp, c.autoHero)) continue; const was = c.autoHero;
@@ -3539,8 +3553,9 @@ function aiStep(camp, S, opts) {
     if (c.tpl.type === 'competing') c.option = c.option === null ? 0 : c.option;
     if (c.tpl.training) { const id = aiTrainingTeam(camp, S, c); if (id) { c.assigned = [id]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } continue; }
     if (c.tpl.story) { c.storyChoice = (c.tpl.story.choices || []).findIndex(x => x.morale) ; if (c.storyChoice < 0) c.storyChoice = 0; if (c.autoHero && canDispatchHero(camp, c.autoHero)) { c.assigned = [c.autoHero]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } continue; }
+    decideLock(camp, S, c); // v1.39.2: the AI planning a team = first open
     const r = aiBestTeam(camp, S, c); if (!r) continue;
-    if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { const ro = aiBestTeam(camp, S, o); if (ro && ro.info.chance > r.info.chance + 0.02) continue; } }
+    if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { decideLock(camp, S, o); const ro = aiBestTeam(camp, S, o); if (ro && ro.info.chance > r.info.chance + 0.02) continue; } }
     const timeLeft = c.expiresAt - S.t;
     if (r.info.chance < 0.45 && timeLeft > 8) continue;
     if (!r.assigned.some(Boolean)) continue;
@@ -3723,7 +3738,7 @@ function tickDeck(camp, S, dt) {
 function setupMission(camp, S, c, extra) {
   const t = c.tpl, roster = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'), rng = S.spawnRng;
   if (t.request) { const id = t.request.candidates.find(x => roster.includes(x) && heroLockable(camp, S, x)); /* v1.39.1 */ if (id) { c.requestHero = id; c.requestReason = (t.request.reasons || {})[id] || ''; } }
-  if (t.autoPick) { const id = t.autoPick.candidates.find(x => roster.includes(x) && heroLockable(camp, S, x)); /* v1.39.1: first FREE candidate, else the call is not locked */ if (id) { c.autoHero = id; c.assigned[0] = id; c.autoLine = (t.autoPick.lines || {})[id] || ''; } }
+  if (t.autoPick) c.lockable = 'pick'; /* v1.39.2: Story autoPick decides at first briefing open (first FREE candidate, else not locked): decideLock() */
   if (t.story) { const av = roster.filter(id => heroLockable(camp, S, id)); const ready = roster.filter(id => canDispatchHero(camp, id)); const pool = av.length ? av : ready.length ? ready : roster; /* v1.39.1: tickDeck holds a story call until someone is free; roster only if nobody can ever be */ const id = pool[Math.floor(rng() * pool.length)]; c.autoHero = id; c.assigned[0] = id; c.storyChoice = null; }
   if (t.compReward && t.compReward.heroMult) c.namedHero = roster[Math.floor(rng() * roster.length)];
   if (t.hack) { c.hackSpec = t.hack; if (t.hack.restoresDistrict !== undefined) c.restoreDistrict = t.hack.restoresDistrict; }
@@ -4499,10 +4514,11 @@ function emptySlotGhostHTML(camp, assigned, i, selOn) {
 
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
+  if (S) decideLock(camp, S, c); // v1.39.2: a 🔒 call picks its locked hero (if one is free right now) the first time its briefing is opened
   sanitizeAssigned(camp, c);
   if (S && camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c); // v1.14.0: he may be back from rest now
   openModal('briefing', m => {
-    m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render();
+    m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } decideLock(camp, S, o); sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render();
       if (co && (co.moved || co.skipped)) toast(`⇄ Brought ${co.moved} hero${co.moved === 1 ? '' : 'es'} over${co.skipped ? ` (${co.skipped} didn't fit)` : ''}.`, 2500); return true; };
     const render = () => {
       if (c.stage !== 'pending') { closeModal(); toast('That call is gone.'); return; }
@@ -5650,6 +5666,7 @@ function showEnd() {
 Bus.on('spawn', c => { if (!UI.S || UI.sim) return; setTimeout(() => { try { if (UI.S) hackPrewarmCall(UI.camp, UI.S, c); } catch (e) { } }, 0); Sfx.ring(); if (c.requestHero) radio(c.requestHero, `Hey boss, can I take "${c.tpl.title}"? Please?`); if (c.autoHero) radio(c.autoHero, 'I got this one. Already on my way. Do not argue.'); if (c.tpl.type === 'hack') toast('⌘ Hack call: ' + esc(c.tpl.title)); });
 function mechTutorial(tpl) { const camp = UI.camp; if (!camp || !tpl.mission) return; camp.seenMech = camp.seenMech || {};
   for (const k of missionMechanics(tpl)) if (!camp.seenMech[k]) { camp.seenMech[k] = 1; toast(MECHANICS[k][0] + ' ' + esc(MECHANICS[k][1]), 7000); radioLog(null, '📘 New: ' + MECHANICS[k][1], 'tut'); } }
+Bus.on('lockPicked', e => { if (!UI.S || UI.sim) return; radio(e.hero, 'I got this one. Already on my way. Do not argue.'); }); // v1.39.2: fires at the first briefing open, not at spawn
 Bus.on('lockReleased', e => { if (!UI.S || UI.sim) return; radio(e.hero, `I can not make "${e.call.tpl.title}" after all. It is open to anyone now.`); }); // v1.39.1 safety net
 Bus.on('lockMoved', e => { if (!UI.S || UI.sim) return; radio(e.to, `📖 I picked up "${e.call.tpl.title}" instead.`); });
 Bus.on('spawn', c => { if (!UI.S || UI.sim || !c.tpl.mission) return; mechTutorial(c.tpl);
