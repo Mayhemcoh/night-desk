@@ -1030,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.38.1';window.ND_STANDALONE=true;
+<script>window.ND_VERSION='nd-v1.39.0';window.ND_STANDALONE=true;
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1221,7 +1221,7 @@ const EXTRA_HEROES = [
   { id: 'solstice', name: 'Celeste Arden', codename: 'Solstice', color: '#fbbf24', emoji: '☀️', stats: CONFIG.solstice.stats.slice(), bio: 'Branch director, brand-deal superstar. Only suits up when the night goes wrong.', power: 'radiantlight', train: [], synergy: ['zenith'], noXP: true, guest: true, maxLevel: true, extra: true,
     quips: ['Stay in my light.', 'Smile, we are on camera.', 'Downtown sends its regards.'] },
 ];
-const CAMPAIGN_MODES = { selection: { icon: '🧩', label: 'Hero Selection', desc: 'Pick exactly 8 of the 25 yourself.' }, random: { icon: '🎲', label: 'Random Heroes', desc: 'A seeded draft of 8, balanced for coverage. Reroll freely.' }, classic: { icon: '🏛', label: 'Original 8', desc: 'The original crew from earlier versions.' } };
+const CAMPAIGN_MODES = { selection: { icon: '🧩', label: 'Hero Selection', desc: 'Pick exactly 8 of the 25 yourself.' }, random: { icon: '🎲', label: 'Random Heroes', desc: 'A seeded draft of 8, balanced for coverage. Reroll freely.' }, classic: { icon: '🏛', label: 'Original Crew', desc: 'The original crew from earlier versions.' } };
 const LEGACY_POOL = ['brightwire', 'mirrorlark', 'slab', 'hush', 'knuckles', 'velvethex', 'echo', 'pasdechat']; // v1.2 roster in join order
 const SYNERGY_PAIRS = [['tidewall', 'matron'], ['quickstep', 'hotwire'], ['ledger', 'brasstack'], ['marquee', 'murmur'], ['ironmonger', 'foghorn'], ['copperhead', 'snare'], ['gravemoss', 'halogen'], ['kitefall', 'sundial'], ['brightwire', 'mirrorlark'], ['slab', 'hush'], ['velvethex', 'echo'], ['knuckles', 'pasdechat'], ['zenith', 'drizzle'], ['zenith', 'solstice']];
 const CONFLICT_PAIRS = [['ledger', 'marquee'], ['hotwire', 'matron'], ['foghorn', 'hush'], ['slab', 'velvethex'], ['brightwire', 'hush']];
@@ -2560,7 +2560,7 @@ function migrateV110(c) { // v1.10 powers rework: retired ids map to their repla
     if (h.burnt === undefined) h.burnt = false; if (h.extendUsed === undefined) h.extendUsed = false;
     if (!hasPower(h, 'retry')) h.retryUsed = false; } // retryUsed is ignored for heroes with no re-roll power (Mirrorlark after Encore -> Perfect Copy)
   return c; }
-function migrateV112(c) { // v1.12 Dispatch original-8 parity: remapped trains + new flags
+function migrateV112(c) { // v1.12 Dispatch Original Crew parity: remapped trains + new flags
   for (const id in c.heroes) { const h = c.heroes[id], d = heroDef(id) || {};
     h.powers = (h.powers || []).map(p => RETIRED_POWERS[p] || p).filter(p => POWERS[p]); h.powers = h.powers.filter((p, i) => h.powers.indexOf(p) === i);
     if (h.trainedChoice) h.trainedChoice = RETIRED_POWERS[h.trainedChoice] || h.trainedChoice; if (h.trainedChoice && !POWERS[h.trainedChoice]) h.trainedChoice = null;
@@ -2592,7 +2592,7 @@ function migrateCampCore(c) { // returns a v2 campaign or throws on garbage
   c.wildGiven = Object.values(c.heroes).reduce((a, h) => a + (h.wildPoints || 0), 0); c.seenLevelUp = c.seenLevelUp || {}; c.v = 2;
   return toV5(toV4(toV3(c)));
 }
-function toV3(c) { // v1.2 and older saves: keep the classic 8 in the legacy join order, keep stored hero stats as they are
+function toV3(c) { // v1.2 and older saves: keep the Original Crew in the legacy join order, keep stored hero stats as they are
   for (const id of LEGACY_POOL) if (!c.heroes[id]) c.heroes[id] = makeHero(heroDef(id));
   c.pool = LEGACY_POOL.slice(); c.rosterMode = 'classic'; c.v = 3; return c; }
 function inferMode(c) { // DESIGN: v1.4 saves carry rosterMode; classic roster wins, 'custom' (hand-made pool) maps to selection
@@ -2609,17 +2609,17 @@ function aiPickSelection(seed, strategy, stat) { // pure + deterministic; return
     for (const [a, b] of SYNERGY_PAIRS) { if (p.length >= 7) break; if (p.includes(a) && !p.includes(b)) p.push(b); else if (p.includes(b) && !p.includes(a)) p.push(a); }
     for (const id of ids) { if (p.length >= 8) break; if (!p.includes(id)) p.push(id); } return p.slice(0, 8); }
   return ids.slice(0, 8); }
-function fillSelection(picks, seed) { // DESIGN: keep picks; fill gaps preferring heroes that fix missing coverage, else seeded random
-  const p = picks.slice(0, 8), rng = mulberry32(((seed >>> 0) ^ 0xf111) >>> 0); const rest = POOL_IDS().filter(id => !p.includes(id));
+function fillSelection(picks, seed, size) { // DESIGN: keep picks; fill gaps preferring heroes that fix missing coverage, else seeded random. v1.39.0: size (8 campaign, 10 Infinite)
+  const N = size || 8, p = picks.slice(0, N), rng = mulberry32(((seed >>> 0) ^ 0xf111) >>> 0); const rest = POOL_IDS().filter(id => !p.includes(id));
   for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-  while (p.length < 8 && rest.length) { const gap = [0, 1, 2, 3, 4].find(j => !p.some(id => heroDef(id).stats[j] >= 5)); let k = gap === undefined ? 0 : rest.findIndex(id => heroDef(id).stats[gap] >= 5); if (k < 0) k = 0; p.push(rest.splice(k, 1)[0]); }
+  while (p.length < N && rest.length) { const gap = [0, 1, 2, 3, 4].find(j => !p.some(id => heroDef(id).stats[j] >= 5)); let k = gap === undefined ? 0 : rest.findIndex(id => heroDef(id).stats[gap] >= 5); if (k < 0) k = 0; p.push(rest.splice(k, 1)[0]); }
   return p; }
-function selectionAdvice(pool) { // advisory only, never blocks
-  const w = []; if (!pool.length) return w; const st = pool.map(id => heroDef(id).stats);
+function selectionAdvice(pool, size, allStart) { // advisory only, never blocks. v1.39.0: size (8 campaign, 10 Infinite); allStart = no later joiners (Infinite)
+  const N = size || 8, minTot = Math.ceil(CONFIG.poolMinStatTotal * N / 8); const w = []; if (!pool.length) return w; const st = pool.map(id => heroDef(id).stats);
   for (let j = 0; j < 5; j++) { if (!st.some(s => s[j] >= 5)) w.push(`No one has 5+ in ${STAT_NAMES[STATS[j]].toUpperCase()}: calls needing it will be hard.`);
-    else if (pool.length === 8 && !st.slice(0, 5).some(s => s[j] >= 5)) w.push(`Your starting 5 lack ${STAT_NAMES[STATS[j]]} 5+; it only arrives with a later joiner.`);
-    if (pool.length === 8 && st.reduce((a, s) => a + s[j], 0) < CONFIG.poolMinStatTotal) w.push(`${STAT_NAMES[STATS[j]]} total ${st.reduce((a, s) => a + s[j], 0)} is below the usual ${CONFIG.poolMinStatTotal}.`); }
-  if (pool.length === 8 && !SYNERGY_PAIRS.some(([a, b]) => pool.includes(a) && pool.includes(b))) w.push('No synergy pair in this crew.');
+    else if (!allStart && pool.length === N && !st.slice(0, 5).some(s => s[j] >= 5)) w.push(`Your starting 5 lack ${STAT_NAMES[STATS[j]]} 5+; it only arrives with a later joiner.`);
+    if (pool.length === N && st.reduce((a, s) => a + s[j], 0) < minTot) w.push(`${STAT_NAMES[STATS[j]]} total ${st.reduce((a, s) => a + s[j], 0)} is below the usual ${minTot}.`); }
+  if (pool.length === N && !SYNERGY_PAIRS.some(([a, b]) => pool.includes(a) && pool.includes(b))) w.push('No synergy pair in this crew.');
   return w; }
 function toV4(c) { // v1.4: pending wildcards become pre-rolled queue entries (stat rolled once, seeded)
   c.wildGiven = c.wildGiven || 0; c.wildQueue = []; const n = Math.max(0, c.pendingWild || 0);
@@ -5070,7 +5070,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
   sec('🎯 The goal', [
     `Run the hero dispatch desk for ${C.campaignShifts} night shifts. Send heroes to calls and win as many as you can. Each shift ends with a grade from S to D.`,
     `<b>Start:</b> tap NEW CAMPAIGN, choose how you get your crew of 8, then tap START STORY CAMPAIGN or START RANDOM CAMPAIGN.`,
-    `<b>Crew:</b> 🧩 Hero Selection (pick any 8 of ${HERO_DEFS.length}), 🎲 Random Heroes (a balanced random 8; REROLL as often as you like) or 🏛 Original 8 (the classic crew). 5 heroes start, 1 joins at Shift 2 and 2 more at Shift 4.`]) +
+    `<b>Crew:</b> 🧩 Hero Selection (pick any 8 of ${HERO_DEFS.length}), 🎲 Random Heroes (a balanced random 8; REROLL as often as you like) or 🏛 Original Crew (the classic crew). 5 heroes start, 1 joins at Shift 2 and 2 more at Shift 4.`]) +
   sec('📘 Story vs 🎲 Random Calls', [
     `${ST} Each night has its own hand-written set of calls, so it plays like a planned episode.`,
     `${ST} Only in Story: 🎓 training calls, 📖 story calls at HQ, 🗡 sabotage, ↪ follow-up calls, and set calls that always bring a radio choice (from Shift 1).`,
@@ -5211,17 +5211,18 @@ function openLevelUpChoice(onDone) {
   });
 }
 
-/* v1.5: shared hero card + detail markup (Codex and Hero Selection) */
-function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${d.extra ? '<span class="pill" style="color:var(--yel-txt)">ARRIVES ON THEIR OWN</span>' : LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div></button>`;
+/* v1.5: shared hero card + detail markup (Codex and Hero Selection). v1.39.0: o.extraBadge overrides the extra-hero pill, o.noCamp hides IN YOUR CAMPAIGN (Infinite Shift). */
+function heroBadgesHTML(d, o) { o = o || {}; return `${d.extra ? (o.extraBadge || '<span class="pill" style="color:var(--yel-txt)">ARRIVES ON THEIR OWN</span>') : LEGACY_POOL.includes(d.id) ? '<span class="pill">Original Crew</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${!o.noCamp && inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}`; }
+function heroCardHTML(d, o) { o = o || {}; const base = `<button class="cx-card" data-id="${d.id}" style="--hc:${d.color}"><div class="cx-top"><span class="cx-emo">${d.emoji}</span><b>${esc(d.codename)}</b></div><canvas class="cx-mini" data-r="${d.id}"></canvas><div class="cx-stats">${d.stats.map((v, i) => `<span style="color:${STAT_COLORS[STATS[i]]}">${STATS[i]}<b>${v}</b></span>`).join('')}</div><div class="cx-badges">${heroBadgesHTML(d, o)}</div></button>`;
   return o.extra || o.cls ? base.replace('<button class="cx-card"', `<button class="cx-card ${o.cls || ''}" ${o.attrs || ''}`).replace(/<\/button>$/, (o.extra || '') + '</button>') : base; }
 function heroDetailHTML(d, o) { o = o || {}; const syns = [].concat(d.synergy || []).map(heroDef).filter(Boolean); const cons = CONFLICT_PAIRS.filter(p => p.includes(d.id)).map(p => heroDef(p[0] === d.id ? p[1] : p[0]));
-  const link = o.link || (h => `<span class="pill">${h.emoji} ${esc(h.codename)}</span>${o.inCrew && o.inCrew(h.id) ? ' <span class="pill" style="color:var(--yel-txt)">in your 8</span>' : ''}`);
+  const link = o.link || (h => `<span class="pill">${h.emoji} ${esc(h.codename)}</span>${o.inCrew && o.inCrew(h.id) ? ' <span class="pill" style="color:var(--yel-txt)">' + esc(o.crewWord || 'in your 8') + '</span>' : ''}`);
   return `<div class="bgrid"><div><div class="radarbox"><canvas class="rad"></canvas></div>
            ${d.stats.map((v, k) => `<div class="cx-bar"><span style="color:${STAT_COLORS[STATS[k]]}">${STAT_NAMES[STATS[k]]}</span><i><b style="width:${v * 10}%;background:${STAT_COLORS[STATS[k]]}"></b></i><em>${v}</em><small>${esc(STAT_DESC[STATS[k]])}</small></div>`).join('')}</div>
          <div><p class="txt">${esc(d.bio)}</p><div class="quip">"${esc(d.quips[0])}"</div>
-           <div class="cx-badges">${d.extra ? '<span class="pill" style="color:var(--yel-txt)">ARRIVES ON THEIR OWN</span>' : LEGACY_POOL.includes(d.id) ? '<span class="pill">Classic 8</span>' : '<span class="pill" style="color:var(--cyan)">NEW</span>'}${inCampaign(d.id) ? '<span class="pill" style="color:var(--yel-txt)">IN YOUR CAMPAIGN</span>' : ''}</div>
+           <div class="cx-badges">${heroBadgesHTML(d, o)}</div>
            <h4 style="margin:8px 0 2px">Powers</h4>${codexPowerHTML(d)}
-           ${d.extra ? `<div class="note warn">${esc(extraArrivalText(d))}</div>` : ''}<div class="note good">🔗 Synergy: ${syns.length ? syns.map(link).join(' ') : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
+           ${d.extra && !o.noArrival ? `<div class="note warn">${esc(extraArrivalText(d))}</div>` : ''}<div class="note good">🔗 Synergy: ${syns.length ? syns.map(link).join(' ') : '<i>none, a lone wolf</i>'}</div>${cons.length ? `<div class="note warn">⚡ Friction with: ${cons.map(link).join(' ')}</div>` : ''}</div></div>`; }
 /* ---------- v1.3 Hero Codex ---------- */
 function codexPowerHTML(d) { const sig = SIGNATURES[d.power]; const row = (p, tag) => `<div class="pw"><b>${esc(POWERS[p].name)}</b> <span class="pill">${tag}</span><small>${esc(POWERS[p].desc)}</small></div>`;
   if (!d.train || !d.train.length) return row(d.power, d.maxLevel ? 'LV MAX · NO TRAINING' : 'BASE');
@@ -5357,7 +5358,7 @@ function showTitle() {
    <div class="card"><h3>Seed (optional) <small class="seed-hint" style="color:var(--dim);font-weight:400">· New Campaign only</small></h3><input class="seed" inputmode="numeric" placeholder="random" id="seedIn"></div>
    <div class="row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button><button class="btn ghost" data-a="help">HOW TO PLAY</button><button class="btn ghost hidden" data-a="install">📲 INSTALL APP</button></div>
    <div class="card"><h3>Settings</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}</div>
-   ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original 8.</div>` : ''}
+   ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original Crew.</div>` : ''}
    <div class="tag" style="font-size:12px">An original game. All characters are fictional. Works offline.</div>
    <div class="verrow"><div class="tag ver" id="verLbl">Version ${esc(ndVersionLabel())}</div><button class="btn small ghost" data-a="credits">CREDITS</button></div>`, s => {
     const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
@@ -5395,7 +5396,7 @@ function showNewCampaign(seed, mode, hadSave) {
       <button class="btn pri" data-a="choose">CHOOSE YOUR 8 →</button><button class="btn ghost" data-a="title">BACK</button>`, s => bindNC(s));
   } else { const classic = mode === 'classic'; const pool = classic ? LEGACY_POOL.slice() : pickRoster(seed); const chk = rosterCheck(pool);
     const best = [0, 1, 2, 3, 4].map(j => pool.map(heroDef).sort((a, b) => b.stats[j] - a.stats[j])[0]);
-    showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">YOUR NIGHT CREW</div>${modes}<p class="tag">${classic ? 'The Original 8, as in earlier versions.' : `8 of ${HERO_DEFS.length} heroes, drafted with seed ${seed}.`} Five start tonight, one joins on shift 2 and two on shift 4.</p>
+    showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">YOUR NIGHT CREW</div>${modes}<p class="tag">${classic ? 'The Original Crew, as in earlier versions.' : `8 of ${HERO_DEFS.length} heroes, drafted with seed ${seed}.`} Five start tonight, one joins on shift 2 and two on shift 4.</p>
     <div class="cx-cover">${STATS.map((s, j) => `<div style="--c:${STAT_COLORS[s]}"><b>${STAT_NAMES[s]}</b><span>${chk.totals[j]}</span><small>${best[j].emoji} ${esc(best[j].codename)} ${best[j].stats[j]}</small></div>`).join('')}</div>
     ${classic ? '' : `<div class="row"><button class="btn" data-a="reroll">🎲 REROLL</button></div>`}
     ${startModeButtons(false)}<button class="btn ghost" data-a="title">BACK</button>
@@ -5427,37 +5428,49 @@ function startCampaignWith(seed, opts, mode, hadSave, missionSet) {
 }
 /* ---------- v1.5 Hero Selection ---------- */
 const SLOT_LABEL = i => i < 5 ? 'START' : i === 5 ? 'SHIFT 2' : 'SHIFT 4'; // DESIGN: slot order = join order (CONFIG.shifts joins 5/1/0/2)
+/* v1.39.0: the PICK YOUR N screen is shared by the campaign (8) and Infinite Shift (10) through a selection context. Campaign = SEL_CAMP (unchanged look and rules). */
+const SEL_CAMP = { id: 'camp', size: 8, title: 'PICK YOUR 8', slotLabel: i => SLOT_LABEL(i), gap: i => i === 5 || i === 6,
+  trayNote: 'Your first 5 start; later joiners arrive mid-campaign. Tap a hero in a slot, then ◀ ▶ or another slot to reorder.',
+  get picks() { return UI.selPicks || (UI.selPicks = []); }, set picks(v) { UI.selPicks = v; }, get st() { return UI.sel; },
+  advice: p => selectionAdvice(p), fill: (p, seed) => fillSelection(p, seed), conflictNote: () => `conflicts start on shift ${CONFIG.conflictsFromShift}`,
+  startHTML: () => startModeButtons(false), bindStart(root) { const st = UI.sel; const bootSel = (ms) => { if (UI.selPicks.length !== 8) return; startCampaignWith(st.seed, { mode: 'selection', pool: UI.selPicks.slice() }, 'selection', st.hadSave, ms); };
+    const ss = root.querySelector('[data-a=start-story]'); if (ss) ss.onclick = () => bootSel('v1.8');
+    const sr = root.querySelector('[data-a=start-random]'); if (sr) sr.onclick = () => bootSel('legacy'); },
+  back() { showNewCampaign(UI.sel.seed, 'selection', UI.sel.hadSave); }, cardOpts: {}, detailOpts: {} };
+function selCtx() { return UI.selCtx || SEL_CAMP; }
+function selNewState(extra) { return Object.assign({ sort: -1, only5: false, show: 'all', swap: null, fills: 0 }, extra || {}); }
 function showHeroSelect(seed, hadSave) {
-  UI.selPicks = UI.selPicks || []; UI.sel = Object.assign({ sort: -1, only5: false, show: 'all', swap: null, fills: 0 }, UI.sel || {}, { seed: (seed >>> 0) || UI.ncSeed || 1, hadSave: !!hadSave });
+  UI.selCtx = SEL_CAMP; UI.selPicks = UI.selPicks || []; UI.sel = Object.assign(selNewState(), UI.sel || {}, { seed: (seed >>> 0) || UI.ncSeed || 1, hadSave: !!hadSave });
   showScreen(`<div id="selRoot"></div>`, () => renderHeroSelect());
 }
-function selToggle(id) { const p = UI.selPicks, i = p.indexOf(id); if (i >= 0) p.splice(i, 1); else if (p.length < 8) p.push(id); else return false; UI.sel.swap = null; return true; }
-function selRemove(i) { const p = UI.selPicks, id = p[i]; if (!id) return; p.splice(i, 1); UI.sel.swap = null; renderHeroSelect();
+function showSelectWith(ctx) { UI.selCtx = ctx; showScreen(`<div id="selRoot"></div>`, () => renderHeroSelect()); }
+function selToggle(id) { const C = selCtx(), p = C.picks, i = p.indexOf(id); if (i >= 0) p.splice(i, 1); else if (p.length < C.size) p.push(id); else return false; C.st.swap = null; return true; }
+function selRemove(i) { const C = selCtx(), p = C.picks, id = p[i]; if (!id) return; p.splice(i, 1); C.st.swap = null; renderHeroSelect();
   const t = h('div', 'toast', `Removed ${heroDef(id).emoji} ${esc(heroDef(id).codename)} `); const u = h('button', 'lnk', 'UNDO'); u.dataset.a = 'undo';
-  u.onclick = () => { if (!UI.selPicks.includes(id) && UI.selPicks.length < 8) { UI.selPicks.splice(Math.min(i, UI.selPicks.length), 0, id); renderHeroSelect(); } t.remove(); }; t.appendChild(u); $('toasts').appendChild(t); setTimeout(() => t.remove(), 3000); }
-function selMove(from, to) { const p = UI.selPicks; if (from < 0 || to < 0 || from >= p.length || to >= p.length) return false; [p[from], p[to]] = [p[to], p[from]]; return true; }
+  u.onclick = () => { const P = C.picks; if (!P.includes(id) && P.length < C.size) { P.splice(Math.min(i, P.length), 0, id); if (selCtx() === C) renderHeroSelect(); } t.remove(); }; t.appendChild(u); $('toasts').appendChild(t); setTimeout(() => t.remove(), 3000); }
+function selMove(from, to) { const p = selCtx().picks; if (from < 0 || to < 0 || from >= p.length || to >= p.length) return false; [p[from], p[to]] = [p[to], p[from]]; return true; }
 function renderHeroSelect() {
-  const root = $('selRoot'); if (!root) return; const sc = $('screen').scrollTop; const st = UI.sel, p = UI.selPicks, n = p.length;
+  const root = $('selRoot'); if (!root) return; const sc = $('screen').scrollTop; const C = selCtx(), st = C.st, p = C.picks, n = p.length, N = C.size;
   let list = HERO_DEFS.slice();
   if (st.sort >= 0) { list.sort((a, b) => b.stats[st.sort] - a.stats[st.sort] || a.codename.localeCompare(b.codename)); if (st.only5) list = list.filter(d => d.stats[st.sort] >= 5); }
   if (st.show === 'picked') list = list.filter(d => p.includes(d.id)); else if (st.show === 'unpicked') list = list.filter(d => !p.includes(d.id));
   const defs = p.map(heroDef), tot = [0, 1, 2, 3, 4].map(j => defs.reduce((a, d) => a + d.stats[j], 0)), best = [0, 1, 2, 3, 4].map(j => defs.slice().sort((a, b) => b.stats[j] - a.stats[j])[0]);
-  const syn = SYNERGY_PAIRS.filter(([a, b]) => p.includes(a) && p.includes(b)), con = CONFLICT_PAIRS.filter(([a, b]) => p.includes(a) && p.includes(b)), adv = selectionAdvice(p);
-  const slots = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const d = p[i] ? heroDef(p[i]) : null, sw = st.swap === i;
-    return `<div class="sel-slot ${d ? 'full' : 'empty'} ${sw ? 'swap' : ''} ${i === 5 || i === 6 ? 'gap' : ''}" style="${d ? `--hc:${d.color}` : ''}"><small>${i + 1} · ${SLOT_LABEL(i)}</small>${d ? `<button class="sel-sb" data-slot="${i}" aria-label="move ${esc(d.codename)}"><span>${d.emoji}</span><b>${esc(d.codename)}</b></button><div class="sel-ctl">${sw ? `<button data-mv="-1" ${i ? '' : 'disabled'} aria-label="move earlier">◀</button><button data-mv="1" ${i < n - 1 ? '' : 'disabled'} aria-label="move later">▶</button>` : ''}<button data-rm="${i}" aria-label="remove ${esc(d.codename)}">✕</button></div>` : `<span class="sel-e">empty</span>`}</div>`; }).join('');
-  root.innerHTML = `<div class="logo" style="font-size:24px;margin-top:1vh">PICK YOUR 8</div>
+  const syn = SYNERGY_PAIRS.filter(([a, b]) => p.includes(a) && p.includes(b)), con = CONFLICT_PAIRS.filter(([a, b]) => p.includes(a) && p.includes(b)), adv = C.advice(p);
+  const slots = Array.from({ length: N }, (_, i) => i).map(i => { const d = p[i] ? heroDef(p[i]) : null, sw = st.swap === i;
+    return `<div class="sel-slot ${d ? 'full' : 'empty'} ${sw ? 'swap' : ''} ${C.gap(i) ? 'gap' : ''}" style="${d ? `--hc:${d.color}` : ''}"><small>${i + 1} · ${C.slotLabel(i)}</small>${d ? `<button class="sel-sb" data-slot="${i}" aria-label="move ${esc(d.codename)}"><span>${d.emoji}</span><b>${esc(d.codename)}</b></button><div class="sel-ctl">${sw ? `<button data-mv="-1" ${i ? '' : 'disabled'} aria-label="move earlier">◀</button><button data-mv="1" ${i < n - 1 ? '' : 'disabled'} aria-label="move later">▶</button>` : ''}<button data-rm="${i}" aria-label="remove ${esc(d.codename)}">✕</button></div>` : `<span class="sel-e">empty</span>`}</div>`; }).join('');
+  root.innerHTML = `<div class="logo${C.logoCls ? ' ' + C.logoCls : ''}" style="font-size:24px;margin-top:1vh">${C.title}</div>
    <div class="sel-wrap"><div class="sel-side">
-    <div class="sel-tray card"><div class="sel-th"><h3>Your crew</h3><span class="pill sel-count">${n} / 8</span></div><div class="sel-slots">${slots}</div>
-     <p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 0">Your first 5 start; later joiners arrive mid-campaign. Tap a hero in a slot, then ◀ ▶ or another slot to reorder.</p></div>
+    <div class="sel-tray card"><div class="sel-th"><h3>Your crew</h3><span class="pill sel-count">${n} / ${N}</span></div><div class="sel-slots">${slots}</div>
+     <p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 0">${C.trayNote}</p></div>
     <div class="card sel-sum"><h3>Team summary</h3><div class="cx-cover">${STATS.map((s, j) => `<div style="--c:${STAT_COLORS[s]}"><b>${STAT_NAMES[s]}</b><span>${tot[j]}</span><small>${best[j] ? `${best[j].emoji} ${best[j].stats[j]}` : '–'}</small></div>`).join('')}</div>
      ${syn.length ? `<div class="note good">🔗 Synergy: ${syn.map(([a, b]) => heroDef(a).codename + ' + ' + heroDef(b).codename).join(' · ')}</div>` : ''}
-     ${con.length ? `<div class="note warn">⚡ Friction: ${con.map(([a, b]) => heroDef(a).codename + ' vs ' + heroDef(b).codename).join(' · ')} (conflicts start on shift ${CONFIG.conflictsFromShift})</div>` : ''}
+     ${con.length ? `<div class="note warn">⚡ Friction: ${con.map(([a, b]) => heroDef(a).codename + ' vs ' + heroDef(b).codename).join(' · ')} (${C.conflictNote()})</div>` : ''}
      ${adv.map(w => `<div class="note warn sel-adv">⚠ ${esc(w)}</div>`).join('')}${adv.length ? '<small style="color:var(--dim)">Advice only: you can still start.</small>' : ''}</div>
-    <div class="row"><button class="btn ghost" data-a="clear" ${n ? '' : 'disabled'}>CLEAR</button><button class="btn" data-a="fill" ${n < 8 ? '' : 'disabled'}>🎲 FILL RANDOMLY</button></div>
-    ${n === 8 ? startModeButtons(false) : `<button class="btn pri" disabled>Pick ${8 - n} more</button>`}<button class="btn ghost" data-a="back">BACK</button></div>
+    <div class="row"><button class="btn ghost" data-a="clear" ${n ? '' : 'disabled'}>CLEAR</button><button class="btn" data-a="fill" ${n < N ? '' : 'disabled'}>🎲 FILL RANDOMLY</button></div>
+    ${n === N ? C.startHTML() : `<button class="btn pri" disabled>Pick ${N - n} more</button>`}<button class="btn ghost" data-a="back">BACK</button></div>
    <div class="sel-main"><div class="cx-chips">${['ALL', ...STATS].map((s, i) => `<button class="cx-chip ${st.sort === i - 1 ? 'on' : ''}" data-sort="${i - 1}" ${i ? `style="--c:${STAT_COLORS[s]}"` : ''}>${i ? STAT_NAMES[s] : 'All'}</button>`).join('')}</div>
     <div class="cx-chips"><button class="cx-chip ${st.only5 ? 'on' : ''}" data-a="only5" ${st.sort >= 0 ? '' : 'disabled'}>only ≥5${st.sort >= 0 ? ' ' + STATS[st.sort] : ''}</button>${['all', 'picked', 'unpicked'].map(k => `<button class="cx-chip ${st.show === k ? 'on' : ''}" data-show="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
-    <div class="cx-grid sel-grid">${list.map(d => { const k = p.indexOf(d.id); return heroCardHTML(d, { cls: 'sel-card' + (k >= 0 ? ' picked' : ''), attrs: `aria-pressed="${k >= 0}"`, extra: k >= 0 ? `<span class="sel-badge">✔ ${k + 1}</span>` : '' }); }).join('') || '<p class="txt">No heroes match.</p>'}</div></div></div>`;
+    <div class="cx-grid sel-grid">${list.map(d => { const k = p.indexOf(d.id); return heroCardHTML(d, { ...C.cardOpts, cls: 'sel-card' + (k >= 0 ? ' picked' : ''), attrs: `aria-pressed="${k >= 0}"`, extra: k >= 0 ? `<span class="sel-badge">✔ ${k + 1}</span>` : '' }); }).join('') || '<p class="txt">No heroes match.</p>'}</div></div></div>`;
   root.querySelectorAll('canvas[data-r]').forEach(cv => drawRadar(cv, { team: heroDef(cv.dataset.r).stats, mini: true }));
   const re = () => { Sfx.click(); renderHeroSelect(); };
   root.querySelectorAll('.sel-card').forEach(b => b.onclick = () => { Sfx.click(); openSelDetail(b.dataset.id); });
@@ -5467,19 +5480,18 @@ function renderHeroSelect() {
   root.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { const i = +b.dataset.slot; if (st.swap === null) st.swap = i; else if (st.swap === i) st.swap = null; else { selMove(st.swap, i); st.swap = null; } re(); });
   root.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const to = st.swap + +b.dataset.mv; if (selMove(st.swap, to)) st.swap = to; re(); });
   root.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { Sfx.click(); selRemove(+b.dataset.rm); });
-  root.querySelector('[data-a=clear]').onclick = () => { const go = () => { UI.selPicks = []; st.swap = null; closeModal(); renderHeroSelect(); }; if (n > 2) confirmBox('Clear your crew?', `Remove all ${n} picked heroes?`, 'CLEAR', go); else go(); };
-  root.querySelector('[data-a=fill]').onclick = () => { UI.selPicks = fillSelection(p, st.seed ^ (++st.fills * 0x9e37)); st.swap = null; re(); };
-  const bootSel = (ms) => { if (UI.selPicks.length !== 8) return; startCampaignWith(st.seed, { mode: 'selection', pool: UI.selPicks.slice() }, 'selection', st.hadSave, ms); };
-  const ss = root.querySelector('[data-a=start-story]'); if (ss) ss.onclick = () => bootSel('v1.8');
-  const sr = root.querySelector('[data-a=start-random]'); if (sr) sr.onclick = () => bootSel('legacy');
-  root.querySelector('[data-a=back]').onclick = () => showNewCampaign(st.seed, 'selection', st.hadSave);
+  root.querySelector('[data-a=clear]').onclick = () => { const go = () => { C.picks = []; st.swap = null; closeModal(); renderHeroSelect(); }; if (n > 2) confirmBox('Clear your crew?', `Remove all ${n} picked heroes?`, 'CLEAR', go); else go(); };
+  root.querySelector('[data-a=fill]').onclick = () => { C.picks = C.fill(p, st.seed ^ (++st.fills * 0x9e37)); st.swap = null; re(); };
+  if (n === N) C.bindStart(root);
+  root.querySelector('[data-a=back]').onclick = () => C.back();
   $('screen').scrollTop = sc;
 }
 function openSelDetail(id) {
-  openModal('seldetail', m => { const render = () => { const d = heroDef(id), k = UI.selPicks.indexOf(id), full = UI.selPicks.length >= 8;
-    const P = sheetParts(m, `<span style="font-size:30px">${d.emoji}</span><h2 style="color:${d.color}">${esc(d.codename)} <small style="color:var(--dim);font-weight:400">${esc(d.name)}</small></h2><span class="pill">${UI.selPicks.length} / 8</span>`,
-      heroDetailHTML(d, { inCrew: x => UI.selPicks.includes(x) }),
-      `<button class="btn ghost" data-a="close">CLOSE</button>${k >= 0 ? `<button class="btn" data-a="tog">REMOVE (slot ${k + 1})</button>` : `<button class="btn pri" data-a="tog" ${full ? 'disabled' : ''}>${full ? 'Crew full (8/8)' : 'ADD TO CREW'}</button>`}`);
+  const C = selCtx(), N = C.size;
+  openModal('seldetail', m => { const render = () => { const d = heroDef(id), P0 = C.picks, k = P0.indexOf(id), full = P0.length >= N;
+    const P = sheetParts(m, `<span style="font-size:30px">${d.emoji}</span><h2 style="color:${d.color}">${esc(d.codename)} <small style="color:var(--dim);font-weight:400">${esc(d.name)}</small></h2><span class="pill">${P0.length} / ${N}</span>`,
+      heroDetailHTML(d, { ...C.detailOpts, inCrew: x => C.picks.includes(x) }),
+      `<button class="btn ghost" data-a="close">CLOSE</button>${k >= 0 ? `<button class="btn" data-a="tog">REMOVE (slot ${k + 1})</button>` : `<button class="btn pri" data-a="tog" ${full ? 'disabled' : ''}>${full ? `Crew full (${N}/${N})` : 'ADD TO CREW'}</button>`}`);
     drawRadar(P.B.querySelector('.rad'), { team: d.stats });
     P.F.querySelector('[data-a=close]').onclick = () => { closeModal(); renderHeroSelect(); };
     P.F.querySelector('[data-a=tog]').onclick = () => { if (selToggle(id)) { Sfx.chime(); closeModal(); renderHeroSelect(); } }; };
@@ -5953,31 +5965,51 @@ function infTitleBind(s) {
   const c = s.querySelector('[data-a=infcont]'); if (c) c.onclick = () => { Sfx.init(); const cp = infLoadCheckpoint(); if (cp) infBegin(cp, true); else showTitle(); };
 }
 
-/* ---- crew picker ---- */
-const InfSel = { mode: 'random', seed: 0, picks: [] };
-function infMini(id, extra) { const d = heroDef(id); return `<div class="mini inf-mini ${extra || ''}" data-hid="${id}" style="border-color:${d.color}66"><span class="e">${d.emoji}</span><div><b>${esc(d.codename)}</b><small>${d.stats.map((v, i) => STATS[i] + v).join(' ')}</small></div><button class="inf-i" data-info="${id}" aria-label="Hero info">ⓘ</button></div>`; }
-function showInfCrew(mode) { if (mode) InfSel.mode = mode; if (!InfSel.seed) InfSel.seed = (Math.random() * 1e9) >>> 0; mapStyleForce(null);
-  const M = InfSel.mode, opt = (k, ic, t, sub) => `<button class="inf-opt ${M === k ? 'on' : ''}" data-mode="${k}" aria-pressed="${M === k}"><b>${ic} ${t}</b><small>${sub}</small></button>`;
-  let body = '', ready = true;
-  if (M === 'random') { const pool = pickRoster10(InfSel.seed); body = `<div class="grid2">${pool.map(id => infMini(id)).join('')}</div><button class="btn" data-a="reroll">🎲 REROLL</button>`; }
-  else if (M === 'classic') { body = `<div class="grid2">${LEGACY_POOL.concat(['zenith', 'drizzle']).map(id => infMini(id, ['zenith', 'drizzle'].includes(id) ? 'inf-extra' : '')).join('')}</div><div class="note">⭐ Zenith and Drizzle join only with Original Crew.</div>`; }
-  else { const p = InfSel.picks; ready = p.length === CONFIG.infinite.crew;
-    body = `<div class="inf-count ${ready ? 'ok' : ''}">Picked <b>${p.length}</b> of ${CONFIG.infinite.crew}</div><div class="row"><button class="btn small" data-a="fill">FILL RANDOMLY</button><button class="btn small ghost" data-a="clear">CLEAR</button></div>
-     <div class="grid2 inf-pickgrid">${HERO_DEFS.map(d => infMini(d.id, p.includes(d.id) ? 'picked' : (p.length >= CONFIG.infinite.crew ? 'full' : ''))).join('')}</div>`; }
-  showScreen(`<div class="logo inf-logo" style="font-size:30px;margin-top:2vh">♾ INFINITE SHIFT</div><p class="tag">One endless shift. Survive as long as you can.</p>
-   <div class="card"><h3>Choose your crew of 10</h3><div class="inf-opts">${opt('selection', '🧩', 'Hero Selection', 'Pick any 10')}${opt('random', '🎲', 'Random Heroes', 'A balanced 10 · REROLL')}${opt('classic', '🏛', 'Original Crew', 'Original 8 + Zenith + Drizzle')}</div></div>
-   <div class="card inf-crew">${body}</div>
-   <div class="note">All 10 heroes start at LV1 · 🏙 City 200 · 🎲 Random Calls · the Seed box is not used.</div>
-   <button class="btn pri" data-a="go" ${ready ? '' : 'disabled'}>START SHIFT</button><button class="btn ghost" data-a="back">TITLE</button>`, s => {
-    s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showInfCrew(b.dataset.mode); });
-    s.querySelectorAll('[data-info]').forEach(b => b.onclick = ev => { ev.stopPropagation(); openCodex(b.dataset.info); });
+/* ---- crew picker ----
+   v1.39.0: looks and works like the campaign's YOUR NIGHT CREW / PICK YOUR 8, sharing its components (mode cards, cx-cover, hero cards,
+   renderHeroSelect via a selection context). Hero Selection opens PICK YOUR 10; START SHIFT only when all 10 are picked. Rules unchanged. */
+const InfSel = { mode: 'random', seed: 0, picks: [], ui: null };
+const INF_MODES = { selection: { icon: '🧩', label: 'Hero Selection', desc: () => `Pick exactly 10 of the ${HERO_DEFS.length} yourself.` },
+  random: { icon: '🎲', label: 'Random Heroes', desc: () => 'A balanced draft of 10. Reroll freely.' },
+  classic: { icon: '🏛', label: 'Original Crew+', desc: () => 'Original Crew + Zenith + Drizzle' } };
+const INF_INFO = '<div class="note inf-info">All 10 heroes start at LV1 · 🏙 City 200 · 🎲 Random Calls · the Seed box is not used.</div>';
+function infStartButton() { return `<div class="start-modes inf-start" role="group" aria-label="Start Infinite Shift">
+    <button class="btn pri start-inf" data-a="go"><span class="sm-ico">♾</span><span class="sm-txt"><b>START SHIFT</b><small>One endless shift · all 10 start at LV1 · City 200</small></span></button>
+  </div>`; }
+const INF_CARD_OPTS = { noCamp: true, extraBadge: '<span class="pill" style="color:var(--yel-txt)">⭐ ORIGINAL CREW+ ONLY</span>' };
+const SEL_INF = { id: 'inf', size: 10, title: 'PICK YOUR 10', logoCls: 'inf-logo', slotLabel: () => 'START', gap: () => false,
+  trayNote: 'All 10 start tonight at LV1. Tap a hero in a slot, then ◀ ▶ or another slot to reorder.',
+  get picks() { return InfSel.picks; }, set picks(v) { InfSel.picks = v; }, get st() { return InfSel.ui || (InfSel.ui = selNewState({ seed: (Math.random() * 1e9) >>> 0 })); },
+  advice: p => selectionAdvice(p, CONFIG.infinite.crew, true), fill: (p, seed) => fillSelection(p, seed, CONFIG.infinite.crew),
+  conflictNote: () => `conflicts start at ${infStageLabel(CONFIG.conflictsFromShift - 1)}`,
+  startHTML: () => infStartButton(), bindStart(root) { const g = root.querySelector('[data-a=go]'); if (g) g.onclick = () => { if (InfSel.picks.length !== CONFIG.infinite.crew) return; Sfx.init(); InfSel.mode = 'selection'; infStartNew(); }; },
+  back() { showInfCrew('selection'); }, cardOpts: INF_CARD_OPTS, detailOpts: { noCamp: true, crewWord: 'in your 10' } };
+function showInfPick() { InfSel.mode = 'selection'; SEL_INF.st.swap = null; showSelectWith(SEL_INF); }
+function showInfCrew(mode) { if (mode && INF_MODES[mode]) InfSel.mode = mode; if (!InfSel.seed) InfSel.seed = (Math.random() * 1e9) >>> 0; mapStyleForce(null); UI.selCtx = null;
+  const M = InfSel.mode, N = CONFIG.infinite.crew;
+  const modes = `<div class="mode-row inf-modes">${Object.entries(INF_MODES).map(([k, d]) => `<button class="mode-btn ${k === M ? 'on' : ''}" data-mode="${k}" aria-pressed="${k === M}"><span class="mi">${d.icon}</span><b>${d.label}</b><small>${d.desc()}</small></button>`).join('')}</div>`;
+  const head = `<div class="logo inf-logo" style="font-size:28px;margin-top:2vh">♾ INFINITE SHIFT</div>${modes}`;
+  if (M === 'selection') { const n = InfSel.picks.length;
+    showScreen(`${head}
+      <div class="card"><h3>🧩 Hero Selection</h3><p class="txt">Browse all ${HERO_DEFS.length} heroes and build your own crew of exactly ${N}. All ${N} start tonight at LV1; there are no later joiners. No balance rules: warnings are advice only.</p>${n ? `<p class="txt"><b>${n} / ${N}</b> picked so far.</p>` : ''}</div>
+      ${INF_INFO}<button class="btn pri" data-a="choose">CHOOSE YOUR ${N} →</button><button class="btn ghost" data-a="back">TITLE</button>`, s => bindInf(s));
+    return; }
+  const classic = M === 'classic', pool = classic ? LEGACY_POOL.concat(['zenith', 'drizzle']) : pickRoster10(InfSel.seed), chk = rosterCheck(pool);
+  const best = [0, 1, 2, 3, 4].map(j => pool.map(heroDef).sort((a, b) => b.stats[j] - a.stats[j])[0]);
+  const syn = SYNERGY_PAIRS.filter(([a, b]) => pool.includes(a) && pool.includes(b));
+  showScreen(`${head}<p class="tag">${classic ? 'The Original Crew plus Zenith and Drizzle, the only way to get those two.' : `${N} of ${HERO_DEFS.length} heroes, drafted at random.`} All ${N} start tonight at LV1. One endless shift: survive as long as you can.</p>
+    <div class="cx-cover">${STATS.map((st, j) => `<div style="--c:${STAT_COLORS[st]}"><b>${STAT_NAMES[st]}</b><span>${chk.totals[j]}</span><small>${best[j].emoji} ${esc(best[j].codename)} ${best[j].stats[j]}</small></div>`).join('')}</div>
+    ${classic ? '' : `<div class="row"><button class="btn" data-a="reroll">🎲 REROLL</button></div>`}
+    ${INF_INFO}${infStartButton()}<button class="btn ghost" data-a="back">TITLE</button>
+    <div class="nc-grid inf-crew">${pool.map(id => heroCardHTML(heroDef(id), { ...INF_CARD_OPTS, cls: 'nc' + (heroDef(id).extra ? ' inf-extra' : '') })).join('')}</div>
+    ${syn.length ? `<div class="note good">🔗 ${syn.map(([a, b]) => heroDef(a).codename + ' + ' + heroDef(b).codename).join(' · ')}</div>` : ''}
+    ${classic ? '<div class="note">⭐ Zenith and Drizzle join only with Original Crew+.</div>' : ''}`, s => {
+    bindInf(s); s.querySelectorAll('canvas[data-r]').forEach(cv => drawRadar(cv, { team: heroDef(cv.dataset.r).stats, mini: true }));
+    s.querySelectorAll('.nc').forEach(b => b.onclick = () => openCodex(b.dataset.id));
     const rr = s.querySelector('[data-a=reroll]'); if (rr) rr.onclick = () => { Sfx.click(); InfSel.seed = (Math.random() * 1e9) >>> 0; showInfCrew(); };
-    const fl = s.querySelector('[data-a=fill]'); if (fl) fl.onclick = () => { Sfx.click(); const r = pickRoster10((Math.random() * 1e9) >>> 0); const p = InfSel.picks; for (const id of r) { if (p.length >= CONFIG.infinite.crew) break; if (!p.includes(id)) p.push(id); } showInfCrew(); };
-    const cl = s.querySelector('[data-a=clear]'); if (cl) cl.onclick = () => { InfSel.picks = []; showInfCrew(); };
-    if (M === 'selection') s.querySelectorAll('.inf-pickgrid [data-hid]').forEach(el => el.onclick = () => { const id = el.dataset.hid, p = InfSel.picks, i = p.indexOf(id);
-      if (i >= 0) p.splice(i, 1); else if (p.length < CONFIG.infinite.crew) p.push(id); else { toast('You already have 10. Tap a picked hero to remove them.'); return; } Sfx.click(); showInfCrew(); });
-    s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); infStartNew(); };
-    s.querySelector('[data-a=back]').onclick = showTitle; });
+    s.querySelector('[data-a=go]').onclick = () => { Sfx.init(); infStartNew(); }; });
+  function bindInf(s) { s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showInfCrew(b.dataset.mode); });
+    s.querySelector('[data-a=back]').onclick = showTitle; const ch = s.querySelector('[data-a=choose]'); if (ch) ch.onclick = () => { Sfx.click(); showInfPick(); }; }
 }
 function infStartNew() { const M = InfSel.mode; const camp = newInfiniteRun(M, { seed: M === 'random' ? InfSel.seed : (Math.random() * 1e9) >>> 0, picks: InfSel.picks.slice(), missionBag: cloneMissionBag(UI.missionBag || loadMissionBag()) });
   InfSel.seed = 0; infBegin(camp, false); }
@@ -6063,7 +6095,7 @@ function showInfOver() { const camp = UI.camp, S = UI.S, r = (camp && camp.inf &
 function infHelpHTML(sec) { const I = CONFIG.infinite, losses = Math.ceil(I.cityMax / I.cityHit);
   return sec('♾ Infinite Shift', [
     `A separate mode: one endless shift with a crew of 10, all at LV1. Calls are always random (🎲 Random Calls rules). The Seed box is not used.`,
-    `<b>Crew:</b> 🧩 Hero Selection (pick 10), 🎲 Random Heroes (a balanced 10; REROLL) or 🏛 Original Crew (Original 8 + Zenith + Drizzle, the only way to get those two).`,
+    `<b>Crew:</b> 🧩 Hero Selection (pick 10), 🎲 Random Heroes (a balanced 10; REROLL) or 🏛 Original Crew+ (Original Crew + Zenith + Drizzle, the only way to get those two).`,
     `The clock starts at 18:00. Every 12 game hours (06:00 and 18:00; 12 minutes at 1×) a new stage begins with the next shift's settings. After Stage 8, calls keep coming faster.`,
     `🏙 City ${I.cityMax}. Each failed or missed call and each lost or missed hack costs ${I.cityHit}. No healing: the run ends on loss ${losses}. Your first hack is a free practice.`,
     `Two hacks per stage. Injuries are not healed at 06:00 / 18:00.`,
