@@ -1030,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.38.0';
+<script>window.ND_VERSION='nd-v1.38.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -3853,7 +3853,7 @@ function newInfiniteRun(crewMode, opts) { opts = opts || {}; const seed = (opts.
   const c = newCampaign(seed, { mode: 'classic', missionSet: 'legacy', missionBag: opts.missionBag });
   delete c.rogue; c.mode = c.rosterMode = crewMode; c.pool = pool; c.heroes = {}; for (const id of pool) c.heroes[id] = makeHeroV114(heroDef(id));
   c.roster = pool.slice(); c.phase = 'inf'; c.shiftIdx = 0;
-  c.inf = { v: 1, crewMode, ramps: 0, t: 0, city: CONFIG.infinite.cityMax, hackN: 0, practiceDone: false, stats: null, startedAt: Date.now() };
+  c.inf = { v: 1, crewMode, ramps: 0, t: 0, city: CONFIG.infinite.cityMax, hackN: 0, practiceDone: false, stats: null, startedAt: Date.now(), realMs: 0 };
   return c; }
 function infStageOf(S) { return S.infStage; }
 function infSpawnInterval(S) { const I = CONFIG.infinite, st = S.infStage;
@@ -3879,6 +3879,24 @@ function startInfinite(camp) { // fresh start (t=0) or resume from the last chec
   return S; }
 function infClock(S) { const I = CONFIG.infinite, mins = I.startHour * 60 + Math.floor(S.t / I.secPerGameHour * 60); const day = Math.floor(mins / 1440) + 1, m = mins % 1440;
   return { day, hh: Math.floor(m / 60), mm: m % 60, text: String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0') }; }
+function infFmtDays(days) { const s = days.toFixed(2).replace(/\.?0+$/, ''); return s === '1' ? '1 day' : s + ' days'; }
+function infDur(t) { // v1.38.1: in-game duration. Under 24h: 'X h YY min'; 1–<7 days: decimal days; 7+ days: weeks + leftover days.
+  const hours = (t || 0) / CONFIG.infinite.secPerGameHour, mins = Math.floor(hours * 60);
+  if (mins < 24 * 60) return Math.floor(mins / 60) + ' h ' + String(mins % 60).padStart(2, '0') + ' min';
+  const daysR = Math.round((hours / 24) * 100) / 100;
+  if (daysR < 7) return infFmtDays(daysR);
+  const weeks = Math.floor(daysR / 7), rem = Math.round((daysR - weeks * 7) * 100) / 100;
+  const w = weeks + (weeks === 1 ? ' week' : ' weeks');
+  return rem > 0 ? w + ' ' + infFmtDays(rem) : w; }
+function infRealDur(ms) { if (ms == null || !isFinite(ms) || ms < 0) return '—';
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h + ' h ' + String(m).padStart(2, '0') + ' min ' + String(sec).padStart(2, '0') + ' s'; }
+const INF_REAL_GAP_MS = 5000;
+function infAccReal(inf, now, last, hidden) { if (!inf) return last;
+  if (hidden) return null; // visibilitychange / background: drop the gap so it is not counted
+  if (last == null || now == null) return now;
+  inf.realMs = (inf.realMs || 0) + Math.min(INF_REAL_GAP_MS, Math.max(0, now - last));
+  return now; }
 function infStageLabel(stage) { return 'Stage ' + (stage + 1); }
 function infSettingsLabel(stage) { return stage < 7 ? 'Shift ' + (stage + 1) : stage === 7 ? 'Shift 8' : 'Shift 8 +' + (stage - 7); }
 function infTickRamps(camp, S) { if (S.over) return; const len = INF_STAGE_SEC(); let n = 0; while (S.t >= S.stageStart + len && n++ < 4) infRamp(camp, S); }
@@ -3908,7 +3926,7 @@ function infCityHit(camp, S, c) { if (!S.finale || S.over) return; if (c && c.pr
   if (was > 0 && S.finale.city === 0) infGameOver(camp, S); }
 function infResult(camp, S) { const st = S.stats, top = Object.values(camp.heroes).filter(h => camp.pool.includes(h.id)).map(h => ({ id: h.id, n: (h.infWins || 0) })).sort((a, b) => b.n - a.n)[0];
   return { t: S.t, stage: S.infStage, clock: infClock(S), score: shiftScore(S), success: st.success, fail: st.fail, missed: st.missed, perfect: st.perfect, hacks: st.hacks, hackLost: st.hackLost || 0,
-    cityHits: st.cityHits || 0, injuries: st.injuries || 0, rank: camp.rank, top: top && top.n ? top : null, crewMode: camp.inf.crewMode }; }
+    cityHits: st.cityHits || 0, injuries: st.injuries || 0, rank: camp.rank, top: top && top.n ? top : null, crewMode: camp.inf.crewMode, realMs: (camp.inf && camp.inf.realMs != null) ? camp.inf.realMs : 0 }; }
 function infGameOver(camp, S) { if (S.over) return; S.over = true; S.finale.lost = true;
   for (const c of S.calls) if (c.stage === 'pending') { c.stage = 'closed'; c.result = 'dropped'; }
   camp.inf.result = infResult(camp, S); camp.phase = 'infOver'; Bus.emit('infOver', camp.inf.result); }
@@ -5645,6 +5663,7 @@ function frame(now) {
   try {
     if (UI.screen === 'game' && UI.S) {
       const S = UI.S;
+      if (S.inf && UI.camp && UI.camp.inf && !S.over) UI.infRealLast = infAccReal(UI.camp.inf, now, UI.infRealLast, document.hidden);
       if (!isPaused()) {
         tick(UI.camp, S, dt * S.speed);
         if (UI.auto) { UI.autoAcc += dt * S.speed; if (UI.autoAcc >= CONFIG.autoReviewDelay) { UI.autoAcc = 0; aiStep(UI.camp, S, {}); } }
@@ -5700,7 +5719,7 @@ function initInput() {
   document.addEventListener('dblclick', e => e.preventDefault());
   document.addEventListener('contextmenu', e => e.preventDefault());
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window._deferredInstall = e; const b = document.querySelector('[data-a=install]'); if (b) { b.classList.remove('hidden'); b.onclick = () => { e.prompt(); b.classList.add('hidden'); }; } });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && UI.screen === 'game' && !UI.modals.length && !UI.hack) { openPause(); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) UI.infRealLast = null; if (document.hidden && UI.screen === 'game' && !UI.modals.length && !UI.hack) { openPause(); } });
   initHackInput();
 }
 
@@ -5919,15 +5938,15 @@ function infSaveCheckpoint() { if (!UI.camp || !UI.camp.inf || !UI.S) return fal
 function infClearCheckpoint() { try { localStorage.removeItem(INF_SAVE_KEY); } catch (e) { } }
 function infBest() { try { return JSON.parse(localStorage.getItem(INF_BEST_KEY)) || null; } catch (e) { return null; } }
 function infSaveBest(r) { const b = infBest(); const better = !b || r.t > b.t || (r.t === b.t && r.score > b.score);
-  if (better) try { localStorage.setItem(INF_BEST_KEY, JSON.stringify({ t: r.t, stage: r.stage, score: r.score, success: r.success, rank: r.rank, at: Date.now() })); } catch (e) { } return better; }
-function infDur(t) { const m = Math.floor(t / CONFIG.infinite.secPerGameHour * 60); return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; }
+  if (better) try { localStorage.setItem(INF_BEST_KEY, JSON.stringify({ t: r.t, stage: r.stage, score: r.score, success: r.success, rank: r.rank, at: Date.now(), realMs: r.realMs })); } catch (e) { } return better; }
+function infBestDur(b) { if (!b) return ''; return infDur(b.t) + ' · ' + (b.realMs != null ? infRealDur(b.realMs) : '—'); }
 function infCpLabel(cp) { const ck = infClock({ t: cp.inf.t || 0 }); return `${infStageLabel(cp.inf.ramps)} · Day ${ck.day} ${ck.text}`; }
 
 /* ---- title ---- */
 function infTitleHTML() { const cp = infLoadCheckpoint(), b = infBest();
   return `${cp ? `<button class="btn inf-btn inf-cont" data-a="infcont">CONTINUE ♾ · ${esc(infCpLabel(cp))}</button>` : ''}
    <button class="btn inf-btn" data-a="inf">♾ INFINITE SHIFT<small>A separate mode · one endless shift · always random</small></button>
-   ${b ? `<div class="tag inf-best">♾ Best run: ${infDur(b.t)} · ${infStageLabel(b.stage)} · score ${b.score}</div>` : ''}`; }
+   ${b ? `<div class="tag inf-best">♾ Best run: ${infBestDur(b)} · ${infStageLabel(b.stage)} · score ${b.score}</div>` : ''}`; }
 function infTitleBind(s) {
   const n = s.querySelector('[data-a=inf]'); if (n) n.onclick = () => { Sfx.init(); Sfx.click(); const cp = infLoadCheckpoint();
     if (cp) confirmBox('New Infinite Shift?', `Your saved Infinite run (${esc(infCpLabel(cp))}) will be replaced when the new run starts. Your campaign save is not touched.`, 'NEW RUN', () => showInfCrew('random')); else showInfCrew('random'); };
@@ -5965,7 +5984,8 @@ function infStartNew() { const M = InfSel.mode; const camp = newInfiniteRun(M, {
 
 /* ---- run ---- */
 function infBegin(camp, resumed) {
-  UI.camp = camp; UI.snapshot = null; UI.shiftPicks = {}; UI.replay = {}; UI.earnedMem = {}; UI.bankedAtStart = {}; for (const id in camp.heroes) UI.bankedAtStart[id] = camp.heroes[id].unspentPoints || 0;
+  UI.camp = camp; UI.snapshot = null; UI.shiftPicks = {}; UI.replay = {}; UI.earnedMem = {}; UI.bankedAtStart = {}; UI.infRealLast = null; if (camp.inf && camp.inf.realMs == null) camp.inf.realMs = 0;
+  for (const id in camp.heroes) UI.bankedAtStart[id] = camp.heroes[id].unspentPoints || 0;
   camp.rollNonce = newRollNonce(); camp.rollNonceFor = camp.shiftIdx;
   UI.S = startInfinite(camp); mapStyleForce(infIsDay(UI.S.infStage) ? 'daycity' : 'nightcity', false);
   UI.screen = 'game'; UI.userPaused = false; UI.shiftOverPending = false; $('screen').classList.add('hidden'); $('game').classList.remove('hidden'); $('game').classList.add('inf-run');
@@ -6030,11 +6050,11 @@ function showInfOver() { const camp = UI.camp, S = UI.S, r = (camp && camp.inf &
   const top = r.top && camp.heroes[r.top.id];
   showScreen(`<div class="logo inf-logo" style="font-size:32px;margin-top:2vh">SHIFT OVER</div><p class="tag">The City fell on Day ${r.clock.day} at ${r.clock.text}.</p>
    <div class="card inf-over">${UI.infNewBest ? '<div class="note good">🏆 New best run!</div>' : ''}
-   <table class="sum"><tr><td>⏱ Time survived</td><td>${infDur(r.t)}</td></tr><tr><td>♾ Stage reached</td><td>${r.stage + 1} (${esc(infSettingsLabel(r.stage))} settings)</td></tr><tr><td>Score</td><td>${r.score}</td></tr>
+   <table class="sum"><tr><td>⏱ In-game time survived</td><td>${infDur(r.t)}</td></tr><tr><td>🕒 Real time played</td><td>${infRealDur(r.realMs != null ? r.realMs : 0)}</td></tr><tr><td>♾ Stage reached</td><td>${r.stage + 1} (${esc(infSettingsLabel(r.stage))} settings)</td></tr><tr><td>Score</td><td>${r.score}</td></tr>
    <tr><td>✅ Wins</td><td>${r.success}</td></tr><tr><td>❌ Fails</td><td>${r.fail}</td></tr><tr><td>⌛ Missed</td><td>${r.missed}</td></tr><tr><td>⌘ Hacks won / lost</td><td>${r.hacks} / ${r.hackLost}</td></tr>
    <tr><td>🏙 City losses</td><td>${r.cityHits} of ${losses}</td></tr><tr><td>⭐ Perfect picks</td><td>${r.perfect}</td></tr><tr><td>🩹 Injuries</td><td>${r.injuries}</td></tr>
    <tr><td>🦸 Top hero</td><td>${top ? `${top.emoji} ${esc(top.codename)} (${r.top.n} wins)` : '—'}</td></tr><tr><td>🎖 Final rank</td><td>${r.rank} · ${esc(CONFIG.rankNames[r.rank - 1])}</td></tr></table>
-   ${b ? `<p class="tag">♾ Best run: ${infDur(b.t)} · Stage ${b.stage + 1} · score ${b.score}</p>` : ''}</div>
+   ${b ? `<p class="tag">♾ Best run: ${infBestDur(b)} · Stage ${b.stage + 1} · score ${b.score}</p>` : ''}</div>
    <button class="btn pri inf-btn" data-a="again">♾ NEW INFINITE SHIFT</button><button class="btn ghost" data-a="title">TITLE</button>`, s => {
     s.querySelector('[data-a=again]').onclick = () => { UI.S = null; UI.camp = null; showInfCrew(); };
     s.querySelector('[data-a=title]').onclick = () => { UI.S = null; UI.camp = null; showTitle(); }; }); }
