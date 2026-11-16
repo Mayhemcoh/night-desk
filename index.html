@@ -1030,7 +1030,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.39.0';
+<script>window.ND_VERSION='nd-v1.39.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -2511,7 +2511,7 @@ function drizzleBoost(c) { const h = c.hero; const always = hasPower(h, 'alwaysB
 function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.heroes.drizzle;
   if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer) return false;
   if (c.stage !== 'pending' || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
-  if (!canDispatchHero(camp, 'drizzle') || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
+  if (!canDispatchHero(camp, 'drizzle') || heroLockCall(camp, S, 'drizzle', c) || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
   if (S.calls.some(x => x !== c && x.stage === 'pending' && x.assigned.includes('drizzle'))) return false;
   return c.assigned.some((id, i) => !id && !(c.autoHero && i === 0)); }
 function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) return false; const i = c.assigned.findIndex((id, k) => !id && !(c.autoHero && k === 0)); if (i < 0) return false;
@@ -2641,6 +2641,7 @@ function startShift(camp) {
     nextSpawn: CONFIG.spawnFirst, stats: { success: 0, fail: 0, missed: 0, perfect: 0, hacks: 0, injuries: 0, xp: 0 }, tools: { medkit: 0, jump: 0 }, injuryLog: [],
     online: plan.blackout ? [1, 4] : [0, 1, 2, 3, 4, 5], hackQueue: [], pairShift: {}, over: false, log: [], usedTemplates: {} };
   S.deckMode = camp.missionSet === 'v1.8' && !!MISSIONS_BY_SHIFT[idx];
+  lockShift(camp, S); // v1.39.1
   S.seconds = plan.seconds || CONFIG.shiftSeconds; S.spawnStopAt = CONFIG.spawnStopAt * S.seconds / CONFIG.shiftSeconds; // v1.21.0: finale plan.seconds (450) applies in every mode so the 1am last boss still has time
   S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0; S.heroFails = 0;
   if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
@@ -2665,7 +2666,7 @@ function pickPos(S, rng, district) {
   return best;
 }
 function spawnCall(camp, S, tpl, extra) {
-  const rng = S.spawnRng; extra = extra || {};
+  const rng = S.spawnRng; extra = extra || {}; lockShift(camp, S);
   const district = extra.district !== undefined ? extra.district : S.online[Math.floor(rng() * S.online.length)];
   const pos = pickPos(S, rng, district);
   const diff = tpl.difficulty;
@@ -2680,10 +2681,10 @@ function spawnCall(camp, S, tpl, extra) {
     namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && !extra.pairHalf && S.plan.blackout };
   if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; }
   if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
-  if (tpl.type === 'request') c.requestHero = tpl.requestHero;
+  if (tpl.type === 'request') c.requestHero = heroLockable(camp, S, tpl.requestHero) ? tpl.requestHero : null; // v1.39.1: the pool only offers it when the hero is free (legacyUnits); never ask for a busy hero
   else if (tpl.mission) setupMission(camp, S, c, extra);
-  else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); c.requestHero = cand[Math.floor(rng() * cand.length)]; }
-  if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && camp.heroes[tpl.autoHero].state === 'available' && rng() < 0.5) { c.autoHero = tpl.autoHero; c.assigned[0] = tpl.autoHero; }
+  else if (S.plan.requests && tpl.type === 'standard' && rng() < 0.18) { const cand = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && !(tpl.banned && tpl.banned[id]) && !afFor(tpl, id)); const pick = cand[Math.floor(rng() * cand.length)]; c.requestHero = heroLockable(camp, S, pick) ? pick : null; } // v1.39.1: same rng draw as before; a busy / downed hero does not ask
+  if (tpl.autoHero && S.idx >= 3 && heroOnRoster(camp, tpl.autoHero) && camp.heroes[tpl.autoHero].state === 'available' && rng() < 0.5 && heroLockable(camp, S, tpl.autoHero)) /* v1.39.1: not reserved by / slotted on another open call */ { c.autoHero = tpl.autoHero; c.assigned[0] = tpl.autoHero; }
   c.willDisrupt = tpl.mission ? !!(tpl.disruption && tpl.disruption.always) : !!(tpl.disruption && S.idx + 1 >= CONFIG.disruptionsFromShift && rng() < CONFIG.disruptionChance);
   S.calls.push(c); if (camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c);
   if (tpl.boss && S.finale && S.t + 1e-9 >= finaleLastBossT(S)) S.finale.lateBossSpawned = true; // v1.21.0
@@ -2705,7 +2706,7 @@ function legacyEligibleOnShift(t, S) { // v1.26.0: noShift1 gates v1.11 solos of
 function templateAllowed(t, roster) { // hero-gated content silently skips heroes not in this campaign
   if (t.requiresHero && !roster.includes(t.requiresHero)) return false; if (t.type === 'request' && t.requestHero && !roster.includes(t.requestHero)) return false; return true; }
 function legacyUnits(camp, S, free) { // v1.13.0: singles + linked pairs (one unit each); retired single-pin T26/T27 never drawn
-  const roster = S.roster || []; const ok = t => t.type !== 'hack' && !t.retired && legacyEligibleOnShift(t, S) && templateAllowed(t, roster) && !S.calls.some(c => c.tpl === t && c.stage === 'pending');
+  const roster = S.roster || []; const ok = t => t.type !== 'hack' && !t.retired && legacyEligibleOnShift(t, S) && templateAllowed(t, roster) && !S.calls.some(c => c.tpl === t && c.stage === 'pending') && !(t.type === 'request' && t.requestHero && !heroLockable(camp, S, t.requestHero)); // v1.39.1
   const units = [], groups = {};
   for (const t of CALLS) { if (!t || !ok(t)) continue; if (t.competingGroup) (groups[t.competingGroup] = groups[t.competingGroup] || []).push(t); else units.push({ kind: 'single', key: String(t.id), tpls: [t] }); }
   if (free === undefined || free >= 2) for (const g in groups) { const ts = groups[g]; if (ts.length !== 2 || ts.some(t => S.usedTemplates[t.id] || (S.spawned && S.spawned[t.id]))) continue; units.push({ kind: 'pair', key: 'pair:' + g, tpls: ts }); }
@@ -3006,6 +3007,21 @@ function powerPreview(camp, S, call, info) { // what will trigger if dispatched 
 
 /* ---------- Dispatch & mission timeline ---------- */
 function canDispatchHero(camp, id) { const h = camp.heroes[id]; return h && h.state === 'available'; }
+/* v1.39.1: 🔒 locked-hero calls. A call may only lock a hero who can be sent right now, and while the lock stands that hero is reserved for it
+   (cannot be slotted on or dispatched to any other call), so a locked call can never hold a working / resting / downed hero. */
+const LOCK_SHIFT = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function lockShift(camp, S) { if (LOCK_SHIFT && camp && S && S.calls) LOCK_SHIFT.set(camp, S); }
+function heroLockCall(camp, S, id, except) { if (!id || !camp) return null; if (!S) { S = LOCK_SHIFT && LOCK_SHIFT.get(camp); if (!S || (except && !S.calls.includes(except))) return null; } if (!S || !S.calls) return null;
+  return S.calls.find(x => x !== except && x.stage === 'pending' && x.autoHero === id) || null; }
+function heroLockable(camp, S, id) { // free to be locked onto (or asked for by) a new call: on the crew, Ready, not reserved by another lock, not already slotted on another open call
+  if (!id || !camp.heroes[id] || !(camp.roster || []).includes(id) || !canDispatchHero(camp, id)) return false;
+  if (S && S.calls && S.calls.some(x => x.stage === 'pending' && (x.autoHero === id || (x.assigned || []).includes(id)))) return false;
+  return true; }
+function lockWillFree(camp, S) { return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && id !== 'comptroller' && id !== 'solstice' && h.state !== 'downed'; }); }
+function checkLocks(camp, S) { // safety net: a lock whose hero stopped being usable is released (story calls hand over to a free hero)
+  for (const c of S.calls) { if (c.stage !== 'pending' || !c.autoHero || canDispatchHero(camp, c.autoHero)) continue; const was = c.autoHero;
+    if (c.tpl.story) { const av = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice' && heroLockable(camp, S, id)); if (!av.length) continue; c.autoHero = av[0]; c.assigned = c.assigned.map(x => x === was ? av[0] : x); Bus.emit('lockMoved', { call: c, from: was, to: av[0] }); continue; }
+    c.assigned = c.assigned.map(x => x === was ? null : x); c.autoHero = null; c.autoLine = ''; c.lockReleased = was; Bus.emit('lockReleased', { call: c, hero: was }); } }
 function travelTime(camp, call, ids) {
   const du = Math.abs(call.pos.u - HQ.u) * 1280, dv = Math.abs(call.pos.v - HQ.v) * 720;
   let t = clamp((du + dv) / CONFIG.heroSpeed, CONFIG.travelMin, CONFIG.travelMax);
@@ -3027,6 +3043,7 @@ function workTimeFor(camp, call, ids) {
 function dispatch(camp, S, call) {
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
   if (!ids.every(id => canDispatchHero(camp, id))) return false;
+  lockShift(camp, S); if (ids.some(id => heroLockCall(camp, S, id, call))) return false; // v1.39.1: a hero locked onto another open call stays reserved for it
   if (call.tpl.training && ids.some(id => trainingBlock(camp, call, id))) return false; // v1.14.1
   if (call.tpl.sabotage && call.tpl.sabotage.forced) { const v = sabotageVictim(camp, S, call, ids); const fullD = v ? successChance(camp, S, call, call.assigned, { atDispatch: true, noSabotage: true }).display : null; if (v) { call.assigned = call.assigned.map(id => id === v.hero ? null : id); ids = call.assigned.filter(Boolean); startSabotage(camp, S, call, v); call.sabotageInfo = { hero: v.hero, by: v.by, fullTeamDisplay: fullD}; } }
   if (call.pairUid) declinePartner(camp, S, call);
@@ -3084,6 +3101,7 @@ function tick(camp, S, dt) {
     S.nextSpawn = S.t + iv * (1 + (S.spawnRng() * 2 - 1) * CONFIG.spawnJitter);
   }
   if (!S.deckMode && S.legacyFinale) tickLegacyFinale(camp, S);
+  checkLocks(camp, S); // v1.39.1
   for (const c of S.calls) {
     if (c.stage === 'pending') {
       if (!c.tpl.noExpiry && c.expiresAt - S.t <= CONFIG.extendExpiryAt && c.expiresAt > S.t && !c.extended) { const ex = camp.roster.map(id => camp.heroes[id]).find(h => h && hasPower(h, 'extendExpiry') && !h.extendUsed && h.state !== 'downed');
@@ -3255,7 +3273,7 @@ function trainingBlock(camp, call, id) { const t = call && call.tpl && call.tpl.
   if (!d.train || !d.train.length) return 'no-train'; if (h.trainedChoice) return 'trained'; if (heroLevel(h) < CONFIG.trainLevel) return 'level'; if (!baseRevealed(h)) return 'reveal'; return null; }
 const TRAINING_BLOCK_TEXT = { level: () => `needs LV ${CONFIG.trainLevel}`, trained: () => 'already trained', reveal: () => 'reveal power first', 'no-train': () => 'cannot train', 'route-known': () => 'already knows routes', 'route-full': () => 'route slots full', none: () => '' };
 function trainingBlockText(camp, call, id) { const k = trainingBlock(camp, call, id); return k ? TRAINING_BLOCK_TEXT[k]() : ''; }
-function canAssignTo(camp, call, id) { return canDispatchHero(camp, id) && !trainingBlock(camp, call, id); }
+function canAssignTo(camp, call, id) { return canDispatchHero(camp, id) && !trainingBlock(camp, call, id) && !heroLockCall(camp, null, id, call); } // v1.39.1: not reserved by another call's 🔒
 function trainingNobodyEligible(camp, call) { return !!(call && call.tpl && call.tpl.training) && !camp.roster.some(id => !trainingBlock(camp, call, id)); }
 function canUpgradeMk2(h) { const d = heroDef(h.id) || {}; const sig = SIGNATURES[d.power]; return !!(h && !h.noXP && sig && h.trainedChoice && !h.signature && heroLevel(h) >= CONFIG.signatureLevel && h.powers.includes(d.power)); }
 function upgradeMk2(camp, id) { const h = camp.heroes[id]; if (!h || !canUpgradeMk2(h)) return false; const d = heroDef(id); const sig = SIGNATURES[d.power]; if (POWERS[sig].retry) return false; h.powers[h.powers.indexOf(d.power)] = sig; h.signature = true; if (h.revealed) h.revealed[sig] = true; Bus.emit('mk2', { hero: h, power: sig }); return true; }
@@ -3496,7 +3514,7 @@ function applyWildcardV13(camp, id, rng) { const h = camp.heroes[id]; const open
 
 /* ---------- Greedy AI (auto-play helper & simulation) ---------- */
 function aiBestTeam(camp, S, call) {
-  const avail = camp.roster.filter(id => canDispatchHero(camp, id) && !(call.tpl.banned && call.tpl.banned[id]) && !afFor(call.tpl, id));
+  const avail = camp.roster.filter(id => canDispatchHero(camp, id) && !heroLockCall(camp, S, id, call) && !(call.tpl.banned && call.tpl.banned[id]) && !afFor(call.tpl, id));
   let assigned = call.assigned.slice(); const fixed = call.autoHero;
   let best = computeCall(camp, S, call, assigned);
   for (let k = 0; k < call.slots; k++) {
@@ -3526,7 +3544,7 @@ function aiStep(camp, S, opts) {
     const timeLeft = c.expiresAt - S.t;
     if (r.info.chance < 0.45 && timeLeft > 8) continue;
     if (!r.assigned.some(Boolean)) continue;
-    if (c.requestHero && !r.assigned.includes(c.requestHero) && canDispatchHero(camp, c.requestHero)) { const i = r.assigned.indexOf(null); if (i >= 0) r.assigned[i] = c.requestHero; }
+    if (c.requestHero && !r.assigned.includes(c.requestHero) && canDispatchHero(camp, c.requestHero) && !heroLockCall(camp, S, c.requestHero, c)) { const i = r.assigned.indexOf(null); if (i >= 0) r.assigned[i] = c.requestHero; }
     c.assigned = r.assigned; if (dispatch(camp, S, c)) acts.push(['dispatch', c]);
   }
   for (const id of camp.roster) { const h = camp.heroes[id]; if (h.state === 'downed' && toolUnlocked(camp, 'jump')) useTool(camp, S, 'jump', id); if (h.injuries && h.state === 'available' && toolUnlocked(camp, 'medkit')) useTool(camp, S, 'medkit', id); }
@@ -3693,6 +3711,7 @@ function tickDeck(camp, S, dt) {
   if (S.finale && S.finale.won) return;
   const open = () => pendingCalls(S).filter(c => !(c.tpl.training)).length;
   for (const e of S.deck) { if (e.done) continue; if (S.t < e.t) break; if (open() >= CONFIG.maxPending && !e.hack) break; // maxPending delays, never drops
+    if (e.tpls.some(t => t.story) && !(S.roster || camp.roster).some(id => id !== 'comptroller' && id !== 'solstice' && camp.roster.includes(id) && heroLockable(camp, S, id)) && lockWillFree(camp, S)) break; // v1.39.1: a story call waits (like maxPending) until a hero is free to pick it up
     e.done = true; e.at = S.t; if (e.tpls.every(t => t.boss && S.spawned[t.id])) { S.expected--; continue; } // already re-spawned as the boss pin
     const made = e.tpls.map(t => spawnCall(camp, S, t, t.hack && t.hack.restoresDistrict !== undefined ? { district: t.hack.restoresDistrict } : {}));
     if (made.length === 2) linkPair(made); }
@@ -3703,9 +3722,9 @@ function tickDeck(camp, S, dt) {
 }
 function setupMission(camp, S, c, extra) {
   const t = c.tpl, roster = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'), rng = S.spawnRng;
-  if (t.request) { const id = t.request.candidates.find(x => roster.includes(x)); if (id) { c.requestHero = id; c.requestReason = (t.request.reasons || {})[id] || ''; } }
-  if (t.autoPick) { const id = t.autoPick.candidates.find(x => roster.includes(x)); if (id) { c.autoHero = id; c.assigned[0] = id; c.autoLine = (t.autoPick.lines || {})[id] || ''; } }
-  if (t.story) { const av = roster.filter(id => canDispatchHero(camp, id)); const pool = av.length ? av : roster; const id = pool[Math.floor(rng() * pool.length)]; c.autoHero = id; c.assigned[0] = id; c.storyChoice = null; }
+  if (t.request) { const id = t.request.candidates.find(x => roster.includes(x) && heroLockable(camp, S, x)); /* v1.39.1 */ if (id) { c.requestHero = id; c.requestReason = (t.request.reasons || {})[id] || ''; } }
+  if (t.autoPick) { const id = t.autoPick.candidates.find(x => roster.includes(x) && heroLockable(camp, S, x)); /* v1.39.1: first FREE candidate, else the call is not locked */ if (id) { c.autoHero = id; c.assigned[0] = id; c.autoLine = (t.autoPick.lines || {})[id] || ''; } }
+  if (t.story) { const av = roster.filter(id => heroLockable(camp, S, id)); const ready = roster.filter(id => canDispatchHero(camp, id)); const pool = av.length ? av : ready.length ? ready : roster; /* v1.39.1: tickDeck holds a story call until someone is free; roster only if nobody can ever be */ const id = pool[Math.floor(rng() * pool.length)]; c.autoHero = id; c.assigned[0] = id; c.storyChoice = null; }
   if (t.compReward && t.compReward.heroMult) c.namedHero = roster[Math.floor(rng() * roster.length)];
   if (t.hack) { c.hackSpec = t.hack; if (t.hack.restoresDistrict !== undefined) c.restoreDistrict = t.hack.restoresDistrict; }
 }
@@ -3830,7 +3849,7 @@ function aiDisruptAlways(camp, S, c, opts) { let guard = 0;
     const info = computeCall(camp, S, c, c.teamSlots || c.team); const best = ch.opts.map(o => ({ o, m: info.team[o.stat] - o.threshold })).sort((a, b) => b.m - a.m)[0];
     if ((!best || best.m < 0) && ch.hackOpt && opts.hacks !== false) { resolveDisruption(camp, S, c, 'hk'); resolveDisruptionHack(camp, S, c, (opts.hackRng || S.hackRng)() < hwr); continue; }
     if (!best) break; resolveDisruption(camp, S, c, best.o.key); } }
-function aiTrainingTeam(camp, S, c) { const av = camp.roster.filter(id => canDispatchHero(camp, id)); return av.find(id => !trainingBlock(camp, c, id)) || null; } // v1.14.1: same rule as the UI
+function aiTrainingTeam(camp, S, c) { const av = camp.roster.filter(id => canDispatchHero(camp, id) && !heroLockCall(camp, S, id, c)); return av.find(id => !trainingBlock(camp, c, id)) || null; } // v1.14.1: same rule as the UI
 
 /* ---------- v1.34.0 ♾ Infinite Shift (engine) ----------
    One shift that never ends. Stage n runs 12 game hours (720 s at 1x); at every ramp (06:00 / 18:00) the call settings step up to the
@@ -3875,7 +3894,7 @@ function startInfinite(camp) { // fresh start (t=0) or resume from the last chec
     online: [0, 1, 2, 3, 4, 5], hackQueue: [], pairShift: {}, over: false, log: [], usedTemplates: {}, deckMode: false, inf: true, infStage: stage, stageStart: inf.t || 0,
     seconds: 1e12, spawnStopAt: 1e12, spawned: {}, followQ: [], sabotages: [], dupErrors: 0, heroFails: 0 };
   S.finale = { city: inf.city, cityMax: I.cityMax, inf: true, bossHP: 0, bossMax: 0, won: false, lost: inf.city <= 0 };
-  infScheduleHacks(camp, S);
+  infScheduleHacks(camp, S); lockShift(camp, S); // v1.39.1
   return S; }
 function infClock(S) { const I = CONFIG.infinite, mins = I.startHour * 60 + Math.floor(S.t / I.secPerGameHour * 60); const day = Math.floor(mins / 1440) + 1, m = mins % 1440;
   return { day, hh: Math.floor(m / 60), mm: m % 60, text: String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0') }; }
@@ -4525,8 +4544,8 @@ function openBriefing(c) {
       const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
         return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
-      const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const ok = canDispatchHero(camp, id) && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
-        return `<span class="chipwrap"><button class="chip ${afList(tpl).some(x => x.heroId === id) ? 'afrisk' : ''} ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
+      const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const lk = canDispatchHero(camp, id) ? heroLockCall(camp, S, id, c) : null; const ok = canDispatchHero(camp, id) && !lk && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
+        return `<span class="chipwrap"><button class="chip ${afList(tpl).some(x => x.heroId === id) ? 'afrisk' : ''} ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : lk ? `aria-label="${esc(hh.codename)}: locked onto ${esc(lk.tpl.title)}" title="Locked onto ${esc(lk.tpl.title)}: send them there"` : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `${lk ? `<small class="tbr">🔒 Locked</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
       const chanceBox = !any ? '' : !showOdds && !(tpl.disruption && tpl.disruption.always && !info.forced) ? '' : tpl.disruption && tpl.disruption.always && !info.forced ? `<div class="chance mid decided"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Radio check ✋</b></div><div class="ch-sub">Disruption likely: ${disruptionStatList(tpl)} · your team: ${disruptionStatList(tpl, info.team)}</div></div>` : chanceHTML(info, UI.showBreak);
       if (pv.length) links += `<div class="note pfx-prev"><b>⚡ Powers that will trigger</b>${pv.map(e => `<div class="pfx-li">${esc(e.msg)}</div>`).join('')}</div>`;
@@ -4566,6 +4585,7 @@ function openBriefing(c) {
         c.assigned[slotIdx] = id; c.assigned[fromSlot] = other || null; sel = null; Sfx.click(); render(); return;
       }
       if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; }
+      { const lk = canDispatchHero(camp, id) && !c.assigned.includes(id) ? heroLockCall(camp, S, id, c) : null; if (lk) { toast('🔒 ' + esc(camp.heroes[id].codename) + ' is locked onto "' + esc(lk.tpl.title) + '". Send them there.'); return; } } // v1.39.1
       if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return;
       ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined;
       let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null));
@@ -4950,6 +4970,7 @@ function heroCallHTML(camp, hh, call) { // mission-relevant highlights (only wha
   if (asked.length) rows.push(`This call asks for ${asked.map(i => `<b>${STAT_NAMES[STATS[i]]}</b>`).join(' and ')}: ${esc(hh.codename)} has ${asked.map(i => `${STATS[i]} ${st[i]}`).join(' · ')}.`);
   if (tpl.banned && tpl.banned[id]) rows.push(`⛔ Can't be sent on this call${typeof tpl.banned[id] === 'string' ? ': ' + esc(tpl.banned[id]) : '.'}`);
   if (!canDispatchHero(camp, id)) rows.push(`⏳ Not available right now (${esc(stateLabel(hh))}).`);
+  else { const lk = heroLockCall(camp, S, id, call); if (lk) rows.push(`🔒 Locked onto <b>${esc(lk.tpl.title)}</b>: can only be sent there while that call is open.`); } // v1.39.1
   const team = (call.assigned || []).filter(x => x && x !== id);
   for (const [a, b] of SYNERGY_PAIRS) if ((a === id || b === id) && team.includes(a === id ? b : a)) rows.push(`🔗 Synergy with ${esc(camp.heroes[a === id ? b : a].codename)} on this team.`);
   if (S.idx + 1 >= CONFIG.conflictsFromShift) for (const [a, b] of CONFLICT_PAIRS) if ((a === id || b === id) && team.includes(a === id ? b : a) && !camp.conflictNeutral[pairKey(a, b)]) rows.push(`⚡ Conflict with ${esc(camp.heroes[a === id ? b : a].codename)} on this team.`);
@@ -5629,6 +5650,8 @@ function showEnd() {
 Bus.on('spawn', c => { if (!UI.S || UI.sim) return; setTimeout(() => { try { if (UI.S) hackPrewarmCall(UI.camp, UI.S, c); } catch (e) { } }, 0); Sfx.ring(); if (c.requestHero) radio(c.requestHero, `Hey boss, can I take "${c.tpl.title}"? Please?`); if (c.autoHero) radio(c.autoHero, 'I got this one. Already on my way. Do not argue.'); if (c.tpl.type === 'hack') toast('⌘ Hack call: ' + esc(c.tpl.title)); });
 function mechTutorial(tpl) { const camp = UI.camp; if (!camp || !tpl.mission) return; camp.seenMech = camp.seenMech || {};
   for (const k of missionMechanics(tpl)) if (!camp.seenMech[k]) { camp.seenMech[k] = 1; toast(MECHANICS[k][0] + ' ' + esc(MECHANICS[k][1]), 7000); radioLog(null, '📘 New: ' + MECHANICS[k][1], 'tut'); } }
+Bus.on('lockReleased', e => { if (!UI.S || UI.sim) return; radio(e.hero, `I can not make "${e.call.tpl.title}" after all. It is open to anyone now.`); }); // v1.39.1 safety net
+Bus.on('lockMoved', e => { if (!UI.S || UI.sim) return; radio(e.to, `📖 I picked up "${e.call.tpl.title}" instead.`); });
 Bus.on('spawn', c => { if (!UI.S || UI.sim || !c.tpl.mission) return; mechTutorial(c.tpl);
   if (c.requestHero && c.requestReason) radioLog(c.requestHero, '🙋 ' + c.requestReason);
   if (c.tpl.story) radio(c.autoHero, `📖 I picked up "${c.tpl.title}". Tell me how to play it.`);
