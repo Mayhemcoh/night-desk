@@ -691,6 +691,23 @@ html.reduce-fx .sheet.bfix .bdock .slots.full-shake{animation:none}
 .cont-diff{white-space:nowrap}
 .ez-note{display:block;margin-top:4px;font-size:12px;color:#7ee2a0;font-weight:600}
 #hTimer.notimer{opacity:.35}
+/* v1.41.0 💀 Hard campaign difficulty */
+.diff-tog .dt-btn[data-diff=hard].on{background:#e2434b;color:#fff}
+.diff-pill.diff-hard{background:#3d1214;border-color:#ff5a5f;color:#ffc9cb;margin-left:6px}
+.note.hard-alert{border-left:6px solid #ff9a1f;background:rgba(255,154,31,.12);color:#ffe2bd;margin-top:8px}
+.note.hard-alert b{display:block;color:#ffb347;letter-spacing:1.5px;font-weight:800;margin-bottom:2px}
+#radio .hard-al{white-space:normal;overflow:visible;text-overflow:clip;color:#ffb347}
+.hard-card{position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:4;width:min(46%,200px);background:#1a0c02ee;border:2px solid #ff9a1f;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;box-shadow:0 0 0 0 #ff9a1f;animation:hardPulse 1.2s ease-in-out infinite alternate}
+.hard-card.hidden{display:none}
+.hard-card .hc-h{font-weight:800;letter-spacing:1px;color:#ffb347;font-size:13px}
+.hard-card .hc-t{font-size:12px;line-height:1.3;color:#ffe2bd}
+.hard-card .hc-btn{min-height:44px;font-size:13px;padding:6px 8px;width:100%}
+@keyframes hardPulse{to{box-shadow:0 0 16px 2px #ff9a1f}}
+html.reduce-fx .hard-card{animation:none;box-shadow:0 0 10px #ff9a1f}
+.chip.refuse-shake{animation:slotshake .14s linear 3}
+html.reduce-fx .chip.refuse-shake{animation:none;outline:2px solid #e2434b}
+html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-grey #fx,html.hard-grey.hard-grey-hack #hack{filter:grayscale(1)}
+.hard-refuse-toast{position:absolute;top:calc(var(--sat,0px) + 10px);left:50%;transform:translateX(-50%);z-index:12;width:max-content;max-width:min(92%,420px);border-color:#ff5a5f;box-shadow:0 0 14px #ff5a5f66;pointer-events:none}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -1043,7 +1060,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.40.0';
+<script>window.ND_VERSION='nd-v1.41.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1137,11 +1154,37 @@ const CONFIG = {
   trainingAfterShifts: [2, 4, 6],
   campaignShifts: 8,
   // v1.40.0 campaign difficulty: one named value per campaign (saved; Infinite ignores it). Hard slots in here later (and in difficultyOrder).
-  difficultyOrder: ['easy', 'normal'],
+  difficultyOrder: ['easy', 'normal', 'hard'], // v1.41.0: 💀 Hard added (third button)
   difficulties: {
     easy: { label: 'Easy', icon: '🌱', showOdds: true, showReq: true, restMult: 0.5, travelMult: 0.5, workMult: 0.5, hackNoTimer: true,
       desc: 'Requirements always shown, odds as you slot heroes · half rest, travel and work time · no hacking timer.' },
     normal: { label: 'Normal', icon: '⚖', showOdds: false, showReq: false, restMult: 1, travelMult: 1, workMult: 1, hackNoTimer: false, desc: 'The game as it is today.' },
+    // v1.41.0 Hard = Normal speeds and hidden odds/requirements, plus one event per shift (CONFIG.hard). Never read by Infinite.
+    hard: { label: 'Hard', icon: '💀', showOdds: false, showReq: false, restMult: 1, travelMult: 1, workMult: 1, hackNoTimer: false, desc: 'The normal game with a twist in every shift. Stay alert and read every briefing thoroughly.' },
+  },
+  /* v1.41.0 💀 Hard table: every Hard number lives here (not in CONFIG.shifts), so tuning needs no code change.
+     shipped = shifts (0-based) whose Hard event is built; the BE ALERT card and radio line only show for those (N6: the rest play as Normal, no alert). */
+  hard: {
+    shipped: [0, 1, 2],
+    alerts: [
+      'Be alert. There have been connectivity problems all over the city tonight. If the line goes dead, the repair is on you, and the clock will not wait.',
+      'Word on the floor is the crew has lost confidence in your calls. Expect some attitude tonight. Someone may flat-out refuse a job, and they will not warn you first.',
+      'Heads up. Techs report a glitch spreading through the dispatch terminal. The screen could lose its color without warning. Read every call carefully.',
+      'Someone came to work sick and it is going around. Watch your crew tonight. The sick move slower and take longer to recover.',
+      'Every time a grid comes back online, the whole district calls at once. Be ready for a rush, then a breather.',
+      'A bad storm is hammering the city and the roads are slick. Crews could get hurt on the way to a job. Be ready to change plans.',
+      null, null, // Shifts 7 and 8: Story / Random wording below (alerts7 / alerts8)
+    ],
+    alerts7: { story: 'Intel says followers of the Night Mayor are setting fires and stirring up riots across the city. A whole section could go up at once.',
+      random: 'Intel says the rogue hero we expect trouble from at the end of this review, {name}, has followers setting fires and starting riots. They share {name}\'s cause: {motive} Whole sections could go up at once.' },
+    alerts8: { story: 'The Night Mayor\'s followers are still burning the city while he makes his last broadcast. Every block that burns hurts the City. Hold the line.',
+      random: '{name}\'s followers are still burning the city while {name} makes their last stand. Every block that burns hurts the City. Hold the line.' },
+    // Shift 1 Connection lost: 3 outages at ~21:10 / 22:50 / 00:30, each nudged +-nudge s (seeded); >= minGap s after the previous repair; none start after lastStart (00:45)
+    outage: { shift: 0, at: [70, 170, 270], nudge: 5, minGap: 60, lastStart: 285, nagEvery: 30, features: ['bridges'], timeMax: 50, mapTries: 40 }, // repair map: first seeded Shift 1 level map whose own computed limit is <= timeMax (45-50 s)
+    // Shift 2 Disrespect: per call, rolled once at first briefing open
+    refuse: { shift: 1, chance: 0.5 },
+    // Shift 3 Glitch: greyscale from START SHIFT to the summary (hacking consoles too while the N5 setting is On)
+    grey: { shift: 2 },
   },
   // v1.34.0 ♾ Infinite Shift: one endless shift; a ramp every 12 game hours (06:00 / 18:00) steps up to the next shift's settings
   infinite: { crew: 10, startHour: 18, stageHours: 12, secPerGameHour: 60, cityMax: 200, cityHit: 9,
@@ -2470,7 +2513,52 @@ function shiftBlurb(camp, idx) { const j = shiftJoiners(camp, idx).map(id => her
 function campDiffKey(camp) { return camp && !camp.inf && CONFIG.difficulties[camp.difficulty] ? camp.difficulty : 'normal'; }
 function campDiff(camp) { return CONFIG.difficulties[campDiffKey(camp)]; }
 function isEasy(camp) { return campDiffKey(camp) === 'easy'; }
-function normDifficulty(d) { return CONFIG.difficulties[d] && d !== 'hard' ? d : 'normal'; }
+function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // v1.41.0: 'hard' is a real choice now
+/* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
+   Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
+function isHard(camp) { return campDiffKey(camp) === 'hard'; }
+function hardShipped(idx) { return ((CONFIG.hard && CONFIG.hard.shipped) || []).includes(idx); } // N6: Hard shifts without a built event play as Normal (no alert)
+function hardAlertText(camp, idx) { // BE ALERT card + 20:00 radio line; null when this shift has no (shipped) Hard event
+  if (!isHard(camp) || !hardShipped(idx)) return null; const H = CONFIG.hard;
+  if (idx === 6 || idx === 7) { const T = idx === 6 ? H.alerts7 : H.alerts8; const r = camp.missionSet === 'legacy' ? ensureRogueBoss(camp) : null; const d = r && !r.fallback && heroDef(r.id);
+    if (!d) return T.story; return T.random.split('{name}').join(d.codename).split('{motive}').join(r.motive || ''); }
+  return H.alerts[idx] || null; }
+function hardRng(S, salt) { return mulberry32(((S.seed >>> 0) ^ Math.imul((salt >>> 0) + 1, 0x9E3779B1) ^ 0x4A5D0E1) >>> 0); }
+function hardSetup(camp, S) { if (!isHard(camp)) return null; const H = CONFIG.hard, idx = S.idx, out = { idx };
+  if (H.outage && idx === H.outage.shift && hardShipped(idx)) { const o = H.outage, r = hardRng(S, 1); // Shift 1: 3 Connection lost outages
+    out.outage = { at: o.at.map(t => t + Math.round((r() * 2 - 1) * o.nudge)), done: 0, repaired: 0, lastRepair: -1e9, log: [] }; }
+  if (H.refuse && idx === H.refuse.shift && hardShipped(idx)) out.refuse = true; // Shift 2: hidden refuser, rolled per call at first open
+  if (H.grey && idx === H.grey.shift && hardShipped(idx)) out.grey = true; // Shift 3: greyscale (UI only)
+  out.down = null; return out; }
+function hardCommsDown(S) { return !!(S && S.hard && S.hard.down); }
+function hardNextOutageT(S) { const O = S.hard && S.hard.outage; if (!O || O.done >= O.at.length) return null; const t = Math.max(O.at[O.done], O.lastRepair + CONFIG.hard.outage.minGap); return t > CONFIG.hard.outage.lastStart ? null : t; }
+function hardTick(camp, S, dt) { const H = S.hard, O = H.outage; if (!O) return;
+  if (H.down) { // Option A: everything keeps running; only NEW calls wait. Every scheduled call slides back by the outage time so they arrive one at a time later, not in a burst.
+    for (const hq of S.hackQueue) if (!hq.done) hq.t += dt;
+    if (S.deckMode) { for (const e of S.deck || []) if (!e.done) e.t += dt; } else S.nextSpawn += dt;
+    for (const f of S.followQ || []) if (!f.done) f.t += dt;
+    H.down.dur += dt; if (H.down.dur >= H.down.nagAt) { H.down.nagAt += CONFIG.hard.outage.nagEvery; Bus.emit('hardNag', { n: H.down.n }); }
+    return; }
+  const t = hardNextOutageT(S); if (t === null) { if (O.done < O.at.length) O.done = O.at.length; return; } // past 00:45: no more outages
+  if (S.t >= t) { H.down = { n: O.done, at: S.t, dur: 0, nagAt: CONFIG.hard.outage.nagEvery, fails: 0 }; O.log.push({ n: O.done, at: S.t }); Bus.emit('hardOutage', { n: O.done }); } }
+function hardRepairDone(camp, S, win) { const H = S && S.hard; if (!H || !H.down) return false; // a failed / abandoned repair is NOT a failed call: no stats, no score, no XP
+  if (!win) { H.down.fails++; Bus.emit('hardRepairFail', { n: H.down.n }); return false; }
+  const O = H.outage, n = H.down.n; O.log[O.log.length - 1].fixed = S.t; H.down = null; O.done++; O.repaired++; O.lastRepair = S.t; Bus.emit('hardRestored', { n }); return true; }
+function hardRepairLayout(camp, S) { const H = S.hard; if (!H || !H.down) return null; const o = CONFIG.hard.outage; // a fresh Shift 1 level map per outage (3x2 rooms, bridges); retries reuse the same map
+  const maps = H.maps = H.maps || {}; let key = maps[H.down.n], L = null;
+  if (key === undefined) { let best = null; for (let k = 0; k < (o.mapTries || 1); k++) { const M = genHackForShift(hackSeed(camp.seed >>> 0, S.idx, 'repair:' + H.down.n + ':' + k), 0, o.features.slice(), { noTutorial: true }); if (!best || M.time < best.M.time) best = { k, M }; if (M.time <= o.timeMax) break; } key = maps[H.down.n] = best.k; L = best.M; } // seeded search: the map keeps its own fair time
+  else L = genHackForShift(hackSeed(camp.seed >>> 0, S.idx, 'repair:' + H.down.n + ':' + key), 0, o.features.slice(), { noTutorial: true });
+  L = Object.assign({}, L, { attempts: 0, invisible: false, inverted: false, features: o.features.slice(), hackKey: 'repair:' + H.down.n, repair: true });
+  if (toolUnlocked(camp, 'hacktime') && !isEasy(camp)) { L.time += (CONFIG.hackTimeBonus || 0); L.timeBonus = CONFIG.hackTimeBonus; } // rank time bonus works as usual
+  return L; }
+function hardRefuseDecide(camp, S, c) { // Shift 2: rolled ONCE per call, the first time its briefing opens (player, pair switch or auto-play planning)
+  if (!c || c.refuseDecided || c.stage !== 'pending' || !S || !S.hard || !S.hard.refuse) return null; c.refuseDecided = true;
+  if (c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training) return null; // never on ⌘ hack or 🎓 training calls
+  const r = hardRng(S, 1000 + c.uid); if (r() >= CONFIG.hard.refuse.chance) return null;
+  const ready = (camp.roster || []).filter(id => id !== 'comptroller' && id !== 'solstice' && canDispatchHero(camp, id) && !heroLockCall(camp, S, id, c));
+  if (ready.length <= 1) return null; // only one Ready hero: no refusal (the call must stay possible)
+  const cand = ready.filter(id => id !== c.autoHero && id !== c.requestHero && !(c.assigned || []).includes(id)); // never the 🔒 / 📖 hero or a 🙋 requester
+  if (!cand.length) return null; c.refuser = cand[Math.floor(r() * cand.length)]; return c.refuser; }
 /* v1.40.0: 'no effect in Easy' note for a power (or a rank reward key 'rank:hacktime'); '' when it does something in Easy */
 function easyNoEffect(pid) {
   if (pid === 'rank:hacktime') return '🌱 No effect in Easy: hacks have no timer.';
@@ -2544,7 +2632,7 @@ function drizzleBoost(c) { const h = c.hero; const always = hasPower(h, 'alwaysB
   c.st[ord[0]] += boost; if (h.powers.includes('eagermop2') && req[ord[1]] > 0) c.st[ord[1]] += CONFIG.drizzle.mk2SecondBoost;
   c.markAs = always ? 'holywater' : h.powers.includes('supersoaker') ? 'supersoaker' : null; }
 function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.heroes.drizzle;
-  if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer) return false;
+  if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer || c.refuser === 'drizzle') return false; // v1.41.0: never volunteers onto a call he refuses
   if (c.stage !== 'pending' || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
   if (!canDispatchHero(camp, 'drizzle') || heroLockCall(camp, S, 'drizzle', c) || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
   if (S.calls.some(x => x !== c && x.stage === 'pending' && x.assigned.includes('drizzle'))) return false;
@@ -2679,6 +2767,7 @@ function startShift(camp) {
   lockShift(camp, S); // v1.39.1
   S.seconds = plan.seconds || CONFIG.shiftSeconds; S.spawnStopAt = CONFIG.spawnStopAt * S.seconds / CONFIG.shiftSeconds; // v1.21.0: finale plan.seconds (450) applies in every mode so the 1am last boss still has time
   S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0; S.heroFails = 0;
+  if (isHard(camp)) S.hard = hardSetup(camp, S); // v1.41.0 (Normal / Easy / Infinite: no S.hard at all)
   if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
   if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); if (S.solsticeAtStart) solsticeJoin(camp, S, 'campaign'); return S; }
   if (plan.blackout) { const off = [0, 2, 3, 5]; [15, 75, 140, 205].forEach((t, i) => S.hackQueue.push({ t, district: off[i] })); }
@@ -3096,6 +3185,7 @@ function dispatch(camp, S, call) {
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
   if (!ids.every(id => canDispatchHero(camp, id))) return false;
   lockShift(camp, S); if (ids.some(id => heroLockCall(camp, S, id, call))) return false; // v1.39.1: a hero locked onto another open call stays reserved for it
+  if (call.refuser && ids.includes(call.refuser)) return false; // v1.41.0 Hard Shift 2: the refuser never goes (safety net behind the briefing)
   if (call.tpl.training && ids.some(id => trainingBlock(camp, call, id))) return false; // v1.14.1
   if (call.tpl.sabotage && call.tpl.sabotage.forced) { const v = sabotageVictim(camp, S, call, ids); const fullD = v ? successChance(camp, S, call, call.assigned, { atDispatch: true, noSabotage: true }).display : null; if (v) { call.assigned = call.assigned.map(id => id === v.hero ? null : id); ids = call.assigned.filter(Boolean); startSabotage(camp, S, call, v); call.sabotageInfo = { hero: v.hero, by: v.by, fullTeamDisplay: fullD}; } }
   if (call.pairUid) declinePartner(camp, S, call);
@@ -3143,11 +3233,13 @@ function tick(camp, S, dt) {
   if (S.over) return;
   S.t += dt;
   if (S.inf) infTickRamps(camp, S);
+  if (S.hard) hardTick(camp, S, dt); // v1.41.0 Hard events
+  const commsDown = !!(S.hard && S.hard.down); // v1.41.0 Hard Shift 1: no new calls while the connection is lost
   // scheduled hacks
-  for (const hq of S.hackQueue) if (!hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); c.hackOrd = hq.ord !== undefined ? hq.ord : S.hackQueue.indexOf(hq); if (S.inf && hq.practice) c.practice = true; if (hq.district !== undefined) c.restoreDistrict = hq.district; }
-  if (S.deckMode) tickDeck(camp, S, dt);
+  for (const hq of S.hackQueue) if (!commsDown && !hq.done && S.t >= hq.t) { hq.done = true; const tpl = CALLS.find(c => c.id === (hq.district !== undefined ? 22 : (S.uid % 2 ? 21 : 22))); const c = spawnCall(camp, S, tpl, hq.district !== undefined ? { district: hq.district } : {}); c.hackOrd = hq.ord !== undefined ? hq.ord : S.hackQueue.indexOf(hq); if (S.inf && hq.practice) c.practice = true; if (hq.district !== undefined) c.restoreDistrict = hq.district; }
+  if (S.deckMode) { if (!commsDown) tickDeck(camp, S, dt); }
   // spawn
-  else if (S.t >= S.nextSpawn && (S.inf || S.t < CONFIG.spawnStopAt)) {
+  else if (!commsDown && S.t >= S.nextSpawn && (S.inf || S.t < CONFIG.spawnStopAt)) {
     if (pendingCalls(S).length < CONFIG.maxPending && !(S.finale && S.finale.won)) { const u = pickLegacyUnit(camp, S, S.spawnRng, CONFIG.maxPending - pendingCalls(S).length); if (u) spawnLegacyUnit(camp, S, u); }
     let iv = Math.max(CONFIG.spawnMin, CONFIG.spawnBase + CONFIG.spawnPerShift * S.idx); if (S.plan.dense) iv *= CONFIG.denseShiftSpawnMult; if (S.inf) iv = infSpawnInterval(S);
     S.nextSpawn = S.t + iv * (1 + (S.spawnRng() * 2 - 1) * CONFIG.spawnJitter);
@@ -3567,7 +3659,7 @@ function applyWildcardV13(camp, id, rng) { const h = camp.heroes[id]; const open
 
 /* ---------- Greedy AI (auto-play helper & simulation) ---------- */
 function aiBestTeam(camp, S, call) {
-  const avail = camp.roster.filter(id => canDispatchHero(camp, id) && !heroLockCall(camp, S, id, call) && !(call.tpl.banned && call.tpl.banned[id]) && !afFor(call.tpl, id));
+  const avail = camp.roster.filter(id => canDispatchHero(camp, id) && !heroLockCall(camp, S, id, call) && !(call.tpl.banned && call.tpl.banned[id]) && !afFor(call.tpl, id) && id !== call.refuser); // v1.41.0: auto-plan never slots a Hard refuser
   let assigned = call.assigned.slice(); const fixed = call.autoHero;
   let best = computeCall(camp, S, call, assigned);
   for (let k = 0; k < call.slots; k++) {
@@ -3593,8 +3685,9 @@ function aiStep(camp, S, opts) {
     if (c.tpl.training) { const id = aiTrainingTeam(camp, S, c); if (id) { c.assigned = [id]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } continue; }
     if (c.tpl.story) { c.storyChoice = (c.tpl.story.choices || []).findIndex(x => x.morale) ; if (c.storyChoice < 0) c.storyChoice = 0; if (c.autoHero && canDispatchHero(camp, c.autoHero)) { c.assigned = [c.autoHero]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } continue; }
     decideLock(camp, S, c); // v1.39.2: the AI planning a team = first open
+    if (S.hard) hardRefuseDecide(camp, S, c); // v1.41.0 Hard Shift 2 (also first open)
     const r = aiBestTeam(camp, S, c); if (!r) continue;
-    if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { decideLock(camp, S, o); const ro = aiBestTeam(camp, S, o); if (ro && ro.info.chance > r.info.chance + 0.02) continue; } }
+    if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { decideLock(camp, S, o); if (S.hard) hardRefuseDecide(camp, S, o); const ro = aiBestTeam(camp, S, o); if (ro && ro.info.chance > r.info.chance + 0.02) continue; } }
     const timeLeft = c.expiresAt - S.t;
     if (r.info.chance < 0.45 && timeLeft > 8) continue;
     if (!r.assigned.some(Boolean)) continue;
@@ -4027,6 +4120,7 @@ const Sfx = {
   heal() { [523, 784, 1046].forEach((f, i) => this.tone(f, 0.22, 'sine', 0.1, i * 0.06)); },
   revive() { this.tone(300, 0.08, 'square', 0.12); this.tone(300, 0.08, 'square', 0.12, 0.16); [523, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.3, 'triangle', 0.1, 0.35 + i * 0.08)); },
   click() { this.tone(600, 0.03, 'square', 0.04); },
+  buzz() { this.tone(150, 0.32, 'sawtooth', 0.14, 0, 110); this.tone(95, 0.32, 'square', 0.08, 0.03); }, // v1.41.0 Hard Shift 2 refusal: short negative buzz
   alarm() { this.tone(980, 0.08, 'sawtooth', 0.05); },
   tension(p) { this.tone(200 + p * 600, 0.05, 'sawtooth', 0.03); },
   fanfare() { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.4, 'triangle', 0.12, i * 0.12)); },
@@ -4068,7 +4162,7 @@ function loadCamp() { // loads + migrates (v1 -> v2). Never throws: a bad save r
   const raw = Store.get(SAVE_KEY); if (!raw) return null;
   try { const c = JSON.parse(raw); const wasV5 = c && c.v === 5; const wasV4 = c && c.v === 4; const wasV3 = c && c.v === 3; const m = migrateCamp(c); if (!wasV5) { if (wasV4) Store.set('nightdesk.save.v4.bak', raw); if (wasV3) Store.set('nightdesk.save.v3.bak', raw); Store.set(SAVE_KEY + '.bak', raw); Store.set(SAVE_KEY, JSON.stringify(m)); UI.migrated = true; } return m; }
   catch (e) { console.warn('Night Desk: unreadable save, ignoring it.', e && e.message); UI.saveError = true; Store.set(SAVE_KEY + '.corrupt', raw); return null; } }
-function isPaused() { return UI.userPaused || UI.modals.length > 0 || !!UI.heroCard || !!UI.hack || UI.screen !== 'game'; }
+function isPaused() { return UI.userPaused || UI.modals.length > 0 || !!UI.heroCard || (!!UI.hack && !UI.hack.repair) || UI.screen !== 'game'; } // v1.41.0: the Hard Shift 1 repair console is the only hack that does not pause the shift
 function stateLabel(h) { return { available: 'Ready', traveling: 'Traveling', working: 'Working', returning: 'Returning', resting: 'Resting', awaitingReview: 'Review!', downed: 'Downed', sabotaged: 'Sabotaged!' }[h.state] || h.state; }
 const STATE_COL = { available: '#4cd97b', traveling: '#4fb3ff', working: '#4fb3ff', returning: '#3ef0ff', resting: '#4cd97b', awaitingReview: '#ffd23f', downed: '#888', sabotaged: '#ff3ea5' };
 // v1.29.0 (Craig): calls open with the caller talking, then list what it'll take as hints (each keeps its colored [[keyword|STAT]]).
@@ -4399,7 +4493,7 @@ function callIcon(cl) { const tpl = cl.tpl; return tpl.boss ? '☠' : tpl.type =
 function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return; if (F.inf && typeof infUpdateFinale === 'function') { infUpdateFinale(S, F); return; }
   $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; const BM = F.bossMax || 5; $('bossBar').style.width = (100 * F.bossHP / BM) + '%'; $('bossVal').textContent = F.bossHP + '/' + BM; const bl = $('bossLbl'); if (bl) bl.textContent = F.rogue ? '☠ ' + bossName(S).toUpperCase() : '☠ NIGHT MAYOR'; }
 function finBanner(text, lost) { if (hackOverlaysHeld()) { HackHold.fins.push({ text, lost }); return; } const b = $('finBanner'); if (!b) return; clearTimeout(finBannerTimer); b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); finBannerTimer = setTimeout(() => b.classList.add('hidden'), 4200); }
-function updateTop() { const S = UI.S, camp = UI.camp; if (S && S.inf && typeof infUpdateTop === 'function') { infUpdateTop(S, camp); return; } updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts + (isEasy(camp) ? ' · 🌱 EASY' : ''); $('scoreLbl').textContent = shiftScore(S);
+function updateTop() { const S = UI.S, camp = UI.camp; if (S && S.inf && typeof infUpdateTop === 'function') { infUpdateTop(S, camp); return; } updateFinale(); $('clock').textContent = shiftClock(S); $('shiftLbl').textContent = 'SHIFT ' + (S.idx + 1) + '/' + CONFIG.campaignShifts + (isEasy(camp) ? ' · 🌱 EASY' : isHard(camp) ? ' · 💀 HARD' : ''); $('scoreLbl').textContent = shiftScore(S); if (S.hard || $('hardCard')) hardCardUpdate(S);
   $('rankName').textContent = 'Rank ' + camp.rank + ' · ' + CONFIG.rankNames[camp.rank - 1]; const lo = CONFIG.rankThresholds[camp.rank - 1], hi = CONFIG.rankThresholds[camp.rank]; const pts = camp.rankPts + S.stats.success; $('rankBar').style.width = hi ? (100 * clamp((pts - lo) / (hi - lo), 0, 1)) + '%' : '100%';
   $('btnSpeed').textContent = S.speed + '×'; $('btnPause').textContent = UI.userPaused ? '▶' : '⏸'; $('pausedTag').classList.toggle('hidden', !UI.userPaused); $('btnTools').classList.toggle('on', toolUnlocked(camp, 'medkit')); }
 
@@ -4434,6 +4528,19 @@ function injBannerHTML(camp, id, downed, S) { const hh = camp.heroes[id], v = in
     <small>${downed ? 'Out for the rest of the shift.' + (jump ? ' ⚡ Jump Start can revive.' : '') : v.noDown ? "Can't be downed." : 'A second injury downs them for the shift.'}</small>${!downed && v.penalty ? `<div class="inj-pips">${injPipsHTML(v)}</div>` : ''}</div></div>`; }
 function injFlash(container) { if (reducedMotion()) return; const f = h('div', 'inj-flash'); container.appendChild(f); setTimeout(() => f.remove(), 600); }
 
+/* ---------- v1.41.0 💀 Hard: Shift 1 Connection lost card (sits on the map, NOT a pop-up, so the clock keeps running) ---------- */
+function hardCardUpdate(S) { let el = $('hardCard'); const down = !!(S && S.hard && S.hard.down) && UI.screen === 'game';
+  if (!down) { if (el) el.classList.add('hidden'); return; }
+  if (!el) { el = h('div', 'hard-card', `<div class="hc-h">📡 CONNECTION LOST</div><div class="hc-t">No new calls can come in until the network is repaired. The clock is still running.</div><button class="btn pri hc-btn" data-a="repair">REPAIR CONNECTION</button>`); el.id = 'hardCard'; el.setAttribute('role', 'alert');
+    el.querySelector('[data-a=repair]').onclick = e => { e.stopPropagation(); Sfx.init(); hardOpenRepair(); }; ['pointerdown', 'pointerup'].forEach(k => el.addEventListener(k, e => e.stopPropagation())); $('mapwrap').appendChild(el); }
+  el.classList.remove('hidden'); }
+function hardOpenRepair() { const camp = UI.camp, S = UI.S; if (!S || !hardCommsDown(S) || UI.hack || UI.modals.length || S.over) return false;
+  const L = hardRepairLayout(camp, S); if (!L) return false; const c = { uid: 0, tpl: { id: 'repair', title: 'Repair connection', type: 'hack' }, repair: true, stage: 'repair' };
+  Sfx.click(); startHack(c, L, false, { rng: mulberry32(((L.seed >>> 0) ^ Math.imul(S.hard.down.fails + 1, 0x2C1B3C6D)) >>> 0), repair: true }); return true; }
+/* v1.41.0 💀 Hard: Shift 3 glitch greyscale (from START SHIFT to the summary; hacking consoles too while the Hard-only setting is On) */
+function hardGreyActive() { return !!(UI.screen === 'game' && UI.S && UI.S.hard && UI.S.hard.grey && !UI.S.inf); }
+function hardGreyApply() { const on = hardGreyActive(), r = document.documentElement; r.classList.toggle('hard-grey', on); r.classList.toggle('hard-grey-hack', on && UI.settings.hardGreyHack !== false); }
+
 /* ---------- call routing ---------- */
 function openCall(c) {
   Sfx.init(); Sfx.click();
@@ -4450,7 +4557,7 @@ function pairLetter(c) { return c.uid < c.pairUid ? 'A' : 'B'; }
 function sanitizeAssigned(camp, c) { c.assigned = c.assigned.map(id => (id && (id === c.autoHero || canAssignTo(camp, c, id))) ? id : null); }
 function carryOver(camp, from, to) { if (!from || !to || to.assigned.some(id => id && id !== to.autoHero)) return null; const res = { moved: 0, skipped: 0 };
   const blocked = id => !canAssignTo(camp, to, id) || (to.tpl.banned && to.tpl.banned[id]) || afList(to.tpl).some(x => x.heroId === id) || to.assigned.includes(id);
-  for (const id of from.assigned) { if (!id) continue; if (blocked(id)) { res.skipped++; continue; } const i = to.assigned.findIndex((x, k) => !x && !(k === 0 && to.autoHero)); if (i < 0) { res.skipped++; continue; } to.assigned[i] = id; res.moved++; }
+  for (const id of from.assigned) { if (!id) continue; if (to.refuser && id === to.refuser) { res.refused = id; res.skipped++; continue; } /* v1.41.0 Hard Shift 2 */ if (blocked(id)) { res.skipped++; continue; } const i = to.assigned.findIndex((x, k) => !x && !(k === 0 && to.autoHero)); if (i < 0) { res.skipped++; continue; } to.assigned[i] = id; res.moved++; }
   return res; }
 function hotkeyLabel(i) { return i < 9 ? String(i + 1) : ['0', '-', '='][i - 9] || ''; } // v1.14.0: heroes 10-12 -> 0, -, =
 function hotkeyIndex(k) { if (/^[1-9]$/.test(k)) return +k - 1; const j = ['0', '-', '='].indexOf(k); return j < 0 ? -1 : 9 + j; }
@@ -4554,10 +4661,11 @@ function emptySlotGhostHTML(camp, assigned, i, selOn) {
 function openBriefing(c) {
   const camp = UI.camp, S = UI.S; let sel = null;
   if (S) decideLock(camp, S, c); // v1.39.2: a 🔒 call picks its locked hero (if one is free right now) the first time its briefing is opened
+  if (S && S.hard) hardRefuseDecide(camp, S, c); // v1.41.0 Hard Shift 2: secret refuser, rolled once at first open
   sanitizeAssigned(camp, c);
   if (S && camp.drizzle && camp.drizzle.volunteering && !camp.v113Finale) drizzleVolunteer(camp, S, c); // v1.14.0: he may be back from rest now
   openModal('briefing', m => {
-    m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } decideLock(camp, S, o); sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render();
+    m.switchPair = () => { if (!c.pairUid || c.stage !== 'pending') return false; const o = pairPartner(S, c); if (!o) { render(); return false; } decideLock(camp, S, o); if (S.hard) hardRefuseDecide(camp, S, o); sanitizeAssigned(camp, o); const co = carryOver(camp, c, o); c = o; sel = null; UI.focusUid = c.uid; Sfx.click(); render(); if (co && co.refused) hardRefuseFx(m, c, co.refused);
       if (co && (co.moved || co.skipped)) toast(`⇄ Brought ${co.moved} hero${co.moved === 1 ? '' : 'es'} over${co.skipped ? ` (${co.skipped} didn't fit)` : ''}.`, 2500); return true; };
     const render = () => {
       if (c.stage !== 'pending') { closeModal(); toast('That call is gone.'); return; }
@@ -4642,6 +4750,7 @@ function openBriefing(c) {
       if (canDispatchHero(camp, id) && trainingBlock(camp, c, id)) { toast((c.tpl.training.kind === 'route' ? '🛣 ' : '🎓 ') + esc(camp.heroes[id].codename) + ': ' + trainingBlockText(camp, c, id)); return; }
       { const lk = canDispatchHero(camp, id) && !c.assigned.includes(id) ? heroLockCall(camp, S, id, c) : null; if (lk) { toast('🔒 ' + esc(camp.heroes[id].codename) + ' is locked onto "' + esc(lk.tpl.title) + '". Send them there.'); return; } } // v1.39.1
       if (!canDispatchHero(camp, id) || c.assigned.includes(id) || (c.tpl.banned && c.tpl.banned[id])) return;
+      if (c.refuser && id === c.refuser) { sel = null; render(); hardRefuseFx(m, c, id); return; } // v1.41.0 Hard Shift 2: buzz, shake, back to the roster (this briefing only)
       ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined;
       let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null));
       if (i < 0 || i >= c.assigned.length) { if (tapAssign) cueFull(); return; }
@@ -4872,11 +4981,11 @@ function rosterHackHelpers(camp) { // v1.19.0: active roster heroes with a hack-
     for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.hack) continue; out.push({ id, hero: h, power: p, P, kind: P.hack }); } }
   return out;
 }
-function startHack(c, layout, disrupt) {
+function startHack(c, layout, disrupt, hopts) { // v1.41.0 hopts: { rng, repair } for the Hard Shift 1 repair console (own random stream; never S.hackRng)
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
-  const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, UI.S.hackRng, { unlimited: UI.settings.unlimitedHack, noTimer: !!campDiff(UI.camp).hackNoTimer }); // v1.40.0 Easy: no countdown
+  const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, (hopts && hopts.rng) || UI.S.hackRng, { unlimited: UI.settings.unlimitedHack, noTimer: !!campDiff(UI.camp).hackNoTimer }); // v1.40.0 Easy: no countdown
   const helpers = rosterHackHelpers(UI.camp); const spent = {};
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; $('hack').classList.remove('hidden'); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. ' + (game.noTimer ? '🌱 Easy: no timer, take your time.' : 'The timer keeps running while you look at the map.'));
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; if (hopts && hopts.repair) UI.hack.repair = true; $('hack').classList.remove('hidden'); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + (hopts && hopts.repair ? '📡 Repair connection: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. ' + (game.noTimer ? '🌱 Easy: no timer, take your time.' : 'The timer keeps running while you look at the map.'));
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
@@ -4925,6 +5034,11 @@ function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game,
   const free = !!H.softArmed; H.rbArm = 0; clearTimeout(H.rbT); H.stuck = false; H.lastStuck = false; if (free) H.softArmed = false; g.reboot(free); hackFx(); renderHackPowers(); renderHackBtns(); renderHackPanels(); }
 function endHack(win, quit) { const H = UI.hack; if (!H) return; UI.hack = null; clearTimeout(H.rbT); clearTimeout(H.scoutT); const pw = $('hPowers'); if (pw) pw.innerHTML = ''; const hk = $('hKey'); if (hk) hk.textContent = ''; const seq = $('hSeq'); if (seq) { seq.classList.remove('open'); seq.innerHTML = ''; } const pad = $('hPad'); if (pad) { pad.classList.remove('open'); pad.innerHTML = ''; } $('hack').classList.remove('hack-entry', 'hack-seq'); $('hack').classList.add('hidden'); document.documentElement.classList.remove('nd-hacking');
   const _afterHack = () => { if (typeof flushHackOverlays === 'function') flushHackOverlays(); else if (typeof kickRevealQueue === 'function') setTimeout(kickRevealQueue, 0); };
+  if (H.repair) { // v1.41.0 Hard Shift 1: neutral (no score, XP, stats or hack bonus). Failing or giving up returns to the map unresolved, clock still running.
+    if (H.shiftEnd) { _afterHack(); return; }
+    if (!quit && win && hardRepairDone(UI.camp, UI.S, true)) { Sfx.fanfare(); toast('📡 Connection restored. Calls are coming in again.'); radio(null, 'Network is back up. Calls are coming in again.'); }
+    else { hardRepairDone(UI.camp, UI.S, false); if (quit) { Sfx.click(); toast('📡 You stepped away. The network is still down and the clock is running.'); } else { Sfx.thud(); shake(); toast('📡 Repair failed. The network is still down and the clock is running. Try again.'); } }
+    if (typeof updateTop === 'function' && UI.S) updateTop(); _afterHack(); return; }
   if (H.disrupt) { const ok = !quit && win; const rr = resolveDisruptionHack(UI.camp, UI.S, H.c, ok); if (rr && rr.retry) { Sfx.thud(); toast('⌘ Console lost, but the team is still on the radio: next round.'); openDisruption(H.c); _afterHack(); return; } if (ok) { Sfx.fanfare(); toast('⌘ Console won: the call is handled! +' + CONFIG.score.hack); } else { Sfx.thud(); shake(); toast('⌘ You lost the connection. The call failed.'); } radio(null, ok ? 'Console hack worked: the team is clear.' : 'Console hack lost: the job fell apart.'); _afterHack(); return; }
   if (quit) { toast('You stepped away from the console. The call is still waiting.'); _afterHack(); return; }
   const hb = win ? hackBonus(H.game) : null; if (hb) addHackBonus(UI.S, hb);
@@ -5123,13 +5237,13 @@ function togRow(key, label, val) { return `<div class="tglrow"><span>${label}</s
 function openPause() {
   const S = UI.S; if (S && S.inf && typeof infOpenPause === 'function') { infOpenPause(); return; } openModal('pause', m => { const render = () => {
     const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
-      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${isHard(UI.camp) ? togRow('hardGreyHack', '💀 Hard: greyscale on hacking consoles (Shift 3)', UI.settings.hardGreyHack !== false) : ''}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
        <div class="tglrow"><span id="verLbl">Night Desk ${esc(ndVersionLabel())}</span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
        <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
-    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
+    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else if (k === 'hardGreyHack') { UI.settings.hardGreyHack = UI.settings.hardGreyHack === false; saveSettings(); hardGreyApply(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
     P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
@@ -5147,7 +5261,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
   return `<div class="help">` +
   sec('🎯 The goal', [
     `Run the hero dispatch desk for ${C.campaignShifts} night shifts. Send heroes to calls and win as many as you can. Each shift ends with a grade from S to D.`,
-    `<b>Start:</b> tap NEW CAMPAIGN, choose how you get your crew of 8, then pick a difficulty (🌱 Easy or ⚖ Normal) and tap START STORY CAMPAIGN or START RANDOM CAMPAIGN.`,
+    `<b>Start:</b> tap NEW CAMPAIGN, choose how you get your crew of 8, then pick a difficulty (🌱 Easy, ⚖ Normal or 💀 Hard: the normal game with a twist in every shift) and tap START STORY CAMPAIGN or START RANDOM CAMPAIGN.`,
     `<b>Crew:</b> 🧩 Hero Selection (pick any 8 of ${HERO_DEFS.length}), 🎲 Random Heroes (a balanced random 8; REROLL as often as you like) or 🏛 Original Crew (the classic crew). 5 heroes start, 1 joins at Shift 2 and 2 more at Shift 4.`]) +
   sec('📘 Story vs 🎲 Random Calls', [
     `${ST} Each night has its own hand-written set of calls, so it plays like a planned episode.`,
@@ -5164,6 +5278,8 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `Rest, travel (both ways) and on-scene work take half as long. Hero powers that speed things up still stack on top.`,
     `⌘ Hacks have no timer in Easy. You still have ${C.hack.lives} lives, and getting caught or tapping ↻ REBOOT costs one. Finishing fast still earns the speed bonus.`,
     `Powers that reveal the odds or the requirements (and the rank ${(C.rankRewards || []).indexOf('hacktime')} Hack Overtime reward) do nothing in Easy, and they are marked 🌱 No effect in Easy. XP, rank, score and grades work as in Normal.`]) +
+  sec('💀 Hard difficulty', [
+    `Hard is the normal game with a twist in every shift. Expect events and trouble you have not seen before. Stay alert, and read every instruction and briefing thoroughly while you play.`]) +
   sec('📍 Answering a call', [
     `Tap a pin on the map to open its briefing. <b>Time stops while any panel is open.</b> ⏸ pauses; 1×/2× sets the speed.`,
     `Put heroes in the slots (1 to 4), then press DISPATCH. Heroes travel, work, come back and rest before they're ready again.`,
@@ -5431,8 +5547,16 @@ function openSabotage(sb) { const camp = UI.camp, S = UI.S, hh = camp.heroes[sb.
     P.B.querySelectorAll('[data-sb]').forEach(b => b.onclick = () => { res = resolveSabotage(camp, S, sb, +b.dataset.sb); if (res.ok) Sfx.chime(); else { Sfx.hurt(); shake(); } radioLog(sb.hero, res.ok ? '🗡 Escaped the sabotage. Resting.' : '🗡 Got hurt escaping the sabotage (+1 injury).'); render(); });
     const ok = P.F.querySelector('[data-a=ok]'); if (ok) ok.onclick = () => closeModal(); }; render(); m.render = render; m.sb = sb; }); }
 
+/* v1.41.0 💀 Hard Shift 2: a hero refuses this call (only revealed when you try to slot them): buzz + vibration, chip shakes, short toast */
+function hardRefuseFx(m, c, id) { const hh = UI.camp.heroes[id]; if (!hh) return; Sfx.buzz(); haptic([70, 50, 110]);
+  const el = m && m.sheet && m.sheet.querySelector(`.bdock .tray .chip[data-hero="${id}"]`); if (el) { el.classList.remove('refuse-shake'); void el.offsetWidth; el.classList.add('refuse-shake'); }
+  const msg = `🙅 ${hh.emoji} ${esc(hh.codename)} will not take this one. Pick someone else.`, host = $('modal');
+  if (host && !host.classList.contains('hidden') && UI.modals.length) { host.querySelectorAll('.hard-refuse-toast').forEach(x => x.remove()); const t = h('div', 'toast hard-refuse-toast', msg); t.setAttribute('role', 'status'); host.appendChild(t); setTimeout(() => t.remove(), 2600); } // shown over the open briefing (map toasts sit under pop-ups)
+  else toast(msg, 2600); }
+
 /* ---------- screens ---------- */
-function showScreen(html, after) { UI.screen = 'menu'; $('game').classList.add('hidden'); const s = $('screen'); s.classList.remove('hidden'); s.innerHTML = `<div class="scr">${html}</div>`; s.scrollTop = 0; if (after) after(s); }
+function showScreen(html, after) { UI.screen = 'menu'; if (typeof hardGreyApply === 'function') hardGreyApply(); { const hc = $('hardCard'); if (hc) hc.classList.add('hidden'); } // v1.41.0: summary / briefing screens stay in color; the outage card never outlives its shift
+  $('game').classList.add('hidden'); const s = $('screen'); s.classList.remove('hidden'); s.innerHTML = `<div class="scr">${html}</div>`; s.scrollTop = 0; if (after) after(s); }
 function showTitle() { UI.inSetup = true;
   const save = loadCamp(); UI.S = null; if (typeof mapStyleForce === 'function') mapStyleForce(null); if (UI.camp && UI.camp.inf) UI.camp = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null;
   showScreen(`<div class="logo">NIGHT<span>DESK</span></div><div class="tag">Dispatch reformed ex-villains. Save the city. Survive the shift.</div>
@@ -5618,7 +5742,7 @@ function showBrief() { if (UI.camp && UI.camp.revertNote) setTimeout(() => showR
   const ids = rosterForShift(camp, idx); const avg = camp.grades.length ? camp.grades.reduce((a, g) => a + CONFIG.gradePoints[g], 0) / camp.grades.length : 4;
   const comp = idx === CONFIG.campaignShifts - 1 && avg < CONFIG.comptrollerAvgBelow;
   showScreen(`<div class="logo" style="font-size:34px;margin-top:2vh">SHIFT ${idx + 1}<span>/${CONFIG.campaignShifts}</span></div>
-   <div class="card"><h3>Briefing</h3><p class="txt">${esc(shiftBlurb(camp, idx))}</p>${comp ? `<div class="note req">🦅 Corporate is nervous about your numbers. <b>The Comptroller</b> joins tonight as a safety net (fixed stats, no XP).</div>` : ''}
+   <div class="card"><h3>Briefing</h3><p class="txt">${esc(shiftBlurb(camp, idx))}</p>${hardAlertText(camp, idx) ? `<div class="note hard-alert"><b>⚠ BE ALERT</b><div>${esc(hardAlertText(camp, idx))}</div></div>` : ''}${comp ? `<div class="note req">🦅 Corporate is nervous about your numbers. <b>The Comptroller</b> joins tonight as a safety net (fixed stats, no XP).</div>` : ''}
    ${camp.missionSet === 'v1.8' && (missionBlurbs()[idx] || []).length ? `<div class="note good mblurb"><b>📘 New tonight</b>${missionBlurbs()[idx].map(b => `<div>${esc(b)}</div>`).join('')}</div>` : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'v1.8' ? '<div class="note warn">☠ FINALE: protect the City bar and take the Night Mayor\'s signal from 5 to 0.</div>' : ''}${idx === CONFIG.campaignShifts - 1 && camp.missionSet === 'legacy' ? rogueIntroHTML(camp) : ''}
    <div class="note callmode-note">${callModePill(camp.missionSet)}${diffPill(campDiffKey(camp))} <small style="color:var(--dim)">Locked for this campaign — start a new campaign to change it.</small></div>
    <div class="note">Agency rank ${camp.rank}: ${CONFIG.rankNames[camp.rank - 1]}${toolUnlocked(camp, 'medkit') ? ' · 🩹 Med Kit' : ''}${toolUnlocked(camp, 'jump') ? ' · ⚡ Jump Start' : ''}</div></div>
@@ -5642,6 +5766,7 @@ function beginShift() {
   UI.screen = 'game'; UI.userPaused = false; UI.shiftOverPending = false; $('screen').classList.add('hidden'); $('game').classList.remove('hidden');
   $('radio').innerHTML = ''; $('toasts').innerHTML = ''; $('queue')._sig = null; buildRoster(); updateRoster(); updateQueue(); updateTop();
   radio(null, `Shift ${UI.S.idx + 1} begins. Seed ${UI.S.seed}. Coffee status: lukewarm.`);
+  { const al = hardAlertText(UI.camp, UI.S.idx); if (al) { radioLog(null, '⚠ BE ALERT: ' + al, 'hard-al'); Sfx.blip(); } } hardGreyApply(); // v1.41.0 💀 Hard (null / off in every other mode)
   tutorial('start', 'Calls will pop up as pins on the map. Tap one to open its briefing.');
 }
 function restartShift() { UI.camp = JSON.parse(UI.snapshot); UI.camp.rollNonce = newRollNonce(); UI.camp.rollNonceFor = UI.camp.shiftIdx; /* v1.9.2: same calls, fresh dice */ closeModal(); $('hack').classList.add('hidden'); UI.hack = null; beginShift(); }
@@ -5769,7 +5894,10 @@ Bus.on('solsticeJoined', d => { if (UI.sim || !UI.camp) return; Sfx.fanfare(); F
   radio('solstice', "Torrance — I mean, Night Desk — I'm here. Stay in my light."); toast('☀️ Solstice joined: ' + (d.reason === 'boss' ? '2 boss calls failed' : '5 failures this campaign')); if (UI.S) { buildRoster(); updateRoster(); } });
 Bus.on('volunteered', d => { if (UI.sim || !UI.S) return; radioLog('drizzle', `💧 Drizzle volunteered for "${d.call.tpl.title}". Tap his slot in the briefing to take him off.`); });
 Bus.on('drizzleEager', () => { if (UI.sim || !UI.S) return; radio('drizzle', 'Three missions without me? I will just... put myself on the next one. If that is okay. It is okay.'); });
-Bus.on('shiftOver', () => { if (UI.sim) return; UI.shiftOverPending = true; });
+Bus.on('shiftOver', () => { if (UI.sim) return; UI.shiftOverPending = true; if (UI.hack && UI.hack.repair) { UI.hack.shiftEnd = true; endHack(false, true); } }); // v1.41.0: shift ends mid-repair -> the console closes, the summary appears
+/* v1.41.0 💀 Hard Shift 1 radio + sound (engine events) */
+Bus.on('hardOutage', () => { if (UI.sim || !UI.S) return; Sfx.alarm(); haptic([40, 40, 40]); radioLog(null, '📡 Connection lost. No new calls can reach the desk until the network is repaired.', 'hard-al'); if (typeof updateTop === 'function') updateTop(); });
+Bus.on('hardNag', () => { if (UI.sim || !UI.S) return; radioLog(null, '📡 Network still down. Tap REPAIR CONNECTION: no new calls until it is fixed.', 'hard-al'); Sfx.blip(); });
 
 /* ---------- main loop ---------- */
 let lastT = performance.now(), lastDom = 0;
@@ -5780,8 +5908,9 @@ function frame(now) {
       const S = UI.S;
       if (S.inf && UI.camp && UI.camp.inf && !S.over) UI.infRealLast = infAccReal(UI.camp.inf, now, UI.infRealLast, document.hidden);
       if (!isPaused()) {
-        tick(UI.camp, S, dt * S.speed);
-        if (UI.auto) { UI.autoAcc += dt * S.speed; if (UI.autoAcc >= CONFIG.autoReviewDelay) { UI.autoAcc = 0; aiStep(UI.camp, S, {}); } }
+        const sp = UI.hack && UI.hack.repair ? 1 : S.speed; // v1.41.0: the Hard repair console runs the shift at 1x
+        tick(UI.camp, S, dt * sp);
+        if (UI.auto) { UI.autoAcc += dt * sp; if (UI.autoAcc >= CONFIG.autoReviewDelay) { UI.autoAcc = 0; aiStep(UI.camp, S, {}); } }
         for (const c of S.calls) if (c.stage === 'pending') { const rem = c.expiresAt - S.t; if (rem <= CONFIG.alarmSeconds) { const k = Math.ceil(rem); if (c._al !== k) { c._al = k; Sfx.alarm(); } } }
       }
       if (!UI.hack) drawMap(now / 1000); // v1.28.0: the city map is fully covered by the console while hacking; skip its redraw so the hack keeps every frame
