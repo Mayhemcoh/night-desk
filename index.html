@@ -721,6 +721,10 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 .hard-storm.hidden{display:none}
 .note.hard-rescue{border-color:#ff9a1f}
 
+/* v1.43.0 Hard Shifts 7-8: fire / riot briefing note */
+.note.hard-fire { border-left: 3px solid #ff7a1f; background: rgba(255, 106, 26, 0.12); }
+.note.hard-fire b { color: #ffb347; }
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -1072,7 +1076,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.42.0';
+<script>window.ND_VERSION='nd-v1.43.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1177,7 +1181,7 @@ const CONFIG = {
   /* v1.41.0 💀 Hard table: every Hard number lives here (not in CONFIG.shifts), so tuning needs no code change.
      shipped = shifts (0-based) whose Hard event is built; the BE ALERT card and radio line only show for those (N6: the rest play as Normal, no alert). */
   hard: {
-    shipped: [0, 1, 2, 3, 4, 5], // v1.42.0: Release 2 adds Shifts 4-6
+    shipped: [0, 1, 2, 3, 4, 5, 6, 7], // v1.43.0: Release 3 adds Shifts 7-8 (every Hard shift now has its event)
     alerts: [
       'Be alert. There have been connectivity problems all over the city tonight. If the line goes dead, the repair is on you, and the clock will not wait.',
       'Word on the floor is the crew has lost confidence in your calls. Expect some attitude tonight. Someone may flat-out refuse a job, and they will not warn you first.',
@@ -1203,6 +1207,11 @@ const CONFIG = {
     rush: { shift: 4, dur: 20, mult: 2.5, breather: 25, breatherMult: 0.4 },
     // v1.42.0 Shift 6 Storm: 4 mishaps ~21:00 / 22:15 / 23:30 / 00:45 (+-nudge, seeded); hits one healthy hero 25-75% along the next trip; rescue = 1 slot, guaranteed, rescueWork s on scene, never expires
     storm: { shift: 5, mishaps: [60, 135, 210, 285], nudge: 4, along: [0.25, 0.75], rescueWork: 12, flashMin: 8, flashMax: 20, fpsLow: 40 },
+    // v1.43.0 Shifts 7-8 Arson and riots: 4 per shift at ~at[] (+-nudge s, seeded); one burning section at a time (next waits for out + gap s); none in the last quietEnd s;
+    // Shift 8: none once the last boss wave is on the map. Call: 3 slots, hard, workTime x CONFIG.hardWorkMult (28 x 1.5 = 42 s), waits `wait` s, outside the 7-pin cap.
+    // Shift 8 City: fail / time-out = CONFIG.finaleCityHit (9); unattended (waiting on the map) drains `drain` City every `drainEvery` s (stops at 0).
+    fire: { shifts: [6, 7], at: { 6: [55, 135, 215, 295], 7: [70, 170, 270, 370] }, nudge: 10, gap: 10, quietEnd: 45, wait: 75, work: 28, drainEvery: 10, drain: 1,
+      req: { arson: [3, 9, 7, 2, 5], riot: [8, 7, 3, 6, 2] }, place: ['at the Harbor', 'Downtown', 'on Neon Row', 'in Old Town', 'in Tech Park', 'Uptown'] },
   },
   // v1.34.0 ♾ Infinite Shift: one endless shift; a ramp every 12 game hours (06:00 / 18:00) steps up to the next shift's settings
   infinite: { crew: 10, startHour: 18, stageHours: 12, secPerGameHour: 60, cityMax: 200, cityHit: 9,
@@ -2551,12 +2560,14 @@ function hardSetup(camp, S) { if (!isHard(camp)) return null; const H = CONFIG.h
     out.sick = { order: ids, at: ids.map((_, k) => Math.round(H.sick.lastAt * (k + 1) / Math.max(1, n) * 1000) / 1000), n: 0 }; }
   if (H.rush && idx === H.rush.shift && hardShipped(idx)) out.rush = { rushEnd: -1, brEnd: -1, n: 0, phase: null, log: [], extras: [] }; // v1.42.0 Shift 5: rush + breather after each grid repair
   if (H.storm && idx === H.storm.shift && hardShipped(idx)) { const r = hardRng(S, 3), St = H.storm; out.storm = { at: St.mishaps.map(t => t + Math.round((r() * 2 - 1) * St.nudge)), next: 0, armed: null, log: [] }; } // v1.42.0 Shift 6: storm + 4 travel mishaps
+  if (H.fire && H.fire.shifts.includes(idx) && hardShipped(idx)) { const r = hardRng(S, 7), Fc = H.fire, base = Fc.at[idx] || []; // v1.43.0 Shifts 7-8: 4 fires / riots
+    out.fire = { at: base.map(t => t + Math.round((r() * 2 - 1) * Fc.nudge)), next: 0, cur: null, lastD: -1, outAt: -1e9, counted: 0, drained: 0, log: [], remap: null }; }
   out.down = null; return out; }
 function hardWithRng(S, salt, fn) { const keep = S.spawnRng; S.spawnRng = hardRng(S, salt); try { return fn(); } finally { S.spawnRng = keep; } } // v1.42.0: Hard extra / respawned calls never draw from the regular call stream
-function hardCapCount(S) { return pendingCalls(S).filter(c => !c.hardRescue).length; } // v1.42.0: rescue pins never count toward the 7-pin cap (same number as pendingCalls(S).length in every other mode)
+function hardCapCount(S) { return pendingCalls(S).filter(c => !c.hardRescue && !c.hardFire).length; } // v1.42.0: rescue pins never count toward the 7-pin cap (same number as pendingCalls(S).length in every other mode)
 function hardCommsDown(S) { return !!(S && S.hard && S.hard.down); }
 function hardNextOutageT(S) { const O = S.hard && S.hard.outage; if (!O || O.done >= O.at.length) return null; const t = Math.max(O.at[O.done], O.lastRepair + CONFIG.hard.outage.minGap); return t > CONFIG.hard.outage.lastStart ? null : t; }
-function hardTick(camp, S, dt) { const H = S.hard; if (H.outage) hardTickOutage(camp, S, dt); if (H.sick) hardTickSick(camp, S); if (H.rush) hardTickRush(camp, S, dt); if (H.storm) hardTickStorm(camp, S); }
+function hardTick(camp, S, dt) { const H = S.hard; if (H.outage) hardTickOutage(camp, S, dt); if (H.sick) hardTickSick(camp, S); if (H.rush) hardTickRush(camp, S, dt); if (H.storm) hardTickStorm(camp, S); if (H.fire) hardTickFire(camp, S, dt); }
 /* ---- v1.42.0 Shift 4: sickness ---- */
 function hardTickSick(camp, S) { const K = S.hard.sick; while (K.n < K.order.length && S.t >= K.at[K.n]) { const id = K.order[K.n++], h = camp.heroes[id]; if (!h) continue; h.sick = true; Bus.emit('hardSick', { id, n: K.n, of: K.order.length }); } }
 function hardSickTravelMult(camp, ids) { if (!ids.some(id => camp.heroes[id] && camp.heroes[id].sick)) return 1; const m = (CONFIG.hard.sick || {}).mult || 2; // averaged across the team like travel powers: 1 sick of 3 = x4/3, all sick = x2
@@ -2611,6 +2622,50 @@ function hardMishapFire(camp, S, c) { const m = c.hardMishap; if (!m || m.done |
   Bus.emit('spawn', rc); Bus.emit('hardMishap', { n: m.n, id: m.id, call: c, rescue: rc, again: nc }); return true; }
 function hardRescueArrive(camp, S, c) { const id = c.hardRescue.id; if (!c.team.includes(id)) c.team.push(id); } // the stranded hero joins the team on scene; both come home together
 function hardRescueDone(camp, S, c) { c.reviewed = true; c.result = 'rescued'; c.hardRescue.done = S.t; Bus.emit('hardRescued', { call: c, id: c.hardRescue.id }); } // neutral: no score, no XP, no review
+/* ---- v1.43.0 Shifts 7-8: arson and riots (one burning section at a time; fire calls sit outside the 7-pin cap) ---- */
+function hardBurning(S) { const F = S && S.hard && S.hard.fire; return F && F.cur && !F.cur.out ? F.cur.d : null; } // district index on fire, or null
+function hardLastBossOnMap(S) { const Fi = S.finale; if (!Fi) return false; if (Fi.won) return true; if (S.t + 1e-9 < finaleLastBossT(S)) return false;
+  return S.calls.some(c => c.tpl.boss && c.stage !== 'closed' && !c.reviewed && Fi.bossHP <= ((c.tpl.boss && c.tpl.boss.damage) || 1)); } // the wave that can end the fight is on the map
+function hardFireRemap(S, tpl, district, extra) { // a call that would land in the burning section appears in a quiet one instead (same count, same pace); the fire call itself is exempt
+  const b = hardBurning(S); if (b === null || district !== b || tpl.hardFireTpl) return null; const F = S.hard.fire;
+  if (extra && extra.pairHalf && F.remap && F.remap.t === S.t && F.remap.from === district) return F.remap.to; // both halves of a linked pair move together
+  const quiet = S.online.filter(d => d !== b); if (!quiet.length) return null; const to = quiet[Math.floor(hardRng(S, 7100 + S.uid)() * quiet.length)];
+  F.remap = { t: S.t, from: district, to }; return to; }
+function hardFollowers(camp) { const r = camp.missionSet === 'legacy' ? ensureRogueBoss(camp) : null, hd = r && !r.fallback && heroDef(r.id); return hd ? hd.codename + "'s followers" : 'Night Mayor followers'; }
+function hardFireTpl(camp, S, n, d) { const Fc = CONFIG.hard.fire, kind = n % 2 ? 'riot' : 'arson', place = Fc.place[d] || ('in ' + DISTRICTS[d].name), sect = DISTRICTS[d].name;
+  const r = camp.missionSet === 'legacy' ? ensureRogueBoss(camp) : null, hd = r && !r.fallback && heroDef(r.id);
+  const cause = hd ? `Intel says ${hd.codename} is behind the trouble. Their cause: "${r.motive}" Followers who share that cause are setting fires and starting riots across the city.` : 'Followers of the Night Mayor are setting fires and starting riots across the city.';
+  const body = kind === 'arson' ? `${sect} is burning block by block. [[Hold back the heat|END]] at the doors, [[get people out fast|AGI]] and [[find where it started|WIT]]. Nothing else can reach ${sect} until the fire is out.`
+    : `A riot has taken over ${sect} and the barricades are on fire. [[Hold the line|CMB]], [[stand firm for hours|END]] and [[talk the crowd down|PRS]]. Nothing else can reach ${sect} until it is calm.`;
+  return T('hardfire' + S.idx + '_' + n, (kind === 'arson' ? 'Arson ' : 'Riot ') + place, cause + ' ' + body, Fc.req[kind].slice(), 3, 'hard', Fc.work, { type: 'fire', hardFireTpl: true, fireKind: kind, tags: ['fire'], hints: [] }); }
+function hardFireSpawn(camp, S, f, pos) { const Fc = CONFIG.hard.fire;
+  const keep = S.uid; S.uid = 900000 + S.idx * 1000 + f.n * 50 + f.attempts; // fire calls take their own uid range, so uid-based picks of regular calls never shift
+  let c; try { c = hardWithRng(S, 7200 + f.n * 16 + f.attempts, () => spawnCall(camp, S, f.tpl, { district: f.d, respawn: true })); } finally { S.uid = keep; } if (pos) c.pos = { u: pos.u, v: pos.v };
+  c.expiresAt = S.t + Fc.wait; c.hardFire = { n: f.n, attempt: f.attempts, drainAcc: 0, kind: f.kind }; f.attempts++; f.uid = c.uid; f.pos = { u: c.pos.u, v: c.pos.v }; return c; }
+function hardTickFire(camp, S, dt) { const F = S.hard.fire, Fc = CONFIG.hard.fire, cur = F.cur;
+  if (cur && !cur.out && S.finale && S.finale.won) { hardFireOut(camp, S, 'crews'); for (const c of S.calls) if (c.hardFire && c.stage === 'pending') { c.stage = 'closed'; c.result = 'dropped'; } } // the final boss fell: city crews put it out so the shift can end
+  if (F.cur && !F.cur.out) { // Shift 8 drain: 1 City every 10 s while the fire waits on the map with no team (travel / work / return = attended)
+    const c = S.calls.find(x => x.uid === F.cur.uid);
+    if (c && c.stage === 'pending' && S.finale && !S.finale.won) { c.hardFire.drainAcc += dt; while (c.hardFire.drainAcc >= Fc.drainEvery) { c.hardFire.drainAcc -= Fc.drainEvery; if (S.finale.city <= 0) continue;
+      const was = S.finale.city; S.finale.city = Math.max(0, S.finale.city - Fc.drain); F.drained += was - S.finale.city; F.cur.drained = (F.cur.drained || 0) + (was - S.finale.city); Bus.emit('hardFireDrain', { n: F.cur.n, city: S.finale.city, call: c });
+      if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } } }
+    return; }
+  if (F.next >= F.at.length) return;
+  const t0 = Math.max(F.at[F.next], F.outAt + Fc.gap); if (S.t < t0) return;
+  if (S.t > (S.seconds || CONFIG.shiftSeconds) - Fc.quietEnd || (S.finale && hardLastBossOnMap(S))) { for (let k = F.next; k < F.at.length; k++) F.log.push({ n: k, skipped: true, t: S.t }); F.next = F.at.length; return; } // none in the last 45 s / after the last boss wave
+  const n = F.next++, r = hardRng(S, 7300 + n), opts = [0, 1, 2, 3, 4, 5].filter(d => d !== F.lastD), d = opts[Math.floor(r() * opts.length)];
+  const f = F.cur = { n, d, kind: n % 2 ? 'riot' : 'arson', start: S.t, out: false, attempts: 0, uid: null, drained: 0 }; f.tpl = hardFireTpl(camp, S, n, d); F.lastD = d; F.counted++;
+  const c = hardFireSpawn(camp, S, f, null); F.log.push({ n, d, kind: f.kind, start: S.t, planned: F.at[n], uid: c.uid }); Bus.emit('hardFire', { n, d, kind: f.kind, call: c }); }
+function hardFireOut(camp, S, how) { const F = S.hard.fire, f = F.cur; if (!f || f.out) return; f.out = true; f.how = how; f.end = S.t; F.outAt = S.t; const L = F.log.find(x => x.n === f.n && !x.skipped); if (L) { L.end = S.t; L.how = how; L.attempts = f.attempts; L.drained = f.drained || 0; }
+  Bus.emit('hardFireOut', { n: f.n, d: f.d, kind: f.kind, how }); }
+function hardFireReviewed(camp, S, call, R) { const F = S.hard && S.hard.fire, f = F && F.cur; if (!f || f.out || f.n !== call.hardFire.n) return;
+  if (R.success) { hardFireOut(camp, S, 'success'); return; }
+  if (S.finale && !S.legacyFinale && !S.inf) missionFailed(camp, S, call, 'fail'); // Story finale: a failed attempt costs 9 City (Random goes through legacyFinaleReviewed)
+  if (S.over) { hardFireOut(camp, S, 'shiftEnd'); return; } // late report at the end of the shift: nothing comes back
+  if (S.finale && S.finale.won) { hardFireOut(camp, S, 'crews'); return; }
+  const c = hardFireSpawn(camp, S, f, f.pos); Bus.emit('hardFireAgain', { n: f.n, d: f.d, kind: f.kind, call: c }); } // still burning: back on the map with a fresh 75 s
+function hardFireMissed(camp, S, call) { const F = S.hard && S.hard.fire, f = F && F.cur; if (S.finale && !S.legacyFinale && !S.inf) missionFailed(camp, S, call, 'missed'); // Story finale: a time-out costs 9 City like any miss
+  if (f && !f.out && f.n === call.hardFire.n) hardFireOut(camp, S, 'burnedOut'); } // it burns itself out: the section reopens
 function hardTickOutage(camp, S, dt) { const H = S.hard, O = H.outage; if (!O) return;
   if (H.down) { // Option A: everything keeps running; only NEW calls wait. Every scheduled call slides back by the outage time so they arrive one at a time later, not in a burst.
     for (const hq of S.hackQueue) if (!hq.done) hq.t += dt;
@@ -2860,19 +2915,21 @@ function shiftClock(S) { const mins = CONFIG.startHour * 60 + Math.floor(S.t / (
 function heroOnRoster(camp, id) { return camp.roster.includes(id); }
 function expiryFor(S, diff) { let e = CONFIG.expiry[diff]; if (S.idx + 1 > CONFIG.expiryAfterShift) e *= Math.pow(CONFIG.expiryShiftMult, S.idx + 1 - CONFIG.expiryAfterShift); return Math.max(CONFIG.expiryMin, e); }
 
-function pickPos(S, rng, district) {
+function pickPos(S, rng, district, regular) {
   const d = DISTRICTS[district]; let best = null;
+  const live = regular ? S.calls.filter(c => c.stage !== 'closed' && !c.hardFire).map(c => c.posReg || c.pos) : S.calls.filter(c => c.stage !== 'closed').map(c => c.pos); // v1.43.0 Hard fires: the regular draw sees the regular pins where they would have been, so its number of draws never changes
   for (let i = 0; i < 12; i++) {
     const u = d.r[0] + 0.05 + rng() * (d.r[2] - 0.1), v = d.r[1] + 0.07 + rng() * (d.r[3] - 0.14);
-    const ok = S.calls.filter(c => c.stage !== 'closed').every(c => Math.hypot(c.pos.u - u, (c.pos.v - v) * 0.6) > 0.08);
+    const ok = live.every(c => Math.hypot(c.u - u, (c.v - v) * 0.6) > 0.08);
     best = { u, v }; if (ok) break;
   }
   return best;
 }
 function spawnCall(camp, S, tpl, extra) {
   const rng = S.spawnRng; extra = extra || {}; lockShift(camp, S);
-  const district = extra.district !== undefined ? extra.district : S.online[Math.floor(rng() * S.online.length)];
-  const pos = pickPos(S, rng, district);
+  let district = extra.district !== undefined ? extra.district : S.online[Math.floor(rng() * S.online.length)];
+  const fireShift = !!(S.hard && S.hard.fire) && !tpl.hardFireTpl; let pos = pickPos(S, rng, district, fireShift), posReg = null;
+  if (fireShift) { const to = hardFireRemap(S, tpl, district, extra); if (to !== null) { posReg = pos; district = to; pos = pickPos(S, hardRng(S, 7150 + S.uid), to); } } // v1.43.0 Hard Shifts 7-8: the regular draws above are unchanged
   const diff = tpl.difficulty;
   if (S.spawned) { if (S.deckMode && S.spawned[tpl.id] && !extra.respawn) { S.dupErrors = (S.dupErrors || 0) + 1; console.error('[ND] no-repeat rule violated: template ' + tpl.id + ' spawned twice in shift ' + (S.idx + 1)); } S.spawned[tpl.id] = (S.spawned[tpl.id] || 0) + 1; }
   // v1.11.0: Classic ON bag marks on spawn (misses still consume); skip respawns / follow-ups / deck mode (deck marks at build)
@@ -2883,6 +2940,7 @@ function spawnCall(camp, S, tpl, extra) {
   const c = { uid: S.uid++, templateId: tpl.id, tpl, pos, district, spawnedAt: S.t, expiresAt: S.t + (tpl.training && tpl.training.noExpiry ? 1e9 : tpl.type === 'hack' ? (S.plan.blackout ? CONFIG.blackoutHackExpiry : CONFIG.hackExpiry) : expiryFor(S, diff)),
     assigned: Array(tpl.slots).fill(null), stage: 'pending', result: null, difficulty: diff, req: reqForTemplate(tpl, S).slice(), slots: tpl.slots, option: null,
     namedHero: null, requestHero: null, autoHero: null, disruption: null, perfect: null, forcedFail: null, reviewed: false, restore: extra.district !== undefined && !extra.pairHalf && S.plan.blackout };
+  if (posReg) c.posReg = posReg; // v1.43.0 Hard: where the regular draw put it before the fire moved it
   if (tpl.type === 'competing') { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; }
   if (!tpl.mission && tpl.competingGroup && tpl.compReward && tpl.compReward.heroMult) { const r = camp.roster.filter(id => id !== 'comptroller' && id !== 'solstice'); c.namedHero = r[Math.floor(rng() * r.length)]; } // v1.13.0 legacy pair half
   if (tpl.type === 'request') c.requestHero = heroLockable(camp, S, tpl.requestHero) ? tpl.requestHero : null; // v1.39.1: the pool only offers it when the hero is free (legacyUnits); never ask for a busy hero
@@ -3335,7 +3393,7 @@ function tick(camp, S, dt) {
       if (S.t >= c.expiresAt) { c.stage = 'closed'; c.result = 'missed'; S.stats.missed++; if (c.requestHero) refuseRequest(camp, c);
         if (c.pairUid) { const o = S.calls.find(x => x.uid === c.pairUid); if (o && o.stage === 'pending') { o.stage = 'closed'; o.result = 'declined'; } } // a linked pair is ONE miss
         if (S.inf && c.tpl.type === 'hack') S.stats.hackLost = (S.stats.hackLost || 0) + 1;
-        Bus.emit('missed', c); noteCallFailed(camp, S, c, 'missed'); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale || S.inf) missionFailed(camp, S, c, 'missed'); }
+        Bus.emit('missed', c); noteCallFailed(camp, S, c, 'missed'); if (c.tpl.mission) missionFailed(camp, S, c, 'missed'); else if (S.legacyFinale || S.inf) missionFailed(camp, S, c, 'missed'); if (c.hardFire) hardFireMissed(camp, S, c); }
       continue;
     }
     if (c.stage === 'travel' || c.stage === 'work') {
@@ -3581,6 +3639,7 @@ function applyReview(camp, S, call, R) {
   for (const [a, b] of R.info.conPairs) { const k = pairKey(a, b); if (R.success) { camp.conflictWins[k] = (camp.conflictWins[k] || 0) + 1; if (camp.conflictWins[k] >= CONFIG.conflictNeutralWins) { camp.conflictNeutral[k] = true; out.conflictResolved = CONFLICT_RESOLVE[k]; } } else camp.conflictWins[k] = 0; }
   for (const h of team) { if (h.state === 'awaitingReview') afterReview(camp, h, call, S); }
   if (call.tpl.mission) missionReviewed(camp, S, call, R, out); else if (S.inf) infReviewed(camp, S, call, R); else if (S.legacyFinale) legacyFinaleReviewed(camp, S, call, R);
+  if (call.hardFire) hardFireReviewed(camp, S, call, R); // v1.43.0 Hard Shifts 7-8
   Bus.emit('reviewed', { call, R, out });
   return out;
 }
@@ -3643,7 +3702,7 @@ function endShiftClock(camp, S) {
   Bus.emit('shiftOver', S);
 }
 function shiftScore(S) { const k = CONFIG.score, s = S.stats; return k.success * s.success + k.fail * s.fail + k.missed * s.missed + k.perfect * s.perfect + k.hack * s.hacks + (s.hackBonus || 0); }
-function expectedCalls(S) { const e = S.expected !== undefined ? S.expected : S.plan.expected; return Math.max(Math.round(e * 0.5), S.calls.filter(c => c.result !== 'dropped' && c.result !== 'declined' && !c.hardRescue).length); }
+function expectedCalls(S) { const e = (S.expected !== undefined ? S.expected : S.plan.expected) + (S.hard && S.hard.fire ? S.hard.fire.counted : 0); /* v1.43.0: Hard fires count like any other call */ return Math.max(Math.round(e * 0.5), S.calls.filter(c => c.result !== 'dropped' && c.result !== 'declined' && !c.hardRescue).length); }
 function gradeFor(S) { const r = shiftScore(S) / (expectedCalls(S) * 100); let g = 'D'; for (const [gg, th] of CONFIG.grades) if (r >= th) { g = gg; break; }
   if (S.finale && S.finale.lost && CONFIG.gradePoints[g] > CONFIG.gradePoints.C) g = 'C'; return g; }
 function injuryReportFor(camp, S) { const by = {}; // per hero: what happened this shift
@@ -3943,7 +4002,7 @@ function retargetFinaleBossDeck(S) {
 }
 function tickDeck(camp, S, dt) {
   if (S.finale && S.finale.won) return;
-  const open = () => pendingCalls(S).filter(c => !(c.tpl.training) && !c.hardRescue).length;
+  const open = () => pendingCalls(S).filter(c => !(c.tpl.training) && !c.hardRescue && !c.hardFire).length;
   for (const e of S.deck) { if (e.done) continue; if (S.t < e.t) break; if (open() >= CONFIG.maxPending && !e.hack) break; // maxPending delays, never drops
     if (e.tpls.some(t => t.story) && !(S.roster || camp.roster).some(id => id !== 'comptroller' && id !== 'solstice' && camp.roster.includes(id) && heroLockable(camp, S, id)) && lockWillFree(camp, S)) break; // v1.39.1: a story call waits (like maxPending) until a hero is free to pick it up
     e.done = true; e.at = S.t; if (e.tpls.every(t => t.boss && S.spawned[t.id])) { S.expected--; continue; } // already re-spawned as the boss pin
@@ -4208,6 +4267,7 @@ const Sfx = {
   revive() { this.tone(300, 0.08, 'square', 0.12); this.tone(300, 0.08, 'square', 0.12, 0.16); [523, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.3, 'triangle', 0.1, 0.35 + i * 0.08)); },
   click() { this.tone(600, 0.03, 'square', 0.04); },
   buzz() { this.tone(150, 0.32, 'sawtooth', 0.14, 0, 110); this.tone(95, 0.32, 'square', 0.08, 0.03); }, // v1.41.0 Hard Shift 2 refusal: short negative buzz
+  fireStart() { if (!this.ctx || !this.on) return; this.noise(1.2, 0.20, 900, 0, 0.5); this.noise(0.6, 0.14, 2400, 0.05, 0.7); this.tone(220, 0.25, 'sawtooth', 0.05); this.tone(180, 0.35, 'sawtooth', 0.04, 0.22); }, // v1.43.0 Hard Shifts 7-8: whoosh + alarm for a new fire / riot
   thunder() { if (!this.ctx || !this.on) return; this.noise(2.2, 0.32, 140, 0, 0.8); this.noise(1.4, 0.22, 320, 0.08, 1); this.tone(48, 1.8, 'sine', 0.22, 0.02, 30); }, // v1.42.0 Hard Shift 6: synthesized thunder rumble
   alarm() { this.tone(980, 0.08, 'sawtooth', 0.05); },
   tension(p) { this.tone(200 + p * 600, 0.05, 'sawtooth', 0.03); },
@@ -4483,6 +4543,7 @@ function drawMap(t) {
         g.fillRect(bx + 3 + (k % 2) * (b.w * W / 2), by + 3 + Math.floor(k / 2) * (b.h * H / 2), 2, 2);
     }
   }
+  if (S && S.hard && S.hard.fire) hardFireDraw(g, S, W, H, t); // v1.43.0 Hard Shifts 7-8: the burning section
   if (storm) hardStormGround(g, W, H, t); // v1.42.0: wash, cloud shadows, wet roads, splashes (city layer only; pins, tokens and text stay sharp)
   const [hx, hy] = mapPos(HQ.u, HQ.v);
   // HQ always redrawn so Look colors apply on top of art
@@ -4582,7 +4643,7 @@ function updateQueue() {
     if (c.stage === 'pending') { const rem = c.expiresAt - S.t, f = rem / (c.expiresAt - c.spawnedAt); bar.style.width = (100 * f) + '%'; bar.style.background = f < 0.3 ? '#ff4d5e' : f < 0.6 ? '#ffb03a' : '#4cd97b'; b.classList.toggle('urgent', rem <= CONFIG.alarmSeconds); }
     else if (c.disruption && !c.disruption.resolved) { bar.style.width = (100 * c.disruption.timer / CONFIG.disruptionTimer) + '%'; bar.style.background = '#ff2244'; } else bar.style.width = '0'; }
 }
-function callIcon(cl) { const tpl = cl.tpl; return cl.hardRescue ? '🚑' : tpl.boss ? '☠' : tpl.type === 'hack' ? '⌘' : cl.pairUid || tpl.type === 'competing' ? '⇄' : tpl.training ? '🎓' : tpl.story ? '📖' : cl.requestHero ? '🙋' : cl.autoHero ? '🔒' : tpl.sabotage ? '🗡' : cl.followUp ? '↪' : '!'; }
+function callIcon(cl) { const tpl = cl.tpl; return cl.hardFire ? '🔥' : cl.hardRescue ? '🚑' : tpl.boss ? '☠' : tpl.type === 'hack' ? '⌘' : cl.pairUid || tpl.type === 'competing' ? '⇄' : tpl.training ? '🎓' : tpl.story ? '📖' : cl.requestHero ? '🙋' : cl.autoHero ? '🔒' : tpl.sabotage ? '🗡' : cl.followUp ? '↪' : '!'; }
 function updateFinale() { const S = UI.S, el = $('finale'); if (!el) return; const F = S && S.finale; el.classList.toggle('hidden', !F); if (!F) return; if (F.inf && typeof infUpdateFinale === 'function') { infUpdateFinale(S, F); return; }
   $('cityBar').style.width = F.city + '%'; $('cityBar').style.background = F.city > 50 ? '#4cd97b' : F.city > 20 ? '#ffb03a' : '#ff4d5e'; $('cityVal').textContent = F.city; const BM = F.bossMax || 5; $('bossBar').style.width = (100 * F.bossHP / BM) + '%'; $('bossVal').textContent = F.bossHP + '/' + BM; const bl = $('bossLbl'); if (bl) bl.textContent = F.rogue ? '☠ ' + bossName(S).toUpperCase() : '☠ NIGHT MAYOR'; }
 function finBanner(text, lost) { if (hackOverlaysHeld()) { HackHold.fins.push({ text, lost }); return; } const b = $('finBanner'); if (!b) return; clearTimeout(finBannerTimer); b.innerHTML = text; b.classList.toggle('lost', !!lost); b.classList.remove('hidden'); finBannerTimer = setTimeout(() => b.classList.add('hidden'), 4200); }
@@ -4676,6 +4737,24 @@ function hardRushChip(S) { let el = $('hardRush'); const ph = S && !S.over && UI
   if (!ph) { if (el) el.classList.add('hidden'); return; } if (!el) { el = h('div', 'hard-rush'); el.id = 'hardRush'; el.setAttribute('role', 'status'); $('mapwrap').appendChild(el); }
   const R = S.hard.rush, left = Math.ceil(Math.max(0, (ph === 'rush' ? R.rushEnd : R.brEnd) - S.t)); el.className = 'hard-rush ' + ph; el.innerHTML = ph === 'rush' ? `⚡ <b>RUSH</b> calls flooding in · ${left}s` : `☕ <b>BREATHER</b> calls slowing down · ${left}s`; el.classList.remove('hidden'); }
 function hardGreyApply() { const on = hardGreyActive(), r = document.documentElement; r.classList.toggle('hard-grey', on); r.classList.toggle('hard-grey-hack', on && UI.settings.hardGreyHack !== false); }
+
+/* ---- v1.43.0 Hard Shifts 7-8: a whole section on fire (wash, flames, embers, smoke, dashed border, label). Reduce effects: no flicker, sway or embers. ---- */
+function hardFireDraw(g, S, W, H, t) { const d = hardBurning(S); if (d === null) return; const F = S.hard.fire, D = DISTRICTS[d], [x0, y0] = mapPos(D.r[0], D.r[1]), w = D.r[2] * W, h = D.r[3] * H, red = reducedMotion();
+  const k = clamp((S.t - F.cur.start) / 1.5, 0, 1), fl = red ? 1 : 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 5.3 + 1);
+  g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip(); g.globalAlpha = k;
+  const gr = g.createLinearGradient(0, y0 + h, 0, y0); gr.addColorStop(0, `rgba(255,90,20,${0.55 * fl})`); gr.addColorStop(0.5, `rgba(200,40,10,${0.34 * fl})`); gr.addColorStop(1, 'rgba(40,10,5,0.45)'); g.fillStyle = gr; g.fillRect(x0, y0, w, h);
+  g.globalCompositeOperation = 'lighter'; const n = 14;
+  for (let i = 0; i < n; i++) { const fw = w / n * 1.1, fx = x0 + (i + 0.5) * w / n + Math.sin(i * 12.9) * fw * 0.25, base = y0 + h * (0.5 + 0.45 * ((i * 37) % 10) / 10);
+    const fh = h * (0.14 + 0.12 * ((i * 53) % 7) / 7) * (red ? 1 : 0.75 + 0.35 * Math.abs(Math.sin(t * (3 + i % 4) + i))), sway = red ? 0 : Math.sin(t * 4 + i) * fw * 0.3;
+    const g2 = g.createLinearGradient(0, base, 0, base - fh); g2.addColorStop(0, 'rgba(255,210,70,0.9)'); g2.addColorStop(0.45, 'rgba(255,110,20,0.75)'); g2.addColorStop(1, 'rgba(180,30,0,0)'); g.fillStyle = g2;
+    g.beginPath(); g.moveTo(fx - fw / 2, base); g.quadraticCurveTo(fx - fw * 0.45 + sway * 0.3, base - fh * 0.55, fx + sway, base - fh); g.quadraticCurveTo(fx + fw * 0.45 + sway * 0.3, base - fh * 0.55, fx + fw / 2, base); g.closePath(); g.fill(); }
+  if (!red) for (let i = 0; i < 40; i++) { const sp = 18 + (i * 7) % 23, ph = (t * sp + i * 97) % (h * 0.9), ex = x0 + ((i * 61.7) % w) + Math.sin(t * 2 + i) * 6, ey = y0 + h - ph; g.fillStyle = `rgba(255,${150 + (i * 13) % 90},60,${(0.9 * (1 - ph / h)).toFixed(3)})`; g.fillRect(ex, ey, 2, 2); }
+  g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 6; i++) { const sx = x0 + w * ((i * 0.19 + (red ? 0 : t * 0.012 * (1 + i % 3))) % 1), sy = y0 + h * (0.12 + 0.1 * (i % 3)), rr = w * 0.16; const sg = g.createRadialGradient(sx, sy, 0, sx, sy, rr); sg.addColorStop(0, 'rgba(22,16,14,0.5)'); sg.addColorStop(1, 'rgba(22,16,14,0)'); g.fillStyle = sg; g.beginPath(); g.arc(sx, sy, rr, 0, 7); g.fill(); }
+  g.restore();
+  g.save(); g.globalAlpha = k; g.strokeStyle = `rgba(255,120,40,${red ? 0.85 : (0.55 + 0.35 * Math.abs(Math.sin(t * 3))).toFixed(3)})`; g.lineWidth = 2; g.setLineDash([8, 6]); g.strokeRect(x0 + 1, y0 + 1, w - 2, h - 2); g.setLineDash([]);
+  const l1 = F.cur.kind === 'riot' ? '🔥 RIOT' : '🔥 ARSON', l2 = 'SECTION CLOSED'; g.font = '800 11px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; const tw = Math.max(g.measureText(l1).width, g.measureText(l2).width) + 12, lx = x0 + w / 2, fc = S.calls.find(c => c.hardFire && c.stage !== 'closed' && c.district === d), py = fc && fc.pos ? mapPos(fc.pos.u, fc.pos.v)[1] : y0, ly = Math.abs(py - (y0 + h * 0.18)) > Math.abs(py - (y0 + h * 0.78)) ? y0 + h * 0.18 : y0 + h * 0.78 - 24; // label sits on the side away from the fire pin
+  g.fillStyle = 'rgba(0,0,0,0.72)'; g.fillRect(lx - tw / 2, ly - 10, tw, 34); g.fillStyle = '#ffb347'; g.fillText(l1, lx, ly); g.font = '700 9px ui-monospace,monospace'; g.fillStyle = '#ffd9a8'; g.fillText(l2, lx, ly + 15); g.restore(); }
 
 /* ---------- call routing ---------- */
 function openCall(c) {
@@ -4852,6 +4931,7 @@ function openBriefing(c) {
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
       const workEst = workTimeFor(camp, c, c.assigned.filter(Boolean));
       if (c.difficulty === 'hard') notes += `<div class="note">Hard: takes longer</div>`;
+      if (c.hardFire) { const Fc = CONFIG.hard.fire, sect = esc(DISTRICTS[c.district].name), s8 = !!(UI.S && UI.S.finale); notes += `<div class="note hard-fire"><b>🔥 ${c.hardFire.kind === 'riot' ? 'Riot' : 'Arson'}: ${sect} is shut</b><div>No other calls can reach ${sect} until this is over. About ${Math.round(Fc.work * (CONFIG.hardWorkMult || 1))} s on scene, and it waits ${Fc.wait} s before it counts as missed. ${s8 ? `While it waits with no team sent, the City loses ${Fc.drain} every ${Fc.drainEvery} s. A failed attempt or a time-out costs ${CONFIG.finaleCityHit} City.` : 'A failed attempt puts it straight back on the map.'}</div></div>`; } // v1.43.0 Hard Shifts 7-8
       if (c.hardRescue) notes += `<div class="note good hard-rescue"><b>🚑 Rescue</b><div>Send any one Ready hero. It always works and takes a normal trip plus about ${CONFIG.hard.storm.rescueWork} s on scene. The pin never expires. Both heroes come home together. No score or XP.</div></div>`; // v1.42.0 Hard Shift 6
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${(tpl.training && tpl.training.noExpiry) || c.hardRescue ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `${ifr.html}<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
@@ -6041,6 +6121,12 @@ Bus.on('hardBreather', () => { if (UI.sim || !UI.S) return; radioLog(null, '☕ 
 Bus.on('hardCalm', () => { if (UI.sim || !UI.S) return; radioLog(null, '📞 Calls are back to their normal pace.', 'hard-al'); if (typeof updateTop === 'function') updateTop(); });
 Bus.on('hardMishap', d => { if (UI.sim || !UI.S || !UI.camp) return; const hh = UI.camp.heroes[d.id]; if (!hh) return; Sfx.hurt(); haptic([90, 60, 90]); radioLog(d.id, `⛈ ${hh.codename} went down on a flooded road and is hurt! The team turned back. "${d.call.tpl.title}" is back on the map, and someone needs to go get ${hh.codename}.`, 'hard-al'); toast(`🚑 ${hh.codename} is hurt and stranded. Send someone to the rescue pin.`); });
 Bus.on('hardRescued', d => { if (UI.sim || !UI.S || !UI.camp) return; const hh = UI.camp.heroes[d.id]; if (hh) radioLog(d.id, `🚑 Got ${hh.codename}. Heading home together.`); });
+Bus.on('hardFire', d => { if (UI.sim || !UI.S || !UI.camp) return; const sect = DISTRICTS[d.d].name, c = d.call; Sfx.fireStart(); haptic([60, 40, 60]); const who = hardFollowers(UI.camp);
+  radioLog(null, `🔥 ${d.kind === 'riot' ? 'A riot just broke out' : 'Someone set fire'} ${CONFIG.hard.fire.place[d.d]}! ${who} again. No other calls can reach ${sect} until it is over.`, 'hard-al'); toast(`🔥 ${c.tpl.title}: ${sect} is shut until it is over.`); if (typeof updateTop === 'function') updateTop(); });
+Bus.on('hardFireOut', d => { if (UI.sim || !UI.S || d.how === 'shiftEnd') return; const sect = DISTRICTS[d.d].name;
+  radioLog(null, d.how === 'success' ? `🧯 ${sect} is under control. Calls can reach it again.` : d.how === 'crews' ? `🚒 With the boss down, city crews put out ${sect}.` : `🔥 Nobody made it to ${sect} in time. It burned itself out and the section is open again.`, 'hard-al'); });
+Bus.on('hardFireAgain', d => { if (UI.sim || !UI.S) return; Sfx.thud(); radioLog(null, `🔥 The team could not stop it. "${d.call.tpl.title}" is still going and back on the map.`, 'hard-al'); });
+Bus.on('hardFireDrain', d => { if (UI.sim || !UI.S) return; const c = d.call; if (!c || c._drainSaid) return; c._drainSaid = true; radioLog(null, `🔥 ${DISTRICTS[c.district].name} is burning with nobody on it. The City is losing ${CONFIG.hard.fire.drain} every ${CONFIG.hard.fire.drainEvery} s.`, 'hard-al'); });
 Bus.on('hardNag', () => { if (UI.sim || !UI.S) return; radioLog(null, '📡 Network still down. Tap REPAIR CONNECTION: no new calls until it is fixed.', 'hard-al'); Sfx.blip(); });
 
 /* ---------- main loop ---------- */
