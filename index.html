@@ -724,6 +724,15 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 /* v1.43.0 Hard Shifts 7-8: fire / riot briefing note */
 .note.hard-fire { border-left: 3px solid #ff7a1f; background: rgba(255, 106, 26, 0.12); }
 .note.hard-fire b { color: #ffb347; }
+/* v1.43.1 Hard fires/riots: guaranteed panel instead of the radar (briefing + report) */
+.fire-guar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 150px; padding: 14px 10px; border-radius: 12px; text-align: center;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 140, 40, 0.28), rgba(120, 30, 10, 0.18) 60%, rgba(0, 0, 0, 0) 100%); border: 1px solid rgba(255, 140, 50, 0.55); color: #ffd9a8; }
+.fire-guar .fg-ico { font-size: 40px; line-height: 1; }
+.fire-guar b { color: #4cd97b; letter-spacing: 2px; font-size: 18px; }
+.fire-guar.rev { min-height: 120px; margin-bottom: 8px; }
+.result.guaranteed { color: #4cd97b; }
+/* v1.43.1 developer mode tag in the pause menu */
+.pill.dev-tag { background: #ff2d75; color: #fff; font-weight: 800; letter-spacing: 1px; }
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -1076,7 +1085,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.43.0';
+<script>window.ND_VERSION='nd-v1.43.1';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1208,10 +1217,10 @@ const CONFIG = {
     // v1.42.0 Shift 6 Storm: 4 mishaps ~21:00 / 22:15 / 23:30 / 00:45 (+-nudge, seeded); hits one healthy hero 25-75% along the next trip; rescue = 1 slot, guaranteed, rescueWork s on scene, never expires
     storm: { shift: 5, mishaps: [60, 135, 210, 285], nudge: 4, along: [0.25, 0.75], rescueWork: 12, flashMin: 8, flashMax: 20, fpsLow: 40 },
     // v1.43.0 Shifts 7-8 Arson and riots: 4 per shift at ~at[] (+-nudge s, seeded); one burning section at a time (next waits for out + gap s); none in the last quietEnd s;
-    // Shift 8: none once the last boss wave is on the map. Call: 3 slots, hard, workTime x CONFIG.hardWorkMult (28 x 1.5 = 42 s), waits `wait` s, outside the 7-pin cap.
-    // Shift 8 City: fail / time-out = CONFIG.finaleCityHit (9); unattended (waiting on the map) drains `drain` City every `drainEvery` s (stops at 0).
+    // Shift 8: none once the last boss wave is on the map. Call (v1.43.1): guaranteed success, 1 slot, no stat check, fixed workTime x CONFIG.hardWorkMult (28 x 1.5 = 42 s, powers never shorten it),
+    // waits `wait` s, outside the 7-pin cap; the section reopens when the work on scene finishes. Shift 8 City: time-out = CONFIG.finaleCityHit (9); unattended drains `drain` City every `drainEvery` s (stops at 0).
     fire: { shifts: [6, 7], at: { 6: [55, 135, 215, 295], 7: [70, 170, 270, 370] }, nudge: 10, gap: 10, quietEnd: 45, wait: 75, work: 28, drainEvery: 10, drain: 1,
-      req: { arson: [3, 9, 7, 2, 5], riot: [8, 7, 3, 6, 2] }, place: ['at the Harbor', 'Downtown', 'on Neon Row', 'in Old Town', 'in Tech Park', 'Uptown'] },
+      place: ['at the Harbor', 'Downtown', 'on Neon Row', 'in Old Town', 'in Tech Park', 'Uptown'] },
   },
   // v1.34.0 ♾ Infinite Shift: one endless shift; a ramp every 12 game hours (06:00 / 18:00) steps up to the next shift's settings
   infinite: { crew: 10, startHour: 18, stageHours: 12, secPerGameHour: 60, cityMax: 200, cityHit: 9,
@@ -2635,9 +2644,9 @@ function hardFollowers(camp) { const r = camp.missionSet === 'legacy' ? ensureRo
 function hardFireTpl(camp, S, n, d) { const Fc = CONFIG.hard.fire, kind = n % 2 ? 'riot' : 'arson', place = Fc.place[d] || ('in ' + DISTRICTS[d].name), sect = DISTRICTS[d].name;
   const r = camp.missionSet === 'legacy' ? ensureRogueBoss(camp) : null, hd = r && !r.fallback && heroDef(r.id);
   const cause = hd ? `Intel says ${hd.codename} is behind the trouble. Their cause: "${r.motive}" Followers who share that cause are setting fires and starting riots across the city.` : 'Followers of the Night Mayor are setting fires and starting riots across the city.';
-  const body = kind === 'arson' ? `${sect} is burning block by block. [[Hold back the heat|END]] at the doors, [[get people out fast|AGI]] and [[find where it started|WIT]]. Nothing else can reach ${sect} until the fire is out.`
-    : `A riot has taken over ${sect} and the barricades are on fire. [[Hold the line|CMB]], [[stand firm for hours|END]] and [[talk the crowd down|PRS]]. Nothing else can reach ${sect} until it is calm.`;
-  return T('hardfire' + S.idx + '_' + n, (kind === 'arson' ? 'Arson ' : 'Riot ') + place, cause + ' ' + body, Fc.req[kind].slice(), 3, 'hard', Fc.work, { type: 'fire', hardFireTpl: true, fireKind: kind, tags: ['fire'], hints: [] }); }
+  const body = kind === 'arson' ? `${sect} is burning block by block. Any one hero can put it out, but it takes a long time. Nothing else can reach ${sect} until the fire is out.`
+    : `A riot has taken over ${sect} and the barricades are on fire. Any one hero can calm it down, but it takes a long time. Nothing else can reach ${sect} until it is calm.`;
+  return T('hardfire' + S.idx + '_' + n, (kind === 'arson' ? 'Arson ' : 'Riot ') + place, cause + ' ' + body, [0, 0, 0, 0, 0], 1, 'hard', Fc.work, { type: 'fire', hardFireTpl: true, fireKind: kind, tags: ['fire'], hints: [] }); } // v1.43.1: guaranteed, 1 slot, no stat check
 function hardFireSpawn(camp, S, f, pos) { const Fc = CONFIG.hard.fire;
   const keep = S.uid; S.uid = 900000 + S.idx * 1000 + f.n * 50 + f.attempts; // fire calls take their own uid range, so uid-based picks of regular calls never shift
   let c; try { c = hardWithRng(S, 7200 + f.n * 16 + f.attempts, () => spawnCall(camp, S, f.tpl, { district: f.d, respawn: true })); } finally { S.uid = keep; } if (pos) c.pos = { u: pos.u, v: pos.v };
@@ -2658,6 +2667,7 @@ function hardTickFire(camp, S, dt) { const F = S.hard.fire, Fc = CONFIG.hard.fir
   const c = hardFireSpawn(camp, S, f, null); F.log.push({ n, d, kind: f.kind, start: S.t, planned: F.at[n], uid: c.uid }); Bus.emit('hardFire', { n, d, kind: f.kind, call: c }); }
 function hardFireOut(camp, S, how) { const F = S.hard.fire, f = F.cur; if (!f || f.out) return; f.out = true; f.how = how; f.end = S.t; F.outAt = S.t; const L = F.log.find(x => x.n === f.n && !x.skipped); if (L) { L.end = S.t; L.how = how; L.attempts = f.attempts; L.drained = f.drained || 0; }
   Bus.emit('hardFireOut', { n: f.n, d: f.d, kind: f.kind, how }); }
+function hardFireWorkDone(camp, S, call) { const F = S.hard && S.hard.fire, f = F && F.cur; if (f && !f.out && f.n === call.hardFire.n) hardFireOut(camp, S, 'success'); } // v1.43.1: the fire is out (and the section reopens) the moment the work on scene finishes
 function hardFireReviewed(camp, S, call, R) { const F = S.hard && S.hard.fire, f = F && F.cur; if (!f || f.out || f.n !== call.hardFire.n) return;
   if (R.success) { hardFireOut(camp, S, 'success'); return; }
   if (S.finale && !S.legacyFinale && !S.inf) missionFailed(camp, S, call, 'fail'); // Story finale: a failed attempt costs 9 City (Random goes through legacyFinaleReviewed)
@@ -2767,7 +2777,7 @@ function drizzleBoost(c) { const h = c.hero; const always = hasPower(h, 'alwaysB
   c.markAs = always ? 'holywater' : h.powers.includes('supersoaker') ? 'supersoaker' : null; }
 function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.heroes.drizzle;
   if (!d || !d.volunteering || !h || !S || !S.roster.includes('drizzle') || hasPower(h, 'noVolunteer') || c.volunteerRemoved || c.volunteer || c.refuser === 'drizzle') return false; // v1.41.0: never volunteers onto a call he refuses
-  if (c.stage !== 'pending' || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
+  if (c.stage !== 'pending' || c.hardFire || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
   if (!canDispatchHero(camp, 'drizzle') || heroLockCall(camp, S, 'drizzle', c) || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
   if (S.calls.some(x => x !== c && x.stage === 'pending' && x.assigned.includes('drizzle'))) return false;
   return c.assigned.some((id, i) => !id && !(c.autoHero && i === 0)); }
@@ -3100,7 +3110,8 @@ function pctPair(a, b) { let d = 1; while (d < 4 && pctFloor(a, d) === pctFloor(
 function helpersOn(S) { return !!S && !S.finale && S.idx < CONFIG.helpersOffFromIdx; }
 function orient(p) { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return s < 0 ? p.slice().reverse() : p; }
 
-function callHasSqueeze(camp, call) { if ((call.slots || 0) >= 4) return false; return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && hasPower(h, 'extraSlot') && ( (call.assigned && call.assigned.includes(id)) || canDispatchHero(camp, id) ); }); }
+function callHasSqueeze(camp, call) { if ((call.slots || 0) >= 4 || (call.tpl && call.tpl.hardFireTpl)) return false; // v1.43.1: fires are always exactly 1 slot
+  return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && hasPower(h, 'extraSlot') && ( (call.assigned && call.assigned.includes(id)) || canDispatchHero(camp, id) ); }); }
 function effectiveSlotCount(camp, call) { const base = call.slots || 0; return callHasSqueeze(camp, call) ? Math.min(4, base + 1) : base; }
 function ensureAssignedSlots(camp, call) { const n = effectiveSlotCount(camp, call); if (!call.assigned) call.assigned = Array(n).fill(null); while (call.assigned.length < n) call.assigned.push(null); while (call.assigned.length > n) { const last = call.assigned.pop(); if (last && call.assigned.indexOf(last) < 0) { /* dropped exclusive empty */ } } return call.assigned; }
 function isExclusiveSqueezeSlot(camp, call, i) { return i >= (call.slots || 0) && callHasSqueeze(camp, call); }
@@ -3313,6 +3324,7 @@ function travelTime(camp, call, ids) {
 function workTimeFor(camp, call, ids) {
   ids = ids || [];
   let w = call.tpl.workTime;
+  if (call.tpl.hardFireTpl) return w * (CONFIG.hardWorkMult || 1); // v1.43.1 Hard fires/riots: fixed 42 s on scene; work and solo powers never shorten it
   // v1.24.0: Hard missions take longer on scene (work only). Stacks with hero workMult then soloMult.
   if ((call.difficulty || call.tpl.difficulty) === 'hard') w *= (CONFIG.hardWorkMult || 1);
   for (const id of ids) { const h = camp.heroes[id]; if (!h) continue; for (const p of h.powers) { const P = POWERS[p]; if (!P || !P.workMult || !powerFormOk(h, P)) continue; if (P.travelNeedsStreak && (h.streak || 0) < P.travelNeedsStreak) continue; w *= P.workMult; } }
@@ -3322,6 +3334,7 @@ function workTimeFor(camp, call, ids) {
 }
 function dispatch(camp, S, call) {
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
+  if (call.hardFire && ids.length > 1) return false; // v1.43.1: a Hard fire/riot takes exactly one hero
   if (!ids.every(id => canDispatchHero(camp, id))) return false;
   lockShift(camp, S); if (ids.some(id => heroLockCall(camp, S, id, call))) return false; // v1.39.1: a hero locked onto another open call stays reserved for it
   if (call.refuser && ids.includes(call.refuser)) return false; // v1.41.0 Hard Shift 2: the refuser never goes (safety net behind the briefing)
@@ -3403,7 +3416,7 @@ function tick(camp, S, dt) {
       if (c.stage === 'travel' && c.stageT >= c.travel) { c.stage = 'work'; c.stageT = 0; if (c.hardRescue) hardRescueArrive(camp, S, c); for (const id of c.team) { const h = camp.heroes[id]; h.state = 'working'; h.stateTimer = 0; h.stateDur = c.work; } Bus.emit('arrive', c); }
       else if (c.stage === 'work') {
         if (c.willDisrupt && !c.disruption && c.stageT >= c.work * CONFIG.disruptionAt) { c.disruption = { id: c.tpl.disruption, timer: CONFIG.disruptionTimer, resolved: false, tried: [], fallbackShown: false, round: 0, log: [] }; Bus.emit('disruption', c); }
-        if (c.stageT >= c.work) { c.stage = 'return'; c.stageT = 0; if (c.hardRescue) hardRescueDone(camp, S, c); for (const id of c.team) { const h = camp.heroes[id]; h.state = 'returning'; h.stateTimer = 0; h.stateDur = c.travel; } Bus.emit('workDone', c); }
+        if (c.stageT >= c.work) { c.stage = 'return'; c.stageT = 0; if (c.hardRescue) hardRescueDone(camp, S, c); if (c.hardFire) hardFireWorkDone(camp, S, c); for (const id of c.team) { const h = camp.heroes[id]; h.state = 'returning'; h.stateTimer = 0; h.stateDur = c.travel; } Bus.emit('workDone', c); }
       }
       for (const id of c.team) camp.heroes[id].stateTimer = c.stageT;
       continue;
@@ -3579,6 +3592,7 @@ function rollFor(S, call, tag) { if (S.rollNonce === undefined) return S.rollRng
 function newRollNonce() { try { const a = new Uint32Array(1); (globalThis.crypto || require('crypto').webcrypto).getRandomValues(a); return a[0] >>> 0; } catch (e) { return (Math.random() * 4294967296) >>> 0; } }
 function rollReview(camp, S, call) {
   const info = lockedInfo(camp, S, call);
+  if (call.hardFire) { const gi = Object.assign({}, info, { chance: 1, effective: 1, guaranteedSuccess: true, forced: null, guaranteedFail: false }); return { info: gi, roll: 0, firstRoll: 0, success: true, retried: false, forced: null, decided: true, check: [], guaranteedFire: true }; } // v1.43.1: Hard fires/riots never roll
   if (call.tpl.training && call.team[0] && call.lvAtSend === undefined) call.lvAtSend = heroLevel(camp.heroes[call.team[0]]); // LV when sent (before this call's XP)
   const rng = rollFor(S, call, 'roll'); let roll = rng(), firstRoll = roll; let success, retried = false, forced = call.forcedFail || info.forced || null;
   if (call.disruption && call.disruption.resolved && disruptionDef(call.disruption.id).always) { success = !forced && call.disruption.outcome === 'success'; return { info, roll, firstRoll, success, retried, forced, check: call.disruption.log.slice(), decided: true }; }
@@ -3824,6 +3838,7 @@ function aiStep(camp, S, opts) {
   for (const c of S.calls) if (c.disruption && !c.disruption.resolved && !disruptionDef(c.disruption.id).always) { const ch = disruptionChoices(camp, c); const good = ch.heroOpts.find(o => o.outcome === 'success'); let key = good && good.key; if (!key) { const info = computeCall(camp, S, c, c.team); const best = ch.opts.map(o => ({ o, m: info.team[o.stat] - o.threshold })).sort((a, b) => b.m - a.m)[0]; key = best && best.o.key; } if (key) { resolveDisruption(camp, S, c, key); if (!c.disruption.resolved) { const ch2 = disruptionChoices(camp, c); if (ch2.opts[0]) resolveDisruption(camp, S, c, ch2.opts[0].key); } } acts.push(['disrupt', c]); }
   const pend = pendingCalls(S).sort((a, b) => a.expiresAt - b.expiresAt);
   for (const c of pend) {
+    if (c.hardFire) { if (c.stage === 'pending') { const id = camp.roster.find(x => canDispatchHero(camp, x) && !heroLockCall(camp, S, x, c)); if (id) { c.assigned = [id]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } } continue; } // v1.43.1: one free Ready hero, like a rescue
     if (c.hardRescue) { if (c.stage === 'pending') { const id = camp.roster.find(x => canDispatchHero(camp, x) && !heroLockCall(camp, S, x, c)); if (id) { c.assigned = [id]; if (dispatch(camp, S, c)) acts.push(['dispatch', c]); } } continue; } // v1.42.0 Hard Shift 6: a rescue always works, send the first Ready hero
     if (c.tpl.type === 'hack') { if (opts.hacks !== false) { const win = (opts.hackRng || S.hackRng)() < (opts.hackWinRate || 0.8); finishHack(camp, S, c, win); acts.push(['hack', c]); } continue; }
     if (c.stage !== 'pending') continue; // a linked partner may have been declined this step
@@ -4931,14 +4946,14 @@ function openBriefing(c) {
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
       const workEst = workTimeFor(camp, c, c.assigned.filter(Boolean));
       if (c.difficulty === 'hard') notes += `<div class="note">Hard: takes longer</div>`;
-      if (c.hardFire) { const Fc = CONFIG.hard.fire, sect = esc(DISTRICTS[c.district].name), s8 = !!(UI.S && UI.S.finale); notes += `<div class="note hard-fire"><b>🔥 ${c.hardFire.kind === 'riot' ? 'Riot' : 'Arson'}: ${sect} is shut</b><div>No other calls can reach ${sect} until this is over. About ${Math.round(Fc.work * (CONFIG.hardWorkMult || 1))} s on scene, and it waits ${Fc.wait} s before it counts as missed. ${s8 ? `While it waits with no team sent, the City loses ${Fc.drain} every ${Fc.drainEvery} s. A failed attempt or a time-out costs ${CONFIG.finaleCityHit} City.` : 'A failed attempt puts it straight back on the map.'}</div></div>`; } // v1.43.0 Hard Shifts 7-8
+      if (c.hardFire) { const Fc = CONFIG.hard.fire, sect = esc(DISTRICTS[c.district].name), s8 = !!(UI.S && UI.S.finale); notes += `<div class="note good hard-fire"><b>🔥 Guaranteed: always works, but takes a long time</b><div>Send any one Ready hero. About ${Math.round(Fc.work * (CONFIG.hardWorkMult || 1))} s on scene, and it waits ${Fc.wait} s before it counts as missed. No other calls can reach ${sect} until the ${c.hardFire.kind === 'riot' ? 'riot is over' : 'fire is out'}.${s8 ? ` While it waits with nobody sent, the City loses ${Fc.drain} every ${Fc.drainEvery} s, and a time-out costs ${CONFIG.finaleCityHit} City.` : ''}</div></div>`; } // v1.43.0 Hard Shifts 7-8 (v1.43.1: guaranteed, 1 hero)
       if (c.hardRescue) notes += `<div class="note good hard-rescue"><b>🚑 Rescue</b><div>Send any one Ready hero. It always works and takes a normal trip plus about ${CONFIG.hard.storm.rescueWork} s on scene. The pin never expires. Both heroes come home together. No score or XP.</div></div>`; // v1.42.0 Hard Shift 6
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${(tpl.training && tpl.training.noExpiry) || c.hardRescue ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
-        `${ifr.html}<div class="bgrid btop"><div class="bchart"><div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>${dbg}</div>
-         <div class="binfo">${callTextHTML(tpl)}${notes}${chanceBox}<div class="links">${links}</div></div></div>`,
+        `${ifr.html}<div class="bgrid btop"><div class="bchart">${c.hardFire ? `<div class="fire-guar" role="note"><span class="fg-ico" aria-hidden="true">🔥</span><b>GUARANTEED</b><span>Always works · takes a long time</span><span>1 hero</span></div>` : `<div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>`}${dbg}</div>
+         <div class="binfo">${callTextHTML(tpl)}${notes}${c.hardFire ? '' : chanceBox}<div class="links">${c.hardFire ? '' : links}</div></div></div>`,
         `<div class="bdock"><div class="slots">${slots}</div><div class="tray">${tray}</div></div><div class="bbtns"><button class="btn ghost" data-a="close">CLOSE</button><button class="btn pri" data-a="go" ${c.assigned.some(Boolean) && c.assigned.every(id => !id || canAssignTo(camp, c, id)) ? '' : 'disabled'}>DISPATCH</button></div>`);
       { const sc = h('div', 'bscroll'); m.sheet.insertBefore(sc, P.H); sc.appendChild(P.H); sc.appendChild(P.B); sc.scrollTop = keepTop; const tr = P.F.querySelector('.tray'); if (tr) tr.scrollLeft = keepLeft; const ifn = P.B.querySelector('.if-notice'); if (ifn && ifn.offsetTop - sc.scrollTop < 0) sc.scrollTop = Math.max(0, ifn.offsetTop - 4); } // v1.15.1: locked dock layout
-      drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
+      if (P.B.querySelector('.rad')) drawRadar(P.B.querySelector('.rad'), { team: info.team, req: info.preview ? info.req : null, base: baseTeam, overCap: tpl.overCapFail || null, bonus: tpl.bonusThreshold || null }); m.baseTeam = baseTeam;
       { const cb = P.B.querySelector('.chance'); if (cb) cb.onclick = () => { UI.showBreak = !UI.showBreak; Sfx.click(); render(); }; }
       P.B.querySelectorAll('[data-story]').forEach(b => b.onclick = () => { c.storyChoice = +b.dataset.story; Sfx.click(); render(); });
       P.B.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { c.option = +b.dataset.opt; Sfx.click(); render(); });
@@ -5132,16 +5147,18 @@ function openReview(c) {
   const DP = dotPath(S, c, req, team, R.success, CONFIG.dotDuration); const land = DP.land;
   const two = R.rolls && R.rolls.length > 1; const DP1 = two ? dotPath(S, Object.assign({}, c, { uid: (c.uid || 0) * 31 + 7 }), req, team, false, CONFIG.dotDuration * 0.6) : null; // v1.10: the dot animates once per roll
   const phases = two ? [{ hops: DP1.hops, dur: CONFIG.dotDuration * 0.6, land: DP1.land }, { hops: DP.hops, dur: CONFIG.dotDuration, land }] : [{ hops: DP.hops, dur: CONFIG.dotDuration, land }]; let ph = 0, hops = phases[0].hops; c._dot = { land, success: R.success, inOverlap: DP.inOverlap }; // v1.9.5: steered dot, seeded, consistent with the result
+  const fire = !!(c.hardFire && R.guaranteedFire); // v1.43.1 Hard fires/riots: no radar, no roll, no animation
   openModal('review', m => {
-    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap = success area</span></div>${two ? `<div class="note rolllabel" role="status">🎲 Roll 1…</div>` : ''}${bandHTML(R)}${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(two ? Object.assign({}, R.info, { retry: null, retrySpent: { text: `${POWERS[R.rolls[1].power].name} (${camp.heroes[R.rolls[1].hero].codename}): second try used on this call` } }) : R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
+    const P = sheetParts(m, `<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>Review: ${esc(c.tpl.title)}</h2>`, fire ? `<div class="fire-guar rev" role="note"><span class="fg-ico" aria-hidden="true">🔥</span><b>GUARANTEED</b><span>Fires and riots always succeed. They just take a long time.</span></div><div class="resarea"></div>` : `<canvas class="revcv"></canvas><div class="statrow" style="margin-top:4px"><span style="color:#fff">⬡ call</span><span style="color:#ff9f1c">⬢ team</span><span style="color:#4cd97b">overlap = success area</span></div>${two ? `<div class="note rolllabel" role="status">🎲 Roll 1…</div>` : ''}${bandHTML(R)}${R.decided ? checkHTML(camp, R.check) : c.tpl.story || c.tpl.training ? '<div class="chance good"><div class="ch-head"><span>Outcome</span><b class="ch-pct">Always succeeds</b></div></div>' : chanceHTML(two ? Object.assign({}, R.info, { retry: null, retrySpent: { text: `${POWERS[R.rolls[1].power].name} (${camp.heroes[R.rolls[1].hero].codename}): second try used on this call` } }) : R.info, true, true)}<div class="resarea"></div>`, `<button class="btn ghost" data-a="skip">SKIP ▶▶</button>`);
     const cv = P.B.querySelector('.revcv'); let t0 = performance.now(), lastHop = -1;
     const finish = () => {
       if (done) return; done = true; applied = applyReview(camp, S, c, R); const ok = R.success;
       const hl = [0, 0, 0, 0, 0]; for (const e of applied.powerEvents || []) if (e.delta) e.delta.forEach((v, k) => { if (v > 0) hl[k] = 1; }); m.hl = hl;
-      drawRadar(cv, { req, team, overlap, dot: land, dotCol: ok ? '#4cd97b' : '#ff4d5e', hl, overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null });
+      if (cv) drawRadar(cv, { req, team, overlap, dot: land, dotCol: ok ? '#4cd97b' : '#ff4d5e', hl, overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null });
       if (ok) Sfx.chime(); else { Sfx.thud(); shake(); }
-      let html = `<div class="result ${ok ? 'ok' : 'bad'}">${ok ? 'SUCCESS' : 'FAILURE'}</div>`;
-      { const why = outcomeReason(camp, S, c, R); html += `<div class="note outcome-reason ${why.kind}${R.forced ? ' warn forced-note' : why.kind === 'instant-success' || why.kind === 'guaranteed' ? ' good' : ''}" role="status"><b>${why.kind === 'instant-fail' ? '⛔' : why.kind === 'instant-success' ? '⚡' : why.kind === 'rolled' ? '🎲' : '✔'} ${esc(why.head)}</b>${why.lines.map(l => `<div class="why">${esc(l)}</div>`).join('')}</div>`; } // v1.9.2: why this result
+      let html = `<div class="result ${ok ? 'ok' : 'bad'}${fire ? ' guaranteed' : ''}">${fire ? 'GUARANTEED SUCCESS' : ok ? 'SUCCESS' : 'FAILURE'}</div>`;
+      if (fire) html += `<div class="note good outcome-reason guaranteed" role="status"><b>✔ Guaranteed success</b><div class="why">${c.hardFire.kind === 'riot' ? 'The riot is over' : 'The fire is out'} and ${esc(DISTRICTS[c.district].name)} is open again.</div></div>`;
+      else { const why = outcomeReason(camp, S, c, R); html += `<div class="note outcome-reason ${why.kind}${R.forced ? ' warn forced-note' : why.kind === 'instant-success' || why.kind === 'guaranteed' ? ' good' : ''}" role="status"><b>${why.kind === 'instant-fail' ? '⛔' : why.kind === 'instant-success' ? '⚡' : why.kind === 'rolled' ? '🎲' : '✔'} ${esc(why.head)}</b>${why.lines.map(l => `<div class="why">${esc(l)}</div>`).join('')}</div>`; } // v1.9.2: why this result
       if (applied.injured.length) { html += applied.injured.map(id => injBannerHTML(camp, id, applied.downed.includes(id), S)).join('');
         const dn = applied.downed.length; setTimeout(() => { if (dn) Sfx.down(); else Sfx.hurt(); }, 120); haptic(dn ? [80, 60, 120] : 60); injFlash(m.sheet); }
       { const opt = c.tpl.type === 'competing' && c.option !== null && c.option !== undefined ? c.tpl.options[c.option] : (!c.tpl.mission && c.tpl.compReward && c.tpl.compReward.risky ? c.tpl.compReward : null);
@@ -5170,15 +5187,16 @@ function openReview(c) {
       tutorial('rev', 'Reviewed heroes go to Rest (green ring), then are Ready again. Unreviewed heroes stay stuck at HQ!');
     };
     const rl = P.B.querySelector('.rolllabel');
-    const anim = () => { if (done || !cv.isConnected) return; const e = (performance.now() - t0) / 1000;
+    const anim = () => { if (done || !cv || !cv.isConnected) return; const e = (performance.now() - t0) / 1000;
       if (e >= phases[ph].dur) { if (ph + 1 < phases.length) { const r0 = R.rolls[0], r1 = R.rolls[1]; if (rl) rl.innerHTML = `🎲 Roll 1: ${pctPair(r0.roll, r0.need)[0]} vs needed &lt; ${pctPair(r0.roll, r0.need)[1]} → miss · <b>${esc(POWERS[r1.power].name)} (${esc(camp.heroes[r1.hero].codename)}) re-roll!</b>`; drawRadar(cv, { req, team, overlap, dot: phases[ph].land, dotCol: '#ff4d5e', overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null }); Sfx.thud(); ph++; hops = phases[ph].hops; lastHop = -1; t0 = performance.now() + 450; setTimeout(() => requestAnimationFrame(anim), 450); return; } finish(); return; }
       if (e < 0) { requestAnimationFrame(anim); return; }
       let i = hops.findIndex(hp => hp.t > e) - 1; if (i < 0) i = 0; const a = hops[i], b = hops[i + 1] || a; const k = clamp((e - a.t) / ((b.t - a.t) || 1), 0, 1); const ease = 1 - Math.pow(1 - k, 2);
       if (i !== lastHop) { lastHop = i; Sfx.tick(i % 2); Sfx.tension(e / phases[ph].dur); }
       drawRadar(cv, { req, team, overlap, dot: [a.p[0] + (b.p[0] - a.p[0]) * ease, a.p[1] + (b.p[1] - a.p[1]) * ease - Math.sin(k * Math.PI) * 0.06], overCap: c.tpl.overCapFail || null, bonus: c.tpl.bonusThreshold || null }); requestAnimationFrame(anim); };
-    requestAnimationFrame(anim);
-    P.F.querySelector('[data-a=skip]').onclick = finish; cv.onclick = finish;
+    if (!fire) requestAnimationFrame(anim);
+    P.F.querySelector('[data-a=skip]').onclick = finish; if (cv) cv.onclick = finish;
     m.onClose = () => { if (!done) finish(); };
+    if (fire) finish();
   });
 }
 
@@ -5453,14 +5471,14 @@ function openTools() {
 function togRow(key, label, val) { return `<div class="tglrow"><span>${label}</span><button class="tgl ${val ? 'on' : ''}" data-tg="${key}"></button></div>`; }
 function openPause() {
   const S = UI.S; if (S && S.inf && typeof infOpenPause === 'function') { infOpenPause(); return; } openModal('pause', m => { const render = () => {
-    const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>`,
-      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${isHard(UI.camp) ? togRow('hardGreyHack', '💀 Hard: greyscale on hacking consoles (Shift 3)', UI.settings.hardGreyHack !== false) : ''}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
+    const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">Seed ${S.seed}</span>${devTag()}`,
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${isHard(UI.camp) ? togRow('hardGreyHack', '💀 Hard: greyscale on hacking consoles (Shift 3)', UI.settings.hardGreyHack !== false) : ''}${devToggles()}<div class="tglrow callmode-row"><span>${callModeIcon(UI.camp.missionSet)} ${callModeLabel(UI.camp.missionSet)} <small style="color:var(--dim)">(locked for this campaign)</small></span></div>
        <div class="tglrow"><span>Campaign seed: <b>${UI.camp.seed}</b> · shift seed: <b>${S.seed}</b></span></div>
        <div class="tglrow"><span id="verLbl">Night Desk ${esc(ndVersionLabel())}</span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button><button class="btn" data-a="restart">RESTART SHIFT</button></div>
        <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
-    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else if (k === 'hardGreyHack') { UI.settings.hardGreyHack = UI.settings.hardGreyHack === false; saveSettings(); hardGreyApply(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
+    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') { if (devMode()) UI.debug = !UI.debug; } else if (k === 'auto') { if (devMode()) UI.auto = !UI.auto; } else if (k === 'hardGreyHack') { UI.settings.hardGreyHack = UI.settings.hardGreyHack === false; saveSettings(); hardGreyApply(); } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
     P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
@@ -6175,7 +6193,7 @@ function initInput() {
     if (UI.heroCard) { if (k === 'Escape') { e.preventDefault(); closeHeroCard(); } return; } // v1.9.4: the hero card owns the keyboard while open
     if (UI.hack) { const g = UI.hack.game; const map = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
       if (map[k]) { e.preventDefault(); hackStep(map[k]); } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if ((k === 'm' || k === 'M') && g.mode !== 'lock') { UI.hack.zoom = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
-    if (k === 'd' || k === 'D') { UI.debug = !UI.debug; const m = UI.modals[0]; if (m && m.render) m.render(); return; }
+    if ((k === 'd' || k === 'D') && devMode()) { UI.debug = !UI.debug; const m = UI.modals[0]; if (m && m.render) m.render(); return; }
     const wm = UI.modals[0]; if (wm && wm.kind === 'wildcard') { if (k === 'Enter' && wm.enter) { e.preventDefault(); wm.enter(); } return; }
     const cm = UI.modals[0]; if (cm && cm.kind === 'codex') { if (k === 'Escape') cm.esc(); else if (cm.go && (k === 'ArrowRight' || k === 'ArrowLeft')) cm.go(k === 'ArrowRight' ? 1 : -1); return; }
     const lm = UI.modals[0]; if (lm && lm.kind === 'levelup') { if (k === 'Escape') lm.esc(); else if (/^[1-5]$/.test(k)) lm.keyHero(+k - 1); else if (k === 'Enter') { e.preventDefault(); lm.enter(); } return; }
@@ -6275,7 +6293,21 @@ function initServiceWorker() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) swCheckUpdate(); });
   if (SWUpdate.justReloaded) setTimeout(() => { try { sessionStorage.removeItem('nd-sw-autoreload'); } catch (e) { } SWUpdate.justReloaded = false; }, 4000);
 }
+/* v1.43.1: testing tools (🤖 auto-play helper, 🐞 debug overlay, the D key) are hidden from players in every mode.
+   Developer mode is unlocked on a device by opening the game once with ?dev=<secret> (only its SHA-256 is stored here) and cleared with ?dev=off.
+   It only hides/shows test controls; gameplay is identical either way. A determined programmer can still reach anything from the browser console. */
+const DEV_KEY = 'nightdesk.dev.v1', DEV_HASH = '4d9738e5dc3b1a6e6e63dece9e64dfcd8ada49a6ce0d129a0baedb88ff8ba713';
+function devMode() { try { return localStorage.getItem(DEV_KEY) === DEV_HASH.slice(0, 16); } catch (e) { return false; } }
+function devApply() { const on = devMode(); if (!on) { UI.auto = false; UI.debug = false; } document.documentElement.classList.toggle('nd-dev', on); const m = UI.modals && UI.modals[0]; if (m && m.kind === 'pause' && m.render) m.render(); return on; }
+async function devUnlockFromUrl() { let q = null; try { q = new URLSearchParams(location.search).get('dev'); } catch (e) { } if (q === null) return devApply();
+  const strip = () => { try { const u = new URL(location.href); u.searchParams.delete('dev'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { } }; // the secret never stays in the address bar
+  if (q === 'off') { try { localStorage.removeItem(DEV_KEY); } catch (e) { } strip(); return devApply(); }
+  try { const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(q)); const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hex === DEV_HASH) localStorage.setItem(DEV_KEY, DEV_HASH.slice(0, 16)); } catch (e) { }
+  strip(); return devApply(); }
+function devTag() { return devMode() ? '<span class="pill dev-tag" title="Developer mode is on for this device">DEV</span>' : ''; }
+function devToggles() { return devMode() ? `${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}` : ''; }
 function init() {
+  UI.devReady = devUnlockFromUrl();
   initInput();
   initServiceWorker();
   showTitle(); requestAnimationFrame(frame);
@@ -6512,15 +6544,15 @@ function infUpdateTop(S, camp) { updateFinale(); const ck = infClock(S); $('cloc
     b.onclick = ev => { ev.stopPropagation(); if (!UI.S || UI.S.over || UI.modals.length || UI.hack) return; Sfx.click(); openWildcardReveal(() => updateTop()); }; }
   if (b) { b.classList.toggle('hidden', !n); b.textContent = '🎲' + (n > 1 ? n : ''); } }
 function infOpenPause() { const S = UI.S, camp = UI.camp; openModal('pause', m => { const render = () => { const cp = infLoadCheckpoint();
-    const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">♾ Infinite Shift</span>`,
-      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${togRow('debug', '🐞 Debug overlay (D)', UI.debug)}${togRow('auto', '🤖 Auto-play helper (greedy AI)', UI.auto)}
+    const P = sheetParts(m, `<h2>⏸ Paused</h2><span class="pill">♾ Infinite Shift</span>${devTag()}`,
+      `${togRow('sound', '🔊 Sound effects', UI.settings.sound)}${togRow('unlimitedHack', '♾ Unlimited hacking attempts (accessibility)', UI.settings.unlimitedHack)}${devToggles()}
        <div class="tglrow callmode-row"><span>♾ Infinite Shift · 🎲 Random Calls · ${esc(infStageLabel(S.infStage))} (${esc(infSettingsLabel(S.infStage))} settings)</span></div>
        <div class="tglrow"><span>💾 Last checkpoint: <b>${cp ? esc(infCpLabel(cp)) : '—'}</b></span></div>
        <div class="tglrow"><span id="verLbl">Night Desk ${esc(ndVersionLabel())}</span></div>
        <div class="row" style="margin-top:10px"><button class="btn" data-a="help">HOW TO PLAY</button></div>
        <div class="row" style="margin-top:8px"><button class="btn" data-a="look">🎨 LOOK</button><button class="btn" data-a="map">🗺 MAP</button><button class="btn" data-a="music">🎵 MUSIC</button></div>
        <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="quit">QUIT TO TITLE</button></div>`, `<button class="btn pri" data-a="resume">RESUME</button>`);
-    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') UI.debug = !UI.debug; else if (k === 'auto') UI.auto = !UI.auto; else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
+    P.B.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; if (k === 'debug') { if (devMode()) UI.debug = !UI.debug; } else if (k === 'auto') { if (devMode()) UI.auto = !UI.auto; } else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); } render(); });
     P.B.querySelector('[data-a=help]').onclick = () => openHelp();
     P.B.querySelector('[data-a=look]').onclick = () => openLooks(true);
     P.B.querySelector('[data-a=map]').onclick = () => openMapStyle(true);
