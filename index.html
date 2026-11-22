@@ -733,6 +733,8 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 .result.guaranteed { color: #4cd97b; }
 /* v1.43.1 developer mode tag in the pause menu */
 .pill.dev-tag { background: #ff2d75; color: #fff; font-weight: 800; letter-spacing: 1px; }
+.boss-pen { border: 1px solid rgba(255,80,80,0.6); background: rgba(80,10,10,0.35); } /* v1.44.0 undefeated Shift 8 boss */
+.boss-pen h3 { color: #ff8a8a; }
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -1085,7 +1087,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.43.1';
+<script>window.ND_VERSION='nd-v1.44.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1174,6 +1176,11 @@ const CONFIG = {
   extraJoinLevel: { rule: 'teamMedian', min: 4, max: 7 },
   zenith: { restGood: 2, restGloom: 45, restGloomPrescription: 20 },
   drizzle: { skipsBeforeVolunteer: 3, boost: 1, superBoost: 3, mk2SecondBoost: 1, healCount: 2 },
+  // v1.44.0 switches (all true in play; the fingerprint proof turns them off one by one). bossPenalty: undefeated Shift 8 boss = score halved + D.
+  // bossTimetable: fixed boss-call timetable (Normal/Easy health+1, Hard health; Story counts its Night Mayor hacks), no re-queue, no 1 AM hold.
+  // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
+  // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
+  v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
   solstice: { bossFails: 2, campaignFails: 5, level: 10, stats: [8, 8, 7, 6, 7] },
   dotDuration: 2.2,
   trainingAfterShifts: [2, 4, 6],
@@ -1219,7 +1226,7 @@ const CONFIG = {
     // v1.43.0 Shifts 7-8 Arson and riots: 4 per shift at ~at[] (+-nudge s, seeded); one burning section at a time (next waits for out + gap s); none in the last quietEnd s;
     // Shift 8: none once the last boss wave is on the map. Call (v1.43.1): guaranteed success, 1 slot, no stat check, fixed workTime x CONFIG.hardWorkMult (28 x 1.5 = 42 s, powers never shorten it),
     // waits `wait` s, outside the 7-pin cap; the section reopens when the work on scene finishes. Shift 8 City: time-out = CONFIG.finaleCityHit (9); unattended drains `drain` City every `drainEvery` s (stops at 0).
-    fire: { shifts: [6, 7], at: { 6: [55, 135, 215, 295], 7: [70, 170, 270, 370] }, nudge: 10, gap: 10, quietEnd: 45, wait: 75, work: 28, drainEvery: 10, drain: 1,
+    fire: { shifts: [6, 7], at: { 6: [55, 135, 215, 295], 7: [70, 170, 270, 370] }, nudge: 10, gap: 10, quietEnd: 45, wait: 75, work: 28, drainEvery: 10, drain: 1, s8GameMin: 1, s8GameMinHero: 4, /* v1.44.0 (v144.s8Drain): Hard Shift 8 drains 1 City per s8GameMin game minute unattended, per s8GameMinHero game minutes while a hero travels to / works it */
       place: ['at the Harbor', 'Downtown', 'on Neon Row', 'in Old Town', 'in Tech Park', 'Uptown'] },
   },
   // v1.34.0 ♾ Infinite Shift: one endless shift; a ramp every 12 game hours (06:00 / 18:00) steps up to the next shift's settings
@@ -2552,6 +2559,7 @@ function isEasy(camp) { return campDiffKey(camp) === 'easy'; }
 function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // v1.41.0: 'hard' is a real choice now
 /* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
    Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
+function v144(k) { return !!(CONFIG.v144 && CONFIG.v144[k]); } // v1.44.0 internal switches (CONFIG.v144); all on in play
 function isHard(camp) { return campDiffKey(camp) === 'hard'; }
 function hardShipped(idx) { return ((CONFIG.hard && CONFIG.hard.shipped) || []).includes(idx); } // N6: Hard shifts without a built event play as Normal (no alert)
 function hardAlertText(camp, idx) { // BE ALERT card + 20:00 radio line; null when this shift has no (shipped) Hard event
@@ -2655,6 +2663,12 @@ function hardTickFire(camp, S, dt) { const F = S.hard.fire, Fc = CONFIG.hard.fir
   if (cur && !cur.out && S.finale && S.finale.won) { hardFireOut(camp, S, 'crews'); for (const c of S.calls) if (c.hardFire && c.stage === 'pending') { c.stage = 'closed'; c.result = 'dropped'; } } // the final boss fell: city crews put it out so the shift can end
   if (F.cur && !F.cur.out) { // Shift 8 drain: 1 City every 10 s while the fire waits on the map with no team (travel / work / return = attended)
     const c = S.calls.find(x => x.uid === F.cur.uid);
+    if (v144('s8Drain') && c && S.finale && !S.finale.won) { // v1.44.0 Hard Shift 8 (Craig's literal rule, game minutes): 1 City per game minute while it waits unattended, 1 per 4 game minutes while a hero travels to it or works on scene; nothing once the work ends
+      const gm = (S.seconds || CONFIG.shiftSeconds) / (CONFIG.shiftHours * 60), att = c.stage === 'travel' || c.stage === 'work', every = c.stage === 'pending' ? gm * (Fc.s8GameMin || 1) : att ? gm * (Fc.s8GameMinHero || 4) : 0;
+      if (every > 0) { const k = att ? 'heroAcc' : 'drainAcc'; c.hardFire[k] = (c.hardFire[k] || 0) + dt; while (c.hardFire[k] >= every - 1e-9) { c.hardFire[k] -= every; if (S.finale.city <= 0) continue;
+        const was = S.finale.city; S.finale.city = Math.max(0, S.finale.city - Fc.drain); const d = was - S.finale.city; F.drained += d; F.cur.drained = (F.cur.drained || 0) + d; if (att) F.cur.drainedHero = (F.cur.drainedHero || 0) + d; Bus.emit('hardFireDrain', { n: F.cur.n, city: S.finale.city, call: c, attended: att });
+        if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } } }
+      return; }
     if (c && c.stage === 'pending' && S.finale && !S.finale.won) { c.hardFire.drainAcc += dt; while (c.hardFire.drainAcc >= Fc.drainEvery) { c.hardFire.drainAcc -= Fc.drainEvery; if (S.finale.city <= 0) continue;
       const was = S.finale.city; S.finale.city = Math.max(0, S.finale.city - Fc.drain); F.drained += was - S.finale.city; F.cur.drained = (F.cur.drained || 0) + (was - S.finale.city); Bus.emit('hardFireDrain', { n: F.cur.n, city: S.finale.city, call: c });
       if (was > 0 && S.finale.city === 0) { S.finale.lost = true; Bus.emit('cityLost', S.finale); } } }
@@ -2756,6 +2770,10 @@ function noteCallFailed(camp, S, call, how) { if (!S || !call || call.tpl.type =
   S.heroFails = (S.heroFails || 0) + 1; if (camp.v113Finale) return;
   const z = camp.heroes.zenith; if (z && S.roster.includes('zenith') && !hasPower(z, 'noGloom')) z.gloom = true;
   if (S.finale && call.tpl.boss) { S.finaleFails = S.finaleFails || { boss: 0 }; S.finaleFails.boss++; }
+  else if (S.finale && S.solsticeS8 && !call.tpl.hack) { S.finaleFails = S.finaleFails || { boss: 0 }; S.finaleFails.regular = (S.finaleFails.regular || 0) + 1; } // v1.44.0: regular hero calls failed / missed in Shift 8 (hacks never count; a Hard fire time-out counts)
+  if (S.solsticeS8) { if (S.idx === CONFIG.campaignShifts - 1 && S.finale && !(camp.solstice && camp.solstice.joined)) { const ff = S.finaleFails || {}; // v1.44.0: Shift 8 counts only, whichever first
+      if (ff.boss >= CONFIG.solstice.bossFails) solsticeJoin(camp, S, 'boss'); else if ((ff.regular || 0) >= CONFIG.solstice.campaignFails) solsticeJoin(camp, S, 'shift8'); }
+    return; }
   if (S.idx === CONFIG.campaignShifts - 1 && S.finale && !(camp.solstice && camp.solstice.joined)) {
     if (S.finaleFails && S.finaleFails.boss >= CONFIG.solstice.bossFails) solsticeJoin(camp, S, 'boss');
     else if (campaignFailCount(camp, S) >= CONFIG.solstice.campaignFails) solsticeJoin(camp, S, 'campaign'); } }
@@ -2913,7 +2931,7 @@ function startShift(camp) {
   S.spawned = {}; S.followQ = []; S.sabotages = []; S.dupErrors = 0; S.heroFails = 0;
   if (S.hard === undefined && camp.heroes) hardClearSick(camp); // v1.42.0: a sick flag never survives into a new shift (no-op outside Hard)
   if (isHard(camp)) S.hard = hardSetup(camp, S); // v1.41.0 (Normal / Easy / Infinite: no S.hard at all)
-  if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
+  if (plan.finale && !camp.v113Finale) { camp.solstice = camp.solstice || { joined: false }; S.finaleFails = { boss: 0 }; if (v144('solstice')) { S.solsticeS8 = true; S.finaleFails.regular = 0; S.solsticeAtStart = false; } /* v1.44.0: counts start at 0 in Shift 8 */ else S.solsticeAtStart = campaignFailCount(camp, null) >= CONFIG.solstice.campaignFails; }
   if (S.deckMode) { if (plan.finale) { camp.finale = { city: 100, bossHP: 5 }; S.finale = camp.finale; } buildDeck(camp, S); if (S.solsticeAtStart) solsticeJoin(camp, S, 'campaign'); return S; }
   if (plan.blackout) { const off = [0, 2, 3, 5]; [15, 75, 140, 205].forEach((t, i) => S.hackQueue.push({ t, district: off[i] })); }
   (plan.hacks || []).forEach(t => S.hackQueue.push({ t })); S.hackQueue.sort((a, b) => a.t - b.t);
@@ -3024,7 +3042,18 @@ function setupRogueFinale(camp, S) { const r = ensureRogueBoss(camp); let tpls, 
   if (!tpls.length) return;
   camp.finale = { city: 100, bossHP: hp, bossMax: hp, bossId: r.fallback ? null : r.id, rogue: !r.fallback }; S.finale = camp.finale; S.bossTpls = tpls; S.legacyFinale = true;
   const firstAt = Math.max(CONFIG.rogueFirstAt, (S.seconds || CONFIG.shiftSeconds) / 6); // v1.21.0: ≥ ~21:00
+  if (v144('bossTimetable')) { const n = bossCallCount(camp, hp), ts = bossTimetable(S, n); S.bossTT = { n, times: ts, hp }; // v1.44.0: fixed timetable, never re-queued
+    ts.forEach((t, i) => S.followQ.push({ t, id: (i === n - 1 ? tpls[tpls.length - 1] : tpls[i % Math.max(1, tpls.length - 1)]).id, respawn: true, first: i === 0, tt: true })); return; }
   S.followQ.push({ t: firstAt, id: tpls[0].id, respawn: true, first: true }); }
+function bossCallCount(camp, hp) { return isHard(camp) ? hp : hp + 1; } // v1.44.0: Normal / Easy = health + 1 (one fail allowed), Hard = health (every boss mission must succeed)
+function bossTimetable(S, n) { const lo = Math.max(CONFIG.spawnFirst || 3, (S.seconds || CONFIG.shiftSeconds) / 6), hi = finaleLastBossT(S); // 21:00 .. 1:00 AM, evenly spaced, last at 1:00 AM
+  const out = []; for (let i = 0; i < n; i++) out.push(n === 1 ? hi : lo + i * (hi - lo) / (n - 1)); return out; }
+function storyBossTimetable(camp, S) { // v1.44.0 Story: boss missions = ☠ calls + Night Mayor hacks; the ☠ calls fill the rest of the count
+  const bossT = (MISSIONS_BY_SHIFT[S.idx] || []).filter(t => t.boss); if (!bossT.length) return;
+  const nm = S.deck.filter(e => e.tpls.some(t => t.hack && /Night Mayor/.test(t.title))).length, total = bossCallCount(camp, S.finale.bossHP), n = Math.max(1, total - nm), ts = bossTimetable(S, n);
+  S.deck = S.deck.filter(e => !(e.tpls && e.tpls.some(t => t.boss)));
+  ts.forEach((t, i) => S.deck.push({ t, tpls: [bossT[i % bossT.length]], tt: true }));
+  S.deck.sort((a, b) => a.t - b.t); S.bossTT = { n, times: ts, hp: S.finale.bossHP, nmHacks: nm, total }; }
 function bossName(S) { const F = S && S.finale; if (F && F.rogue && F.bossId) { const d = heroDef(F.bossId); if (d) return d.codename; } return 'Night Mayor'; }
 function tickLegacyFinale(camp, S) { if (!S.finale || S.finale.won) return;
   for (const f of S.followQ) { if (f.done || S.t < f.t) continue; if (hardCapCount(S) >= CONFIG.maxPending) break; f.done = true;
@@ -3725,8 +3754,11 @@ function injuryReportFor(camp, S) { const by = {}; // per hero: what happened th
     else if (e.kind === 'healed') { if (e.by === 'medkit') r.toolUsed.push('medkit'); else r.healedBy.push(e.by); } else if (e.kind === 'revived') r.toolUsed.push('jump');
     else r.saved.push({ kind: e.kind, by: e.by }); }
   return Object.values(by); }
+function bossPenaltyFor(camp, S) { // v1.44.0: campaign Shift 8 (Story + Random, every difficulty, not Infinite) ending with the boss still up
+  if (!v144('bossPenalty') || !S || S.inf || (camp && camp.inf) || !S.finale || S.finale.won || S.idx !== CONFIG.campaignShifts - 1) return null;
+  const raw = shiftScore(S); return { raw, score: raw > 0 ? Math.floor(raw / 2) : raw, rawGrade: gradeFor(S), grade: 'D', bossHP: S.finale.bossHP }; }
 function closeShift(camp, S) {
-  const score = shiftScore(S), grade = gradeFor(S);
+  const pen = bossPenaltyFor(camp, S); const score = pen ? pen.score : shiftScore(S), grade = pen ? pen.grade : gradeFor(S);
   for (const k of ['success', 'fail', 'missed', 'perfect', 'hacks', 'injuries']) camp.totals[k] += S.stats[k];
   camp.heroFails = (camp.heroFails || 0) + (S.heroFails || 0); S.heroFails = 0; for (const id in camp.heroes) { camp.heroes[id].radiant = false; camp.heroes[id].gloom = false; }
   camp.totals.score += score; camp.grades.push(grade);
@@ -3741,10 +3773,10 @@ function closeShift(camp, S) {
   for (const id of camp.roster) { const h = camp.heroes[id]; h.injuries = 0; h.state = 'available'; }
   Bus.emit('recovered', { ids: recIds });
   if (camp.heroes.comptroller) { delete camp.heroes.comptroller; }
-  camp.history.push({ shift: S.idx + 1, score, grade, ...S.stats });
-  camp.lastShift = { score, grade, stats: { ...S.stats }, promos, wild, rewards, idx: S.idx, injuryReport };
+  camp.history.push(Object.assign({ shift: S.idx + 1, score, grade, ...S.stats }, pen ? { bossPenalty: pen } : {}));
+  camp.lastShift = Object.assign({ score, grade, stats: { ...S.stats }, promos, wild, rewards, idx: S.idx, injuryReport }, pen ? { bossPenalty: pen } : {});
   camp.shiftIdx++; camp.phase = camp.shiftIdx >= CONFIG.campaignShifts ? 'end' : 'levelup';
-  return { score, grade, promos, wild, rewards, finalShift, injuryReport };
+  return Object.assign({ score, grade, promos, wild, rewards, finalShift, injuryReport }, pen ? { bossPenalty: pen } : {});
 }
 function trainingOffer(camp) { // every eligible hero (LV>=trainLevel, untrained) with both options
   return trainingEligible(camp).map(id => ({ hero: id, options: heroDef(id).train.slice() }));
@@ -3998,7 +4030,7 @@ function buildDeck(camp, S) { // v1.11.0: sample typical deck size from bag-filt
     hacks.filter(h => !h.hack || h.hack.restoresDistrict === undefined).forEach((h, i, a) => deck.push({ t: S.spawnStopAt * (i + 1) / (a.length + 1), tpls: [h], hack: true })); }
   else hacks.forEach((h, i) => deck.push({ t: S.spawnStopAt * (i + 1) / (hacks.length + 1), tpls: [h], hack: true }));
   deck.sort((a, b) => a.t - b.t); S.deck = deck; S.expected = deck.length; S.plan = Object.assign({}, S.plan, { expected: deck.length });
-  if (S.plan.finale) retargetFinaleBossDeck(S); // v1.21.0: spread Night Mayor pins; last at/after 1am
+  if (S.plan.finale) { if (v144('bossTimetable') && S.finale && !camp.v113Finale) storyBossTimetable(camp, S); else retargetFinaleBossDeck(S); } // v1.21.0: spread Night Mayor pins; last at/after 1am (v1.44.0: fixed timetable)
   missionBagMark(bag, 'v18', S.idx, chosen.map(u => u.key));
   if (typeof onMissionBagChange === 'function') onMissionBagChange(bag);
   return deck; }
@@ -4020,7 +4052,7 @@ function tickDeck(camp, S, dt) {
   const open = () => pendingCalls(S).filter(c => !(c.tpl.training) && !c.hardRescue && !c.hardFire).length;
   for (const e of S.deck) { if (e.done) continue; if (S.t < e.t) break; if (open() >= CONFIG.maxPending && !e.hack) break; // maxPending delays, never drops
     if (e.tpls.some(t => t.story) && !(S.roster || camp.roster).some(id => id !== 'comptroller' && id !== 'solstice' && camp.roster.includes(id) && heroLockable(camp, S, id)) && lockWillFree(camp, S)) break; // v1.39.1: a story call waits (like maxPending) until a hero is free to pick it up
-    e.done = true; e.at = S.t; if (e.tpls.every(t => t.boss && S.spawned[t.id])) { S.expected--; continue; } // already re-spawned as the boss pin
+    e.done = true; e.at = S.t; if (!e.tt && e.tpls.every(t => t.boss && S.spawned[t.id])) { S.expected--; continue; } // already re-spawned as the boss pin
     const made = e.tpls.map(t => spawnCall(camp, S, t, t.hack && t.hack.restoresDistrict !== undefined ? { district: t.hack.restoresDistrict } : {}));
     if (made.length === 2) linkPair(made); }
   for (const f of S.followQ) { if (f.done || S.t < f.t) continue; if (open() >= CONFIG.maxPending) break; f.done = true; const c = spawnCall(camp, S, MISSION_BY_ID[f.id], { district: f.district, respawn: f.respawn }); c.followUp = !f.respawn; S.expected++; Bus.emit(f.respawn ? 'bossRespawn' : 'followUp', c); }
@@ -4060,14 +4092,14 @@ function bossRespawnAt(S) { // stretch remaining boss waves so the last one land
   const stretch = (lastT - S.t) / Math.max(1, need);
   return S.t + Math.max(base, stretch);
 }
-function queueBoss(S, c) { if (S.followQ.some(f => f.respawn && !f.done) || S.calls.some(x => x !== c && x.tpl.boss && x.stage !== 'closed' && !x.reviewed)) return; const bosses = S.bossTpls || MISSIONS_BY_SHIFT[S.idx].filter(t => t.boss); const next = bosses[(bosses.indexOf(c.tpl) + 1) % bosses.length] || c.tpl;
+function queueBoss(S, c) { if (S.bossTT) return; /* v1.44.0: fixed timetable, a result never adds a boss call */ if (S.followQ.some(f => f.respawn && !f.done) || S.calls.some(x => x !== c && x.tpl.boss && x.stage !== 'closed' && !x.reviewed)) return; const bosses = S.bossTpls || MISSIONS_BY_SHIFT[S.idx].filter(t => t.boss); const next = bosses[(bosses.indexOf(c.tpl) + 1) % bosses.length] || c.tpl;
   S.followQ.push({ t: bossRespawnAt(S), id: next.id, district: c.district, respawn: true }); } // v1.21.0: spaced + last ≥ 1am
 function bossDamage(camp, S, c, n) {
   if (!S.finale || S.finale.bossHP <= 0) return;
   let next = Math.max(0, S.finale.bossHP - n);
   // v1.21.0: cannot finish the boss before the ≥1am wave has actually spawned
   const lastT = finaleLastBossT(S);
-  if (next <= 0 && !S.finale.lateBossSpawned && S.t + 1e-9 < lastT) { next = 1; S.finale.heldForLate = true; }
+  if (next <= 0 && !S.bossTT && !S.finale.lateBossSpawned && S.t + 1e-9 < lastT) { next = 1; S.finale.heldForLate = true; }
   S.finale.bossHP = next;
   Bus.emit('bossHit', { call: c, hp: S.finale.bossHP });
   if (S.finale.bossHP === 0) { S.finale.won = true; for (const x of S.calls) if (x.stage === 'pending') { x.stage = 'closed'; x.result = 'dropped'; } S.followQ.forEach(f => f.done = true); Bus.emit('bossDown', S.finale); }
@@ -4754,7 +4786,58 @@ function hardRushChip(S) { let el = $('hardRush'); const ph = S && !S.over && UI
 function hardGreyApply() { const on = hardGreyActive(), r = document.documentElement; r.classList.toggle('hard-grey', on); r.classList.toggle('hard-grey-hack', on && UI.settings.hardGreyHack !== false); }
 
 /* ---- v1.43.0 Hard Shifts 7-8: a whole section on fire (wash, flames, embers, smoke, dashed border, label). Reduce effects: no flicker, sway or embers. ---- */
-function hardFireDraw(g, S, W, H, t) { const d = hardBurning(S); if (d === null) return; const F = S.hard.fire, D = DISTRICTS[d], [x0, y0] = mapPos(D.r[0], D.r[1]), w = D.r[2] * W, h = D.r[3] * H, red = reducedMotion();
+/* v1.44.0 (CONFIG.v144.fireArt) Hard Shifts 7-8: layered animated flames. Drawn into a small offscreen layer
+   (half the device pixels) that is redrawn at most 30 times a second, then scaled onto the map; detail drops a level by itself if a redraw costs more than
+   FIRE_FX.budget ms on average. Embers and smoke are pure functions of time (no Math.random, no game RNG). Only the in-game Reduce effects
+   switch makes it still: the phone's Reduce Motion is ignored here (Craig, Q17 + F1). */
+const FIRE_FX = { level: 2, ema: 0, renders: 0, frames: 0, lastMs: 0, maxMs: 0, budget: 4, scale: 0.5, fps: 30, layer: null, key: '', lastT: -1, sprites: null, drops: [] };
+const FIRE_LEVELS = [{ rows: [4, 5, 6], embers: 12, smoke: 3, glow: 3 }, { rows: [6, 8, 9], embers: 24, smoke: 5, glow: 4 }, { rows: [9, 11, 13], embers: 46, smoke: 9, glow: 5 }];
+function fireFxStill() { return document.documentElement.classList.contains('reduce-fx'); }
+function fireSprites() { if (FIRE_FX.sprites) return FIRE_FX.sprites;
+  const rad = (r, stops) => { const c = document.createElement('canvas'); c.width = c.height = r * 2; const x = c.getContext('2d'), gr = x.createRadialGradient(r, r, 0, r, r, r); stops.forEach(([o, col]) => gr.addColorStop(o, col)); x.fillStyle = gr; x.fillRect(0, 0, r * 2, r * 2); return c; };
+  const tongue = (w, h, cols) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'), gr = x.createLinearGradient(0, h, 0, 0); cols.forEach(([o, col]) => gr.addColorStop(o, col)); x.fillStyle = gr;
+    x.beginPath(); x.moveTo(w * 0.5, 0); x.bezierCurveTo(w * 0.62, h * 0.3, w, h * 0.55, w * 0.92, h * 0.8); x.bezierCurveTo(w * 0.85, h, w * 0.15, h, w * 0.08, h * 0.8); x.bezierCurveTo(0, h * 0.55, w * 0.38, h * 0.3, w * 0.5, 0); x.fill(); return c; };
+  return (FIRE_FX.sprites = {
+    back: tongue(48, 96, [[0, 'rgba(200,40,10,0.85)'], [0.5, 'rgba(150,20,5,0.55)'], [1, 'rgba(80,0,0,0)']]),
+    mid: tongue(48, 96, [[0, 'rgba(255,140,30,0.95)'], [0.55, 'rgba(255,80,10,0.7)'], [1, 'rgba(200,30,0,0)']]),
+    core: tongue(48, 96, [[0, 'rgba(255,255,220,1)'], [0.3, 'rgba(255,220,90,0.95)'], [0.75, 'rgba(255,140,20,0.4)'], [1, 'rgba(255,90,0,0)']]),
+    glow: rad(48, [[0, 'rgba(255,150,40,0.55)'], [0.5, 'rgba(255,80,10,0.22)'], [1, 'rgba(255,60,0,0)']]),
+    ember: rad(6, [[0, 'rgba(255,240,180,1)'], [0.4, 'rgba(255,160,40,0.9)'], [1, 'rgba(255,80,0,0)']]),
+    smoke: rad(40, [[0, 'rgba(30,24,22,0.55)'], [0.6, 'rgba(24,20,18,0.25)'], [1, 'rgba(20,16,14,0)']]) }); }
+const fireN1 = (x, s) => Math.sin(x * 1.7 + s) * 0.5 + Math.sin(x * 2.9 + s * 1.3) * 0.3 + Math.sin(x * 5.1 + s * 0.7) * 0.2; // cheap 1-D flicker noise
+const fireHash = i => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+function fireLayerPaint(x, w, h, T, still, L) { const sp = fireSprites(), fr = v => v - Math.floor(v);
+  x.clearRect(0, 0, w, h); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+  const pulse = still ? 0.8 : 0.72 + 0.18 * fireN1(T * 2.2, 1) + 0.1 * Math.sin(T * 7);
+  const gr = x.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, `rgba(255,96,24,${(0.56 * pulse).toFixed(3)})`); gr.addColorStop(0.45, `rgba(170,34,8,${(0.38 * pulse).toFixed(3)})`); gr.addColorStop(1, 'rgba(30,8,4,0.5)'); x.fillStyle = gr; x.fillRect(0, 0, w, h);
+  x.globalCompositeOperation = 'lighter';
+  const rows = [{ y: 0.42, s: 'back', hh: 0.36, ww: 0.24 }, { y: 0.66, s: 'mid', hh: 0.34, ww: 0.2 }, { y: 0.92, s: 'mid', hh: 0.42, ww: 0.2 }];
+  rows.forEach((r, ri) => { const n = L.rows[ri]; for (let i = 0; i < n; i++) { const seed = ri * 31 + i * 7.3, fx = (i + 0.5 + 0.35 * Math.sin(seed)) * w / n, base = h * r.y + Math.sin(seed * 2.1) * h * 0.03;
+      const f = still ? 0.85 : 0.7 + 0.45 * (0.5 + 0.5 * fireN1(T * (2.4 + (i % 3) * 0.6), seed)), fh = h * r.hh * f, fw = w * r.ww * (9 / n) ** 0.5 * (0.8 + 0.25 * (0.5 + 0.5 * (still ? 0 : fireN1(T * 3.1, seed + 9)))), sk = still ? 0 : fireN1(T * 1.8, seed + 3) * 0.35;
+      x.setTransform(1, 0, sk, 1, fx, base); x.drawImage(sp[r.s], -fw / 2, -fh, fw, fh);
+      if (ri > 0) { const cw = fw * 0.55, ch = fh * 0.62 * (still ? 1 : 0.85 + 0.25 * (0.5 + 0.5 * fireN1(T * 5.3, seed + 5))); x.drawImage(sp.core, -cw / 2, -ch, cw, ch); } } });
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < L.glow; i++) { const gx = w * (0.1 + 0.8 * i / Math.max(1, L.glow - 1)), gy = h * (0.6 + 0.15 * Math.sin(i * 3)), rr = w * (0.28 + 0.06 * (still ? 0 : fireN1(T * 3, i))); x.drawImage(sp.glow, gx - rr, gy - rr, rr * 2, rr * 2); }
+  if (!still) for (let i = 0; i < L.embers; i++) { const life = fr(T * (0.25 + 0.2 * fireHash(i)) + fireHash(i + 50)), ex = w * fr(fireHash(i + 100) + 0.03 * Math.sin(T * 2 + i)), ey = h * (1 - life * (0.55 + 0.4 * fireHash(i + 150))), sz = (2.5 + 2 * (1 - life)) * Math.max(0.6, w / 260);
+    x.globalAlpha = Math.min(1, (1 - life) * 1.4); x.drawImage(sp.ember, ex - sz, ey - sz, sz * 2, sz * 2); }
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < L.smoke; i++) { const a = still ? 0.6 : fr(T * 0.12 + fireHash(i + 200)), sx = w * fr(fireHash(i + 250) + a * 0.06), sy = h * (0.6 + 0.3 * fireHash(i + 300) - a * 0.55), rr = w * (0.08 + 0.18 * a) * 1.6;
+    x.globalAlpha = Math.min(1, 1 - a) * 0.85; x.drawImage(sp.smoke, sx - rr, sy - rr, rr * 2, rr * 2); }
+  x.globalAlpha = 1; }
+function hardFireArtDraw(g, S, W, H, t, d) { const F = S.hard.fire, D = DISTRICTS[d], [x0, y0] = mapPos(D.r[0], D.r[1]), w = D.r[2] * W, h = D.r[3] * H, still = fireFxStill(), T = still ? 0 : t, X = FIRE_FX;
+  const k = clamp((S.t - F.cur.start) / 1.5, 0, 1); X.frames++;
+  const q = Math.min(1, X.scale * ((typeof MapV !== 'undefined' && MapV.dpr) || 1)), lw = Math.max(8, Math.round(w * q)), lh = Math.max(8, Math.round(h * q)); // half the device pixels (never above 1 CSS px)
+  if (!X.layer) X.layer = document.createElement('canvas'); if (X.layer.width !== lw || X.layer.height !== lh) { X.layer.width = lw; X.layer.height = lh; X.key = ''; }
+  const key = [d, lw, lh, still ? 1 : 0, X.level].join(':');
+  if (key !== X.key || (!still && Math.abs(t - X.lastT) >= 1 / X.fps - 1e-6)) { const t0 = performance.now(); fireLayerPaint(X.layer.getContext('2d'), lw, lh, T, still, FIRE_LEVELS[X.level]);
+    const ms = performance.now() - t0; X.lastMs = ms; X.maxMs = Math.max(X.maxMs, ms); X.renders++; X.ema = X.renders === 1 ? ms : X.ema * 0.9 + ms * 0.1; X.key = key; X.lastT = t;
+    if (X.renders > 12 && X.ema > X.budget && X.level > 0) { X.level--; X.drops.push({ at: X.renders, ema: +X.ema.toFixed(2) }); X.ema = 0; X.renders = 0; } }
+  g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip(); g.globalAlpha = k * 0.92; g.imageSmoothingEnabled = true; g.drawImage(X.layer, x0, y0, w, h); g.restore();
+  g.save(); g.globalAlpha = k; const eb = still ? 0.8 : 0.55 + 0.35 * (0.5 + 0.5 * fireN1(T * 2.6, 4)); // glowing, breathing edge (three soft strokes, no shadowBlur)
+  [[9, 0.12], [5, 0.25], [2.5, 1]].forEach(([lwid, a]) => { g.strokeStyle = `rgba(255,${a === 1 ? 150 : 110},${a === 1 ? 60 : 30},${(eb * a).toFixed(3)})`; g.lineWidth = lwid; g.strokeRect(x0 + 1.5, y0 + 1.5, w - 3, h - 3); });
+  const l1 = F.cur.kind === 'riot' ? '🔥 RIOT' : '🔥 ARSON', l2 = 'SECTION CLOSED'; g.font = '800 11px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; const tw = Math.max(g.measureText(l1).width, g.measureText(l2).width) + 12, lx = x0 + w / 2, fc = S.calls.find(c => c.hardFire && c.stage !== 'closed' && c.district === d), py = fc && fc.pos ? mapPos(fc.pos.u, fc.pos.v)[1] : y0, ly = Math.abs(py - (y0 + h * 0.18)) > Math.abs(py - (y0 + h * 0.78)) ? y0 + h * 0.18 : y0 + h * 0.78 - 24; // label sits on the side away from the fire pin
+  g.fillStyle = 'rgba(20,6,2,0.78)'; g.fillRect(lx - tw / 2, ly - 10, tw, 34); g.fillStyle = '#ffb347'; g.fillText(l1, lx, ly); g.font = '700 9px ui-monospace,monospace'; g.fillStyle = '#ffd9a8'; g.fillText(l2, lx, ly + 15); g.restore(); }
+function hardFireDraw(g, S, W, H, t) { const d = hardBurning(S); if (d === null) return; if (v144('fireArt')) { hardFireArtDraw(g, S, W, H, t, d); return; } const F = S.hard.fire, D = DISTRICTS[d], [x0, y0] = mapPos(D.r[0], D.r[1]), w = D.r[2] * W, h = D.r[3] * H, red = reducedMotion();
   const k = clamp((S.t - F.cur.start) / 1.5, 0, 1), fl = red ? 1 : 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 5.3 + 1);
   g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip(); g.globalAlpha = k;
   const gr = g.createLinearGradient(0, y0 + h, 0, y0); gr.addColorStop(0, `rgba(255,90,20,${0.55 * fl})`); gr.addColorStop(0.5, `rgba(200,40,10,${0.34 * fl})`); gr.addColorStop(1, 'rgba(40,10,5,0.45)'); g.fillStyle = gr; g.fillRect(x0, y0, w, h);
@@ -4946,7 +5029,7 @@ function openBriefing(c) {
       const keepTop = (m.sheet.querySelector('.bscroll') || {}).scrollTop || 0, keepLeft = (m.sheet.querySelector('.bdock .tray') || {}).scrollLeft || 0; m.sheet.classList.add('bfix');
       const workEst = workTimeFor(camp, c, c.assigned.filter(Boolean));
       if (c.difficulty === 'hard') notes += `<div class="note">Hard: takes longer</div>`;
-      if (c.hardFire) { const Fc = CONFIG.hard.fire, sect = esc(DISTRICTS[c.district].name), s8 = !!(UI.S && UI.S.finale); notes += `<div class="note good hard-fire"><b>🔥 Guaranteed: always works, but takes a long time</b><div>Send any one Ready hero. About ${Math.round(Fc.work * (CONFIG.hardWorkMult || 1))} s on scene, and it waits ${Fc.wait} s before it counts as missed. No other calls can reach ${sect} until the ${c.hardFire.kind === 'riot' ? 'riot is over' : 'fire is out'}.${s8 ? ` While it waits with nobody sent, the City loses ${Fc.drain} every ${Fc.drainEvery} s, and a time-out costs ${CONFIG.finaleCityHit} City.` : ''}</div></div>`; } // v1.43.0 Hard Shifts 7-8 (v1.43.1: guaranteed, 1 hero)
+      if (c.hardFire) { const Fc = CONFIG.hard.fire, sect = esc(DISTRICTS[c.district].name), s8 = !!(UI.S && UI.S.finale); notes += `<div class="note good hard-fire"><b>🔥 Guaranteed: always works, but takes a long time</b><div>Send any one Ready hero. About ${Math.round(Fc.work * (CONFIG.hardWorkMult || 1))} s on scene, and it waits ${Fc.wait} s before it counts as missed. No other calls can reach ${sect} until the ${c.hardFire.kind === 'riot' ? 'riot is over' : 'fire is out'}.${s8 ? (v144('s8Drain') ? ` While it waits with nobody sent, the City loses ${Fc.drain} every game minute. While a hero is on the way or on scene, it loses ${Fc.drain} every ${Fc.s8GameMinHero} game minutes. A time-out costs ${CONFIG.finaleCityHit} City.` : ` While it waits with nobody sent, the City loses ${Fc.drain} every ${Fc.drainEvery} s, and a time-out costs ${CONFIG.finaleCityHit} City.`) : ''}</div></div>`; } // v1.43.0 Hard Shifts 7-8 (v1.43.1: guaranteed, 1 hero)
       if (c.hardRescue) notes += `<div class="note good hard-rescue"><b>🚑 Rescue</b><div>Send any one Ready hero. It always works and takes a normal trip plus about ${CONFIG.hard.storm.rescueWork} s on scene. The pin never expires. Both heroes come home together. No score or XP.</div></div>`; // v1.42.0 Hard Shift 6
       const P = sheetParts(m, `${pairRow}<span class="diff ${c.difficulty}">${c.difficulty.toUpperCase()}</span><h2>${esc(tpl.title)}</h2>${tpl.category ? `<span class="pill cat">${esc(tpl.category)}</span>` : ''}${tpl.mission ? missionMechanics(tpl).map(k => `<span class="pill mech" title="${esc(MECHANICS[k][1])}">${MECHANICS[k][0]}</span>`).join('') : ''}<span class="pill">📍 ${DISTRICTS[c.district].name}</span><span class="pill${c.pairUid ? ' shared' : ''}"${c.pairUid ? ' title="Both options expire together"' : ''}>⏱ ${(tpl.training && tpl.training.noExpiry) || c.hardRescue ? 'no expiry' : Math.ceil(rem) + 's'}${c.pairUid ? ' · shared' : ''}</span><span class="pill" title="Time on scene once the team arrives${c.difficulty === 'hard' ? ' (Hard: takes longer)' : ''}">⚙ ${Math.ceil(workEst)}s work</span>${c.difficulty === 'hard' ? '<span class="pill">Hard: takes longer</span>' : ''}<span class="pill">👥 ${c.assigned.length}${c.assigned.length > c.slots ? " (squeeze)" : ""}</span>`,
         `${ifr.html}<div class="bgrid btop"><div class="bchart">${c.hardFire ? `<div class="fire-guar" role="note"><span class="fg-ico" aria-hidden="true">🔥</span><b>GUARANTEED</b><span>Always works · takes a long time</span><span>1 hero</span></div>` : `<div class="radarbox"><canvas class="rad"></canvas><div class="statrow">${info.preview ? '<span style="color:#ffd23f">Requirements revealed ⬡</span>' : '<span>Team shape · requirements hidden</span>'}</div></div>`}${dbg}</div>
@@ -5554,9 +5637,9 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `<b>Shift 5 blackout:</b> four districts go dark. Win the ⌘ hacks to bring them back.`]) +
   sec('🦸 Extra heroes and the finale', [
     `Shift ${C.extraJoinShiftIdx + 1}: Zenith and Drizzle join. 💧 Drizzle adds himself to a call after ${C.drizzle.skipsBeforeVolunteer} missions without him; tap his slot to remove him.`,
-    `Shift ${C.campaignShifts} is the finale. ☠ Boss calls keep coming back until the boss is beaten. Each win knocks off 1 point. ${ST} The Night Mayor. ${RN} A rogue hero, whose toughness depends on their Endurance.`,
+    `Shift ${C.campaignShifts} is the finale. ${v144('bossTimetable') ? '☠ Boss calls arrive on a fixed schedule from 21:00 to 1:00 AM: one more than the boss has points (Hard: exactly as many), so you can afford one fail (none on Hard). Each win knocks off 1 point.' : '☠ Boss calls keep coming back until the boss is beaten. Each win knocks off 1 point.'}${v144('bossPenalty') ? ' If the boss is still standing at 02:00, the shift score is halved and the grade is D.' : ''} ${ST} The Night Mayor. ${RN} A rogue hero, whose toughness depends on their Endurance.`,
     `🏙 Failed or missed calls cost City points. If the City hits 0, that shift's grade can't be better than C.`,
-    `☀️ If ${C.solstice.bossFails} boss calls fail, or the campaign reaches ${C.solstice.campaignFails} failed or missed calls, Solstice joins and blocks one injury per hero. 🦅 If your grades have been mostly C and D, the Comptroller joins for Shift ${C.campaignShifts}.`]) +
+    `☀️ If ${C.solstice.bossFails} boss calls fail, or ${v144('solstice') ? `${C.solstice.campaignFails} other hero calls are failed or missed during Shift ${C.campaignShifts}` : `the campaign reaches ${C.solstice.campaignFails} failed or missed calls`}, Solstice joins and blocks one injury per hero. 🦅 If your grades have been mostly C and D, the Comptroller joins for Shift ${C.campaignShifts}.`]) +
   sec('⚙ Menus', [
     `On the title screen: 🦸 HEROES (every hero's file), 🎨 LOOK (${LOOKS.length} visual styles), 🗺 MAP (map style), 🎵 MUSIC, and an optional seed to replay the same draft.`,
     `Settings include sound, vibration and ♾ unlimited hacking attempts.`]) +
@@ -5662,7 +5745,7 @@ function heroDetailHTML(d, o) { o = o || {}; const syns = [].concat(d.synergy ||
 function codexPowerHTML(d) { const sig = SIGNATURES[d.power]; const row = (p, tag) => `<div class="pw"><b>${esc(POWERS[p].name)}</b> <span class="pill">${tag}</span><small>${esc(POWERS[p].desc)}${ezNote(p)}</small></div>`;
   if (!d.train || !d.train.length) return row(d.power, d.maxLevel ? 'LV MAX · NO TRAINING' : 'BASE');
   return row(d.power, 'BASE') + `<div class="cx-sub">LV ${CONFIG.trainLevel} + power revealed: choose one${d.extra ? ' (chosen on arrival)' : ''}</div><div class="tropts">${d.train.map(p => row(p, 'TRAIN')).join('')}</div>` + (sig ? row(sig, 'LV ' + CONFIG.signatureLevel + ' MK II (optional, trained heroes)') : ''); }
-function extraArrivalText(d) { return d.id === 'solstice' ? 'Arrives on her own in the Shift 8 finale if 2 boss calls fail or the campaign reaches 5 failures (fails + missed hero calls). Joins at LV MAX (stats 8/8/7/6/7) as a guest: no XP, no training. Never in Hero Selection or Random Heroes.'
+function extraArrivalText(d) { return d.id === 'solstice' ? (v144('solstice') ? 'Arrives on her own in the Shift 8 finale if 2 boss calls fail or 5 other hero calls are failed or missed during Shift 8.' : 'Arrives on her own in the Shift 8 finale if 2 boss calls fail or the campaign reaches 5 failures (fails + missed hero calls).') + ' Joins at LV MAX (stats 8/8/7/6/7) as a guest: no XP, no training. Never in Hero Selection or Random Heroes.'
   : 'Arrives on his own before Shift 6 in every campaign (Zenith and Drizzle together), at your crew\'s median level (LV 4-7). You still pick 8; he is extra. Never in Hero Selection or Random Heroes.'; }
 function inCampaign(id) { const c = UI.camp || loadCampPeek(); return !!(c && c.pool && c.pool.includes(id)); }
 function loadCampPeek() { if (UI._peek !== undefined) return UI._peek; try { const r = Store.get(SAVE_KEY); UI._peek = r ? JSON.parse(r) : null; if (UI._peek && !UI._peek.pool) UI._peek.pool = LEGACY_POOL; } catch (e) { UI._peek = null; } return UI._peek; }
@@ -5675,7 +5758,7 @@ function openCodex(startId) {
         `<div class="cx-chips">${['ALL', ...STATS].map((s, i) => `<button class="cx-chip ${sort === i - 1 ? 'on' : ''}" data-sort="${i - 1}" ${i ? `style="--c:${STAT_COLORS[s]}"` : ''}>${i ? STAT_NAMES[s] : 'All'}</button>`).join('')}</div>
          <p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 8px">Each campaign drafts 8 of these ${HERO_DEFS.length}. Every hero starts with 12 stat points. Tap a card for powers and details.</p>
          <div class="cx-grid">${l.filter(d => !d.extra).map(d => heroCardHTML(d)).join('')}</div>
-         <h3 class="cx-sec">Arrives on their own — NOT draftable</h3><p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 8px">Never in Hero Selection or Random Heroes; you still pick 8. Zenith and Drizzle join every campaign before Shift 6. Solstice arrives in the Shift 8 finale only if 2 boss calls fail or you reach 5 failures.</p>
+         <h3 class="cx-sec">Arrives on their own — NOT draftable</h3><p class="txt" style="font-size:12px;color:var(--dim);margin:4px 0 8px">Never in Hero Selection or Random Heroes; you still pick 8. Zenith and Drizzle join every campaign before Shift 6. Solstice arrives in the Shift 8 finale only if 2 boss calls fail or ${v144('solstice') ? '5 other hero calls fail or are missed during Shift 8' : 'you reach 5 failures'}.</p>
          <div class="cx-grid">${l.filter(d => d.extra).map(d => heroCardHTML(d)).join('')}</div>`,
         `<button class="btn pri" data-a="close">CLOSE</button>`);
       P.F.querySelector('[data-a=close]').onclick = () => closeModal();
@@ -6033,6 +6116,7 @@ function showSummary() {
    <table class="sum"><tr><td>✅ Successes</td><td>${st.success}</td></tr><tr><td>❌ Failures</td><td>${st.fail}</td></tr><tr><td>⌛ Missed</td><td>${st.missed}</td></tr><tr><td>⭐ Perfect Picks</td><td>${st.perfect}</td></tr><tr><td>⌘ Hacks cleared</td><td>${st.hacks}</td></tr><tr><td>🩹 Injuries</td><td>${st.injuries}</td></tr><tr><td>📈 XP earned</td><td>${st.xp}</td></tr></table>
    <div style="font-size:12px;color:var(--dim);margin-top:6px">Score = 100×success − 40×fail − 60×missed + 25×perfect + 50×hack. ${late ? late + ' late report(s) were auto-resolved at 02:00.' : ''}</div></div>
    ${res.promos ? `<div class="card"><h3>🎖 Promotion!</h3><p class="txt">Agency rank ${camp.rank}: <b>${CONFIG.rankNames[camp.rank - 1]}</b>.</p>${promoRewardsHTML(res)}<p class="txt" style="display:none">${res.wild ? `You earned ${res.wild} wildcard skill point${res.wild > 1 ? 's' : ''}.` : 'All ' + CONFIG.maxWildcards + ' wildcard points have been handed out, so this one is just the title.'}${camp.rank >= CONFIG.medKitRank && camp.rank - res.promos < CONFIG.medKitRank ? ' 🩹 Med Kit unlocked!' : ''}${camp.rank >= CONFIG.jumpStartRank && camp.rank - res.promos < CONFIG.jumpStartRank ? ' ⚡ Jump Start unlocked!' : ''}</p></div>` : ''}
+   ${res.bossPenalty ? `<div class="card boss-pen"><h3>☠ Boss still standing</h3><p class="txt">${esc(bossName(S))} wasn't beaten by 02:00 (${res.bossPenalty.bossHP} left). Shift score halved: ${res.bossPenalty.raw} → <b>${res.bossPenalty.score}</b> pts. Grade set to <b>D</b> (would have been ${res.bossPenalty.rawGrade}).</p></div>` : ''}
    ${injuryReportHTML(camp, res.injuryReport || [])}
    <div class="email">${esc(EMAILS[res.grade])}</div>
    <button class="btn pri" data-a="next">CONTINUE</button>`, s => { s.querySelector('[data-a=next]').onclick = () => routeCamp(); });
@@ -6126,7 +6210,7 @@ Bus.on('revived', d => { if (UI.sim || !UI.camp) return; injToast(d.id + 'r', `�
 Bus.on('power', e => { if (UI.sim || !UI.camp || !UI.S) return; pulsePower(e.hero); radioLog(e.hero, '⚡ ' + POWERS[e.power].name + ' activated ' + e.text, 'pfx-log'); });
 Bus.on('powerRevealed', d => { if (UI.sim || !UI.camp || !d || !d.hero) return; enqueueBaseReveal(d.hero, d.power); });
 Bus.on('solsticeJoined', d => { if (UI.sim || !UI.camp) return; Sfx.fanfare(); FX.burst(); finBanner('☀️ SOLSTICE ARRIVES<br><small>Team of ' + UI.camp.roster.length + '. Her light blocks one injury per hero.</small>');
-  radio('solstice', "Torrance — I mean, Night Desk — I'm here. Stay in my light."); toast('☀️ Solstice joined: ' + (d.reason === 'boss' ? '2 boss calls failed' : '5 failures this campaign')); if (UI.S) { buildRoster(); updateRoster(); } });
+  radio('solstice', "Torrance — I mean, Night Desk — I'm here. Stay in my light."); toast('☀️ Solstice joined: ' + (d.reason === 'boss' ? '2 boss calls failed' : d.reason === 'shift8' ? '5 calls failed or missed tonight' : '5 failures this campaign')); if (UI.S) { buildRoster(); updateRoster(); } });
 Bus.on('volunteered', d => { if (UI.sim || !UI.S) return; radioLog('drizzle', `💧 Drizzle volunteered for "${d.call.tpl.title}". Tap his slot in the briefing to take him off.`); });
 Bus.on('drizzleEager', () => { if (UI.sim || !UI.S) return; radio('drizzle', 'Three missions without me? I will just... put myself on the next one. If that is okay. It is okay.'); });
 Bus.on('shiftOver', () => { if (UI.sim) return; UI.shiftOverPending = true; if (UI.hack && UI.hack.repair) { UI.hack.shiftEnd = true; endHack(false, true); } }); // v1.41.0: shift ends mid-repair -> the console closes, the summary appears
@@ -6144,7 +6228,8 @@ Bus.on('hardFire', d => { if (UI.sim || !UI.S || !UI.camp) return; const sect = 
 Bus.on('hardFireOut', d => { if (UI.sim || !UI.S || d.how === 'shiftEnd') return; const sect = DISTRICTS[d.d].name;
   radioLog(null, d.how === 'success' ? `🧯 ${sect} is under control. Calls can reach it again.` : d.how === 'crews' ? `🚒 With the boss down, city crews put out ${sect}.` : `🔥 Nobody made it to ${sect} in time. It burned itself out and the section is open again.`, 'hard-al'); });
 Bus.on('hardFireAgain', d => { if (UI.sim || !UI.S) return; Sfx.thud(); radioLog(null, `🔥 The team could not stop it. "${d.call.tpl.title}" is still going and back on the map.`, 'hard-al'); });
-Bus.on('hardFireDrain', d => { if (UI.sim || !UI.S) return; const c = d.call; if (!c || c._drainSaid) return; c._drainSaid = true; radioLog(null, `🔥 ${DISTRICTS[c.district].name} is burning with nobody on it. The City is losing ${CONFIG.hard.fire.drain} every ${CONFIG.hard.fire.drainEvery} s.`, 'hard-al'); });
+Bus.on('hardFireDrain', d => { if (UI.sim || !UI.S) return; const c = d.call; if (!c || c._drainSaid) return; c._drainSaid = true; if (d.attended) { c._drainSaid = false; if (c._heroDrainSaid) return; c._heroDrainSaid = true; radioLog(null, `🔥 ${DISTRICTS[c.district].name} is still burning. Until the work is done, the City loses ${CONFIG.hard.fire.drain} every ${CONFIG.hard.fire.s8GameMinHero} game minutes.`, 'hard-al'); return; }
+  radioLog(null, v144('s8Drain') ? `🔥 ${DISTRICTS[c.district].name} is burning with nobody on it. The City is losing ${CONFIG.hard.fire.drain} every game minute.` : `🔥 ${DISTRICTS[c.district].name} is burning with nobody on it. The City is losing ${CONFIG.hard.fire.drain} every ${CONFIG.hard.fire.drainEvery} s.`, 'hard-al'); });
 Bus.on('hardNag', () => { if (UI.sim || !UI.S) return; radioLog(null, '📡 Network still down. Tap REPAIR CONNECTION: no new calls until it is fixed.', 'hard-al'); Sfx.blip(); });
 
 /* ---------- main loop ---------- */
