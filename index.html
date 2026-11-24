@@ -749,6 +749,11 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 @media (max-height:700px){.dis-rad canvas{width:140px;height:140px}}
 @media (orientation:landscape) and (max-height:520px){.dis-rad canvas{width:120px;height:120px}}
 
+/* v1.47.0: number keypad alone in the control well (code + CANCEL live in the entry bar above the map), sized to fit every phone */
+#hPad.kp2{max-height:none;overflow:visible;padding:6px}
+#hPad.kp2 .keys button{height:clamp(36px,7vh,48px)}
+@media (orientation:landscape){#hPad.kp2 .keys{grid-template-columns:repeat(4,42px)}#hPad.kp2 .keys button{height:clamp(30px,9vh,40px)}}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -1100,7 +1105,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.46.0';
+<script>window.ND_VERSION='nd-v1.47.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1194,6 +1199,7 @@ const CONFIG = {
   // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
   // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
   v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
+  v147: { arrowDpad: true, keypadFit: true }, // v1.47.0 (Craig t217u-t219u): ⇄ arrow locks typed on the d-pad/swipes like ⚒ bridge nodes, one shared entry bar (code + CANCEL) for bridges/arrow/number locks, one tap/swipe = one arrow, ACT inert while typing, no arrow guessing before the ⌨ terminal; number keypad sized to fit
   v146: { disruptionGraph: true }, // v1.46.0 (Craig t215u/t216u): briefing-style team graph on top of every Disruption pop-up; choices show no team/needs numbers
   v145: { overtime: true }, otCapHours: 2, // v1.45.0 (Craig t212u-t214u): campaign overtime after 02:00; safety limit 04:00 = otCapHours game hours past the shift end
   solstice: { bossFails: 2, campaignFails: 5, level: 10, stats: [8, 8, 7, 6, 7] },
@@ -2082,7 +2088,7 @@ class HackGame {
     else if (c === 'Y' && !this.picked[k]) { this.picked[k] = 1; this.keys++; this.msg = 'Key node picked up (🗝' + this.keys + '). Walk into a key door.'; this.fx = 'key'; hackPop(this, this.px, this.py, '🗝', '#fbbf24'); }
     else if (c === 'F' && !this.files[k]) { this.files[k] = 1; this.msg = 'File recovered! (' + this.filesFound() + '/' + this.filesTotal + ')'; this.fx = 'charge'; hackPop(this, this.px, this.py, '📁', '#fff'); }
     else if (c === 'R') { this.arrowKnown = true; this.keyText = 'ARROW CODE: ' + this.arrowCode.map(d => ARROW[d]).join(''); this.keyShow = CONFIG.hack.keyShowAfter + this.arrowCode.length * 0.4; this.msg = this.L.arrowMemo ? 'Memorize the arrow code!' : 'Arrow code downloaded to the lock.'; this.fx = 'key'; }
-    else if (c === 'A') this.msg = this.arrowOpen ? 'Arrow lock open.' : 'Arrow lock: press ACT and enter the arrows.';
+    else if (c === 'A') this.msg = this.arrowOpen ? 'Arrow lock open.' : (!this.arrowKnown && (typeof CONFIG !== 'undefined' && CONFIG.v147 && CONFIG.v147.arrowDpad)) ? 'Arrow lock: read its code at a ⌨ terminal first.' : 'Arrow lock: press ACT and enter the arrows.'; // v1.47.0 Q4
     else if (c === 'Z' && !this.alarm) { this.alarm = true; this.msg = 'ALARM! Antivirus hunters are chasing you!'; this.fx = 'err'; }
     else if (c === 'P' && !(this.cp && this.cp.px === this.px && this.cp.py === this.py)) { this.checkpoint(); this.msg = 'Checkpoint saved. Getting caught brings you back here.'; this.fx = 'charge'; }
     if (this.tips && this.tips[k] && !this.tipSeen) this.tipSeen = {};
@@ -2093,6 +2099,8 @@ class HackGame {
   act() {
     if (this.status !== 'play') return;
     const c = this.ch(this.px, this.py);
+    if (((this.mode === 'seq' || this.mode === 'arrow') && (typeof CONFIG !== 'undefined' && CONFIG.v147 && CONFIG.v147.arrowDpad)) || (this.mode === 'lock' && (typeof CONFIG !== 'undefined' && CONFIG.v147 && CONFIG.v147.keypadFit))) return; // v1.47.0 Q6: ACT does nothing while a code is being entered
+    if (c === 'A' && !this.arrowOpen && !this.arrowKnown && (typeof CONFIG !== 'undefined' && CONFIG.v147 && CONFIG.v147.arrowDpad)) { this.msg = 'Code unknown: find the ⌨ terminal first.'; this.bump = 0.15; return; } // v1.47.0 Q4: no guessing before the terminal
     if (c === 'B' || c === 'N') { this.mode = 'seq'; this.seqNode = c; this.input = []; this.msg = 'Enter the arrow sequence.'; }
     else if (c === 'L' && !this.lockOpen) { this.mode = 'lock'; this.entry = ''; }
     else if (c === 'A' && !this.arrowOpen) { this.mode = 'arrow'; this.input = []; this.msg = this.arrowKnown ? 'Enter the arrow code.' : 'Unknown code: read it at a ⌨ terminal first.'; }
@@ -2575,6 +2583,7 @@ function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // 
 /* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
    Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
 function v144(k) { return !!(CONFIG.v144 && CONFIG.v144[k]); }
+function v147(k) { return !!(CONFIG.v147 && CONFIG.v147[k]); } // v1.47.0 internal switches (CONFIG.v147.arrowDpad / keypadFit); on in play
 function v146(k) { return !!(CONFIG.v146 && CONFIG.v146[k]); } // v1.46.0 internal switch (CONFIG.v146.disruptionGraph); on in play
 function v145(k) { return !!(CONFIG.v145 && CONFIG.v145[k]); } // v1.45.0 internal switch (CONFIG.v145.overtime); on in play
 /* v1.45.0 OVERTIME (campaign only, every difficulty, Story + Random; never Infinite). At the shift end (02:00) nothing new arrives, but
@@ -5338,7 +5347,7 @@ function ezNote(pid) { if (UI.inSetup || !isEasy(UI.camp)) return ''; const n = 
 function openHackBrief(c) {
   openModal('hackbrief', m => { const P = sheetParts(m, `<span class="diff normal">⌘ HACK</span><h2>${esc(c.tpl.title)}</h2><span class="pill">⏱ ${Math.ceil(c.expiresAt - UI.S.t)}s</span>`,
     `${callTextHTML(c.tpl)}${c.restoreDistrict !== undefined ? `<div class="note good">Clearing this restores power to <b>${DISTRICTS[c.restoreDistrict].name}</b>.</div>` : ''}
-     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ⚒ bridge nodes: press ACT, then enter the arrows. 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks take an arrow code, 📁 files and a fast finish give bonus points. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start. An antivirus takes a held ⚡ when it touches you; every map has a spare ⚡ for each antivirus before the gates it guards. Stuck anyway? <b>↻ REBOOT</b> restores the section (items, gates, antiviruses) for one life${isEasy(UI.camp) ? '. 🌱 Easy: no timer on any hack, so take your time (finishing fast still earns the speed bonus).' : "; the timer keeps running. Each map's timer is set from its length and puzzles."}</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
+     <div class="note">Move the cube with the <b>d-pad</b> or by <b>swiping</b> on the grid. ${v147('arrowDpad') ? '⚒ bridge nodes and ⇄ arrow locks: press ACT, then enter the arrows with the d-pad or swipes.' : '⚒ bridge nodes: press ACT, then enter the arrows.'} 🔑 keys show a code for 🔒 locks. ⚡ charges light 💡 bulbs or purge red antivirus orbs. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ${v147('arrowDpad') ? '⇄ arrow locks need their code (shown on the lock or read at a ⌨ terminal), ' : '⇄ arrow locks take an arrow code, '}📁 files and a fast finish give bonus points. Reach the green hexagon and <b>HOLD</b>. Hold <b>MAP</b> to see the whole grid. You have <b>${UI.settings.unlimitedHack ? 'unlimited' : (CONFIG.hack.lives || 3)} lives</b>: getting caught sends you back to the section start. An antivirus takes a held ⚡ when it touches you; every map has a spare ⚡ for each antivirus before the gates it guards. Stuck anyway? <b>↻ REBOOT</b> restores the section (items, gates, antiviruses) for one life${isEasy(UI.camp) ? '. 🌱 Easy: no timer on any hack, so take your time (finishing fast still earns the speed bonus).' : "; the timer keeps running. Each map's timer is set from its length and puzzles."}</div>${UI.settings.unlimitedHack ? '<div class="note good">Unlimited attempts is ON (no timer).</div>' : ''}`,
     `<button class="btn ghost" data-a="close">LATER</button><button class="btn pri" data-a="go">TAKE THE CONSOLE</button>`);
     P.F.querySelector('[data-a=close]').onclick = () => closeModal(); P.F.querySelector('[data-a=go]').onclick = () => { closeModal(); startHack(c); }; });
 }
@@ -5353,6 +5362,7 @@ function startHack(c, layout, disrupt, hopts) { // v1.41.0 hopts: { rng, repair 
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, (hopts && hopts.rng) || UI.S.hackRng, { unlimited: UI.settings.unlimitedHack, noTimer: !!campDiff(UI.camp).hackNoTimer }); // v1.40.0 Easy: no countdown
   const helpers = rosterHackHelpers(UI.camp); const spent = {};
   UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; if (hopts && hopts.repair) UI.hack.repair = true; $('hack').classList.remove('hidden'); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + (hopts && hopts.repair ? '📡 Repair connection: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. ' + (game.noTimer ? '🌱 Easy: no timer, take your time.' : 'The timer keeps running while you look at the map.'));
+  if (v147('arrowDpad') && game.tips && game.tips['6,5']) game.tips = Object.assign({}, game.tips, { '6,5': '⇄ Arrow lock: press ACT, then enter the arrows with the d-pad or swipes.' }); // v1.47.0 Q8
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
   if (/[ZH]/.test(L.rows.join(''))) tutorial('hackZ', '⚠ Alarm tripwires wake the diamond hunter antivirus: once the alarm sounds it chases you anywhere on the grid. A ⚡ charge purges it.');
@@ -5416,6 +5426,7 @@ function renderHackPanels() {
   const H = UI.hack; if (!H) return; const g = H.game;
   const seq = $('hSeq'), pad = $('hPad');
   const arrow = g.mode === 'arrow', seqMode = g.mode === 'seq', lock = g.mode === 'lock';
+  if (v147('arrowDpad') || v147('keypadFit')) { if (renderHackPanels147(H, g, seq, pad, arrow, seqMode, lock)) return; }
   $('hack').classList.toggle('hack-entry', arrow || lock); // hide d-pad/buttons while a keyboard fills the reserved .hctrl well
   $('hack').classList.toggle('hack-seq', seqMode); // seq is entered with the d-pad; pattern stays in the reserved key row
   if (arrow) { const show = g.arrowKnown && !g.L.arrowMemo;
@@ -5430,8 +5441,28 @@ function renderHackPanels() {
   else if (lock) { pad.innerHTML = `<div class="disp">${(g.entry + '____').slice(0, 4)}</div><div class="keys">${['1', '2', '3', 'C', '4', '5', '6', '0', '7', '8', '9', 'OK'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div><button class="btn small ghost" id="padX" style="margin-top:6px">CANCEL</button>`;
     pad.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { g.lockKey(b.dataset.k); Sfx.click(); hackFx(); renderHackPanels(); }); pad.querySelector('#padX').onclick = () => { g.cancelMode(); renderHackPanels(); };
     requestAnimationFrame(() => { if (UI.hack === H) pad.classList.add('open'); }); }
-  else { pad.classList.remove('open'); pad.innerHTML = ''; }
+  else { pad.classList.remove('open', 'kp2'); pad.innerHTML = ''; }
 }
+/* v1.47.0 (Craig t217u-t219u, report Page 1db86a90): ONE entry bar above the map for ⚒ bridge nodes, ⇄ arrow locks and 🔒 number locks
+   (icon + wording + code cells + CANCEL). Arrow locks are typed with the normal d-pad / swipes / arrow keys like bridge nodes (no centre
+   arrow panel); the number keypad sits alone in the control well, sized to fit. Returns false for anything it does not handle (old path). */
+function hackEntryBar(seq, icon, head, cells, onCancel) {
+  seq.innerHTML = `<div class="sqh">${icon} ${esc(head)}</div><div class="arrows">${cells}</div><button class="btn small ghost" id="seqX">CANCEL</button>`;
+  seq.querySelector('#seqX').onclick = onCancel; }
+function renderHackPanels147(H, g, seq, pad, arrow, seqMode, lock) {
+  const A = v147('arrowDpad'), K = v147('keypadFit'); if (!((A && (arrow || seqMode)) || (K && lock))) return false;
+  const cancel = () => { g.cancelMode(); renderHackPanels(); }, hk = $('hack');
+  if (lock) { hk.classList.add('hack-entry'); hk.classList.remove('hack-seq');
+    hackEntryBar(seq, '🔒', 'Enter the code', (g.entry + '____').slice(0, 4).split('').map(c => c === '_' ? '_' : `<b>${c}</b>`).join(''), cancel);
+    pad.classList.add('kp2'); pad.innerHTML = `<div class="keys">${['1', '2', '3', 'C', '4', '5', '6', '0', '7', '8', '9', 'OK'].map(k => `<button data-k="${k}">${k}</button>`).join('')}</div>`;
+    pad.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { g.lockKey(b.dataset.k); Sfx.click(); hackFx(); renderHackPanels(); });
+    requestAnimationFrame(() => { if (UI.hack === H && g.mode === 'lock') { seq.classList.add('open'); pad.classList.add('open'); } }); return true; }
+  hk.classList.remove('hack-entry'); hk.classList.add('hack-seq'); pad.classList.remove('open', 'kp2'); pad.innerHTML = '';
+  if (arrow) { const show = g.arrowKnown && !g.L.arrowMemo;
+    hackEntryBar(seq, '⇄', !g.arrowKnown ? 'Code unknown: find the ⌨ terminal' : g.L.arrowMemo ? 'Enter the code from memory' : 'Enter with the d-pad / swipes', g.arrowCode.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : show ? ARROW[d] : '_').join(''), cancel); }
+  else { const s = g.seqs[g.seqNode]; hackEntryBar(seq, '⚒', 'Enter with the d-pad / swipes', s.map((d, i) => i < g.input.length ? `<b>${ARROW[d]}</b>` : ARROW[d]).join(''), cancel); }
+  requestAnimationFrame(() => { if (UI.hack === H && (g.mode === 'arrow' || g.mode === 'seq')) seq.classList.add('open'); }); return true; }
+function hackTyping() { const g = UI.hack && UI.hack.game; return !!g && v147('arrowDpad') && (g.mode === 'seq' || g.mode === 'arrow'); } // v1.47.0 Q5: one tap / one swipe = one arrow
 function hackFrame(dt) {
   const H = UI.hack; const g = H.game; g.update(dt); H.t += dt; hackFx();
   const cv = $('hcv'), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hh * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr); }
@@ -5449,7 +5480,7 @@ function hackFrame(dt) {
   if (g.status === 'win') endHack(true); else if (g.status === 'fail') endHack(false);
 }
 function initHackInput() {
-  document.querySelectorAll('.dp').forEach(b => { b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); hackStep(b.dataset.d); clearInterval(b._rep); b._rep = setInterval(() => hackStep(b.dataset.d), 220); }); const up = () => { b.classList.remove('press'); clearInterval(b._rep); }; b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); });
+  document.querySelectorAll('.dp').forEach(b => { b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); const typing = hackTyping(); hackStep(b.dataset.d); clearInterval(b._rep); if (!typing) b._rep = setInterval(() => { if (!hackTyping()) hackStep(b.dataset.d); }, 220); }); const up = () => { b.classList.remove('press'); clearInterval(b._rep); }; b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); });
   $('hAct').addEventListener('click', () => { if (!UI.hack) return; UI.hack.game.act(); Sfx.click(); renderHackPanels(); });
   const hb = $('hHold'); const hs = e => { e.preventDefault(); if (UI.hack) UI.hack.game.holding = true; }; const he = () => { if (UI.hack) UI.hack.game.holding = false; };
   hb.addEventListener('pointerdown', hs); hb.addEventListener('pointerup', he); hb.addEventListener('pointerleave', he); hb.addEventListener('pointercancel', he);
@@ -5458,7 +5489,7 @@ function initHackInput() {
   const mb = $('hMap'); const ms = e => { e.preventDefault(); mb.classList.add('press'); if (UI.hack) UI.hack.zoom = true; }; const me = () => { mb.classList.remove('press'); if (UI.hack) UI.hack.zoom = false; }; // v1.16.0: hold to see the whole map
   mb.addEventListener('pointerdown', ms); mb.addEventListener('pointerup', me); mb.addEventListener('pointerleave', me); mb.addEventListener('pointercancel', me); mb.addEventListener('contextmenu', e => e.preventDefault());
   const cv = $('hcv'); let sw = null; cv.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (!sw || sw.id !== e.pointerId) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; const th = 26; if (Math.abs(dx) > th || Math.abs(dy) > th) { hackStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } });
+  cv.addEventListener('pointermove', e => { if (!sw || sw.id !== e.pointerId) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; const th = 26; if (sw.used) return; if (Math.abs(dx) > th || Math.abs(dy) > th) { if (hackTyping()) sw.used = true; hackStep(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } });
   const swEnd = () => { sw = null; }; cv.addEventListener('pointerup', swEnd); cv.addEventListener('pointercancel', swEnd);
 }
 
@@ -5676,7 +5707,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `🎓 <b>LV ${C.trainLevel} power choice:</b> pick one of two new powers at Training Day. ${ST} A 🎓 training call can also teach it on the spot. It's permanent, and the base power must be revealed first.`,
     `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one. It shows at the top of the level-up card the first time it's available (the LV ${C.signatureLevel} card, or the next level-up after training if that comes later), and stays on the hero card.`]) +
   sec('⌘ Special calls', [
-    `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit. You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
+    `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit.${v147('arrowDpad') ? ' ⚒ Bridge nodes, ⇄ arrow locks and 🔒 number locks show their code and CANCEL in the bar above the map; type arrows with the d-pad or swipes (one tap = one arrow). An arrow lock opens only after you read its code.' : ''} You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
     `<b>✋ Disruptions:</b> mid-job, the radio asks you to pick an answer fast. Each answer tests one team stat; ⭐ answers are usually best.`,
     `<b>⇄ Choice calls:</b> pick one option, or one of two linked calls; the other closes. Risky options can injure even on a win.`,
     `<b>🙋 Requests:</b> a hero asks for a call. Send them and their morale goes up; refuse the same hero twice and it drops next shift. ${ST} From Shift 2. ${RN} From Shift 5.`,
@@ -6334,7 +6365,7 @@ function initInput() {
     const k = e.key;
     if (UI.heroCard) { if (k === 'Escape') { e.preventDefault(); closeHeroCard(); } return; } // v1.9.4: the hero card owns the keyboard while open
     if (UI.hack) { const g = UI.hack.game; const map = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
-      if (map[k]) { e.preventDefault(); hackStep(map[k]); } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if ((k === 'm' || k === 'M') && g.mode !== 'lock') { UI.hack.zoom = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
+      if (map[k]) { e.preventDefault(); if (!(e.repeat && hackTyping())) hackStep(map[k]); /* v1.47.0 Q5: a held key types one arrow */ } else if (k === 'e' || k === 'E') { g.act(); renderHackPanels(); } else if (k === ' ') { e.preventDefault(); g.holding = true; } else if ((k === 'm' || k === 'M') && g.mode !== 'lock') { UI.hack.zoom = true; } else if (g.mode === 'lock' && /^[0-9]$/.test(k)) { g.lockKey(k); renderHackPanels(); } else if (g.mode === 'lock' && k === 'Enter') { g.lockKey('OK'); hackFx(); renderHackPanels(); } else if (k === 'Escape') { if (g.mode) { g.cancelMode(); renderHackPanels(); } } return; }
     if ((k === 'd' || k === 'D') && devMode()) { UI.debug = !UI.debug; const m = UI.modals[0]; if (m && m.render) m.render(); return; }
     const wm = UI.modals[0]; if (wm && wm.kind === 'wildcard') { if (k === 'Enter' && wm.enter) { e.preventDefault(); wm.enter(); } return; }
     const cm = UI.modals[0]; if (cm && cm.kind === 'codex') { if (k === 'Escape') cm.esc(); else if (cm.go && (k === 'ArrowRight' || k === 'ArrowLeft')) cm.go(k === 'ArrowRight' ? 1 : -1); return; }
