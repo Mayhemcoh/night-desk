@@ -768,6 +768,12 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 @media (orientation:landscape) and (max-height:520px){.sheet.bfix .bdock .slot.sq148{height:41px}.slot.sq148.full{padding:11px 0 1px!important}.slot.sq148 .hinfo.inslot{display:none}.slot.sq148.full .n{font-size:8px;letter-spacing:-.07em;line-height:1.05;font-weight:600}.slot.sq148.full>div[style]{font-size:7.5px!important}.slot.sq148 .x{font-size:10px;top:0;right:2px}}
 @media (orientation:landscape) and (max-height:520px){html[data-look="crt"] .slot.sq148.full .n{letter-spacing:-.16em;font-size:8px}}
 
+/* v1.49.0 (Craig t222u-t226u): hacking counter in colour emoji on every mission and Look; the box keeps each Look's colours/border */
+.hemo{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Android Emoji","EmojiOne Color",sans-serif;font-weight:400;font-style:normal;letter-spacing:0;text-shadow:none;-webkit-text-stroke:0}
+.hemo.hlost{opacity:.3;filter:grayscale(1)}
+#hReboot b .hemo{font-size:.9em}
+@media (orientation:landscape){#hack.hud149{gap:4px}#hack.hud149 .hhud-tools{height:28px;min-height:28px;max-height:28px}} /* v1.49.0: sideways the counter row fits on a 390-tall screen (it overflowed by a few px in v1.48.0) */
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -1119,7 +1125,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.48.0';
+<script>window.ND_VERSION='nd-v1.49.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1213,6 +1219,7 @@ const CONFIG = {
   // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
   // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
   v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
+  v149: { hudColor: true }, // v1.49.0 (Craig t222u-t226u): one hacking counter everywhere in the Kill Switch style: colour emoji ⚡ ⛏️ 🗝️, 📁x/y instead of FILES, red ❤️ hearts (lost = same heart dimmed grey), ❤️∞ unlimited, REBOOT −1❤️; off = v1.48.0
   v148: { squeeze: true }, // v1.48.0 (Craig t220u/t221u): Knuckles' Squeeze In slot is his alone: never an empty slot for other powers, no ghosts, no slot bonus, only he can fill it by any route, drawn 70% size
   v147: { arrowDpad: true, keypadFit: true }, // v1.47.0 (Craig t217u-t219u): ⇄ arrow locks typed on the d-pad/swipes like ⚒ bridge nodes, one shared entry bar (code + CANCEL) for bridges/arrow/number locks, one tap/swipe = one arrow, ACT inert while typing, no arrow guessing before the ⌨ terminal; number keypad sized to fit
   v146: { disruptionGraph: true }, // v1.46.0 (Craig t215u/t216u): briefing-style team graph on top of every Disruption pop-up; choices show no team/needs numbers
@@ -2598,6 +2605,7 @@ function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // 
 /* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
    Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
 function v144(k) { return !!(CONFIG.v144 && CONFIG.v144[k]); }
+function v149(k) { return !!(CONFIG.v149 && CONFIG.v149[k]); } // v1.49.0 internal switch (CONFIG.v149.hudColor); on in play
 function v148(k) { return !!(CONFIG.v148 && CONFIG.v148[k]); } // v1.48.0 internal switch (CONFIG.v148.squeeze); on in play
 /* v1.48.0: the Squeeze In slot is any slot past the call's own slot count (only Squeeze In adds one). */
 function isSqueezeIdx(call, i) { return v148('squeeze') && !!call && i >= (call.slots || 0); }
@@ -5381,7 +5389,7 @@ function startHack(c, layout, disrupt, hopts) { // v1.41.0 hopts: { rng, repair 
   const dsp = disrupt && !layout && UI.camp.missionSet === 'v1.8' && UI.S.deckMode ? disruptionHackSpec(UI.S) : null; // v1.8.1: easier console for the disruption hack option
   const L = layout || (dsp ? missionLayout(UI.camp, UI.S, dsp, c, { easy: true }) : disrupt ? missionLayout(UI.camp, UI.S, legacyHackSpec(UI.S, null), c, { easy: true }) : hackLayoutFor(UI.camp, UI.S, c)); const game = new HackGame(L, (hopts && hopts.rng) || UI.S.hackRng, { unlimited: UI.settings.unlimitedHack, noTimer: !!campDiff(UI.camp).hackNoTimer }); // v1.40.0 Easy: no countdown
   const helpers = rosterHackHelpers(UI.camp); const spent = {};
-  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; if (hopts && hopts.repair) UI.hack.repair = true; $('hack').classList.remove('hidden'); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + (hopts && hopts.repair ? '📡 Repair connection: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. ' + (game.noTimer ? '🌱 Easy: no timer, take your time.' : 'The timer keeps running while you look at the map.'));
+  UI.hack = { c, game, t: 0, disrupt: !!disrupt, cam: { init: false }, zoom: false, view: null, helpers, spent, softArmed: false }; if (hopts && hopts.repair) UI.hack.repair = true; $('hack').classList.remove('hidden'); $('hack').classList.toggle('hud149', v149('hudColor')); document.documentElement.classList.add('nd-hacking'); if (typeof holdVisibleOverlaysForHack === 'function') holdVisibleOverlaysForHack(); $('hTitle').textContent = '⌘ ' + (disrupt ? 'Radio console: ' : '') + (hopts && hopts.repair ? '📡 Repair connection: ' : '') + L.name + (L.invisible ? ' · 👁' : '') + (L.inverted ? ' · ⇅' : ''); tutorial('hack', 'Hacking: d-pad or swipe to move. Hold MAP to see the whole map. You have ' + (game.attempts || '∞') + ' lives. ' + (game.noTimer ? '🌱 Easy: no timer, take your time.' : 'The timer keeps running while you look at the map.'));
   if (v147('arrowDpad') && game.tips && game.tips['6,5']) game.tips = Object.assign({}, game.tips, { '6,5': '⇄ Arrow lock: press ACT, then enter the arrows with the d-pad or swipes.' }); // v1.47.0 Q8
   if (L.tutorial) tutorial('hackT', 'Training console: follow the tips at the bottom. ⛏ pickaxes break cracked walls, 🗝 keys open key doors, ⇄ arrow locks open with an arrow code, 📁 files are optional bonus points. Finish fast for a speed bonus.');
   if (L.finale) tutorial('hackF', 'FINALE: the ⚑ checkpoint saves your progress. Get caught after it and you restart there, not at the start. ⚠ tripwires wake the hunter antivirus: it chases you anywhere.');
@@ -5420,10 +5428,26 @@ function useHackPower(pid) { const H = UI.hack; if (!H || H.game.status !== 'pla
     g.keyText = text; g.keyShow = Math.max(g.keyShow, 4.5); g.msg = x.hero.codename + ': Code Whisper.'; Sfx.key ? Sfx.blip() : Sfx.blip(); toast('🧾 Code Whisper'); renderHackPowers(); return; }
   if (x.kind === 'softreboot') { if (H.spent[pid] && !H.softArmed) return; if (H.softArmed) return; H.spent[pid] = true; H.softArmed = true; g.msg = x.hero.codename + ': Soft Reboot armed — next ↻ is free.'; Sfx.click(); toast('🔧 Soft Reboot ready'); renderHackPowers(); renderHackBtns(); return; }
 }
+/* v1.49.0 (Craig t222u-t226u): the counter under the map in the Night Mayor's Kill Switch style on every hacking mission. Each icon and heart is an explicit colour emoji
+   (VS16 + emoji font stack) so the phone can't swap it for a plain text symbol (which made hearts red or white depending on the item before them). */
+function hackEmo(ch, cls) { return '<span class="hemo' + (cls ? ' ' + cls : '') + '" aria-hidden="true">' + ch + '</span>'; }
+const HEART_EMO = '\u2764\uFE0F';
+function hackChipColor(g, hud) {
+  const ff = g.filesTotal ? g.filesFound() : 0, lost = g.attempts ? Math.max(0, g.attempts - g.lives) : 0;
+  const key = [g.charge ? 1 : 0, g.tools, g.keys, g.filesTotal, ff, g.attempts, g.lives].join(',');
+  if (hud.hChargeC === key) return; hud.hChargeC = key; hud.hCharge = null;
+  const parts = [], say = [];
+  if (g.charge) { parts.push(hackEmo('\u26A1\uFE0F')); say.push('charge'); }
+  if (g.tools) { parts.push(hackEmo('\u26CF\uFE0F') + g.tools); say.push('pickaxe ' + g.tools); }
+  if (g.keys) { parts.push(hackEmo('\uD83D\uDDDD\uFE0F') + g.keys); say.push('key ' + g.keys); }
+  if (g.filesTotal) { parts.push(hackEmo('\uD83D\uDCC1') + ff + '/' + g.filesTotal); say.push('files ' + ff + ' of ' + g.filesTotal); }
+  if (g.attempts) { parts.push((g.lives ? hackEmo(HEART_EMO.repeat(g.lives)) : '') + (lost ? hackEmo(HEART_EMO.repeat(lost), 'hlost') : '')); say.push(g.lives + ' of ' + g.attempts + ' lives'); }
+  else { parts.push(hackEmo(HEART_EMO) + '\u221E'); say.push('unlimited lives'); }
+  const el = $('hCharge'); el.innerHTML = parts.join(' '); el.classList.add('hcolor'); el.setAttribute('aria-label', say.join(', ')); }
 function renderHackBtns() { const H = UI.hack, b = $('hReboot'); if (!H || !b) return; const g = H.game; // v1.18.1 ↻ Reboot; v1.19.0 Soft Reboot free arm
   const free = !!H.softArmed;
-  if (H.rbArm) { b.classList.add('armed'); b.innerHTML = free ? 'TAP AGAIN: <b>free</b>' : (g.attempts && g.lives <= 1 ? 'TAP AGAIN: <b>last ♥</b>' : 'TAP AGAIN'); b.setAttribute('aria-label', 'Tap again to reboot the section' + (free ? ' for free' : (g.attempts ? ' for one life' : ''))); }
-  else { b.classList.remove('armed'); b.innerHTML = '↻ REBOOT' + (free ? ' <b>FREE</b>' : (g.attempts ? ' <b>−1♥</b>' : '')); b.setAttribute('aria-label', 'Reboot section' + (free ? ': Soft Reboot (no life cost)' : (g.attempts ? ': costs one life' : '')) + (g.noTimer ? '' : ', the timer keeps running')); }
+  if (H.rbArm) { b.classList.add('armed'); b.innerHTML = free ? 'TAP AGAIN: <b>free</b>' : (g.attempts && g.lives <= 1 ? 'TAP AGAIN: <b>last ' + (v149('hudColor') ? hackEmo(HEART_EMO) : '♥') + '</b>' : 'TAP AGAIN'); b.setAttribute('aria-label', 'Tap again to reboot the section' + (free ? ' for free' : (g.attempts ? ' for one life' : ''))); }
+  else { b.classList.remove('armed'); b.innerHTML = '↻ REBOOT' + (free ? ' <b>FREE</b>' : (g.attempts ? ' <b>−1' + (v149('hudColor') ? hackEmo(HEART_EMO) : '♥') + '</b>' : '')); b.setAttribute('aria-label', 'Reboot section' + (free ? ': Soft Reboot (no life cost)' : (g.attempts ? ': costs one life' : '')) + (g.noTimer ? '' : ', the timer keeps running')); }
   b.classList.toggle('stuck', !!H.stuck && !H.rbArm); }
 function hackRebootTap(e) { const H = UI.hack; if (!H) return; const g = H.game, now = performance.now(); if (e) e.preventDefault();
   if (g.status !== 'play' || (H.rbLast && now - H.rbLast < 450)) return; H.rbLast = now; // ghost-click / double-tap guard: a second tap within 450 ms is ignored
@@ -5493,7 +5517,7 @@ function hackFrame(dt) {
   const hud = H.hud || (H.hud = {}), setT = (id, v) => { if (hud[id] !== v) { hud[id] = v; $(id).textContent = v; } };
   const tw = (g.unlimited || g.noTimer ? 100 : Math.round(1000 * g.timeLeft / g.time) / 10) + '%'; if (hud.tw !== tw) { hud.tw = tw; $('hTimer').style.width = tw; }
   const low = !g.unlimited && ((!g.noTimer && g.timeLeft / g.time < 0.25) || !!g.alarm); if (hud.low !== low) { hud.low = low; $('hTimer').classList.toggle('low', low); }
-  setT('hMsg', g.msg + (g.unlimited ? '' : g.noTimer ? `  ⏱ ${Math.floor(g.elapsed)}s` : `  ${Math.ceil(g.timeLeft)}s`)); if (hud.nt !== g.noTimer) { hud.nt = g.noTimer; $('hTimer').classList.toggle('notimer', !!g.noTimer); } setT('hCharge', (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞'));
+  setT('hMsg', g.msg + (g.unlimited ? '' : g.noTimer ? `  ⏱ ${Math.floor(g.elapsed)}s` : `  ${Math.ceil(g.timeLeft)}s`)); if (hud.nt !== g.noTimer) { hud.nt = g.noTimer; $('hTimer').classList.toggle('notimer', !!g.noTimer); } if (v149('hudColor')) hackChipColor(g, hud); else setT('hCharge', (g.charge ? '⚡ ' : '') + (g.tools ? '⛏' + g.tools + ' ' : '') + (g.keys ? '🗝' + g.keys + ' ' : '') + (g.filesTotal ? 'FILES ' + g.filesFound() + '/' + g.filesTotal + ' ' : '') + (g.attempts ? '♥'.repeat(g.lives) + '♡'.repeat(Math.max(0, g.attempts - g.lives)) : '♥∞'));
   if (g.status === 'play') { const st = g.isStuck(); if (st !== !!H.stuck) { H.stuck = st; if (st) g.msg = 'No way forward from here. Tap ↻ REBOOT to restore the section' + (H.softArmed ? ' (Soft Reboot: free).' : (g.attempts ? ' (costs 1 life).' : '.')); renderHackBtns(); } }
   if (H.rbLives !== g.lives) { H.rbLives = g.lives; renderHackBtns(); }
   setT('hKey', g.keyShow > 0 ? g.keyText : ''); // v1.27.3: reserved .hhud-key row stays in flow
@@ -5727,7 +5751,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `🎓 <b>LV ${C.trainLevel} power choice:</b> pick one of two new powers at Training Day. ${ST} A 🎓 training call can also teach it on the spot. It's permanent, and the base power must be revealed first.`,
     `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one. It shows at the top of the level-up card the first time it's available (the LV ${C.signatureLevel} card, or the next level-up after training if that comes later), and stays on the hero card.`].concat(v148('squeeze') ? [`🥊 <b>Squeeze In</b> (Knuckles McGee): on calls with fewer than 4 slots he gets a smaller extra slot that only he can fill. It never counts as an empty slot for other powers and gives no slot bonus.`] : [])) +
   sec('⌘ Special calls', [
-    `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit.${v147('arrowDpad') ? ' ⚒ Bridge nodes, ⇄ arrow locks and 🔒 number locks show their code and CANCEL in the bar above the map; type arrows with the d-pad or swipes (one tap = one arrow). An arrow lock opens only after you read its code.' : ''} You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
+    `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit.${v147('arrowDpad') ? ' ⚒ Bridge nodes, ⇄ arrow locks and 🔒 number locks show their code and CANCEL in the bar above the map; type arrows with the d-pad or swipes (one tap = one arrow). An arrow lock opens only after you read its code.' : ''} You have ${C.hack.lives} lives (${v149('hudColor') ? '\u2764\uFE0F' : '♥'}). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
     `<b>✋ Disruptions:</b> mid-job, the radio asks you to pick an answer fast. Each answer tests one team stat; ⭐ answers are usually best.`,
     `<b>⇄ Choice calls:</b> pick one option, or one of two linked calls; the other closes. Risky options can injure even on a win.`,
     `<b>🙋 Requests:</b> a hero asks for a call. Send them and their morale goes up; refuse the same hero twice and it drops next shift. ${ST} From Shift 2. ${RN} From Shift 5.`,
