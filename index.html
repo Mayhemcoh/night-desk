@@ -744,6 +744,11 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 .ot-sum{margin-top:8px;padding:6px 8px;border:1px solid #ff9a1f66;border-radius:8px;background:#2a150055;color:#ffd9a0;font-size:12px}
 #radio .ot-al{white-space:normal;overflow:visible;text-overflow:clip;color:#ffb03a}
 
+/* v1.46.0: team graph on top of the Disruption pop-up */
+.dis-rad{margin:0 0 4px}.dis-rad canvas{width:170px;height:170px}.dis-rad .statrow{gap:10px;font-size:11px}
+@media (max-height:700px){.dis-rad canvas{width:140px;height:140px}}
+@media (orientation:landscape) and (max-height:520px){.dis-rad canvas{width:120px;height:120px}}
+
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"ND Rajdhani";src:url(fonts/rajdhani.woff2) format("woff2");font-weight:700;font-display:swap}
@@ -1095,7 +1100,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.45.0';
+<script>window.ND_VERSION='nd-v1.46.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1189,6 +1194,7 @@ const CONFIG = {
   // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
   // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
   v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
+  v146: { disruptionGraph: true }, // v1.46.0 (Craig t215u/t216u): briefing-style team graph on top of every Disruption pop-up; choices show no team/needs numbers
   v145: { overtime: true }, otCapHours: 2, // v1.45.0 (Craig t212u-t214u): campaign overtime after 02:00; safety limit 04:00 = otCapHours game hours past the shift end
   solstice: { bossFails: 2, campaignFails: 5, level: 10, stats: [8, 8, 7, 6, 7] },
   dotDuration: 2.2,
@@ -2569,6 +2575,7 @@ function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // 
 /* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
    Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
 function v144(k) { return !!(CONFIG.v144 && CONFIG.v144[k]); }
+function v146(k) { return !!(CONFIG.v146 && CONFIG.v146[k]); } // v1.46.0 internal switch (CONFIG.v146.disruptionGraph); on in play
 function v145(k) { return !!(CONFIG.v145 && CONFIG.v145[k]); } // v1.45.0 internal switch (CONFIG.v145.overtime); on in play
 /* v1.45.0 OVERTIME (campaign only, every difficulty, Story + Random; never Infinite). At the shift end (02:00) nothing new arrives, but
    if any mission still 'holds' the shift the clock keeps running (S.ot) until the last holder is resolved and reviewed, or the 04:00 limit.
@@ -5041,7 +5048,7 @@ function openBriefing(c) {
       if (tpl.story) notes += `<div class="note story">📖 <b>${esc(camp.heroes[c.autoHero].codename)}</b> picked this one up. How should it play out? (Both succeed.)<div class="opts">${tpl.story.choices.map((o, i) => `<button class="opt ${(c.storyChoice || 0) === i ? 'on' : ''}" data-story="${i}"><span>${(c.storyChoice || 0) === i ? '◉' : '○'}</span><span>${esc(o.label)}${o.morale ? ' <small>(+1 morale: 2× base XP this shift)</small>' : ''}</span></button>`).join('')}</div></div>`;
       if (tpl.training) notes += `<div class="note train">🎓 ${tpl.training.kind === 'route' ? `ROUTE drill: the hero you send travels 15% faster for good (${Object.values(camp.heroes).filter(x => x.routeTrained).length}/${CONFIG.routeMax} used).` : `POWER drill: only a hero at LV ${CONFIG.trainLevel}+ (counted when sent), with a revealed power and no trained power yet, can be sent. They pick 1 of 2 powers right after review.`}${tpl.training.kind === 'route' ? ' Heroes who already know the routes can\'t be sent.' : ''} No expiry.</div>`; if (tpl.training && trainingNobodyEligible(camp, c)) notes += `<div class="note">🎓 No hero can use this drill yet. It stays open and closes on its own with no penalty.</div>`;
       if (tpl.sabotage && tpl.sabotage.forced) notes += info.sabotage ? `<div class="note warn sabotage-note">🗡 Sabotage: ${esc(info.sabotage.by ? camp.heroes[info.sabotage.by].codename : 'a rival')} will pull <b>${esc(camp.heroes[info.sabotage.hero].codename)}</b> off this job. ${showOdds ? `The odds shown are for the team that actually goes (full team would be ${info.sabotage.fullTeamDisplay}%).` : 'Only the team that actually goes counts.'}</div>` : `<div class="note warn sabotage-note">🗡 Sabotage: a rival will pull one teammate off this job (never a synergy partner or a solo hero). ${c.assigned.filter(Boolean).length ? 'No one on this team can be pulled off.' : ''}</div>`;
-      if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> (the radio shows team vs needed for each option).</div>`;
+      if (tpl.disruption && tpl.disruption.always) notes += `<div class="note">✋ A radio check WILL come mid-job: the outcome is decided by your team's stats on the radio, not by a % roll.<br><b>Disruption likely: ${disruptionStatList(tpl)}</b> ${v146('disruptionGraph') ? "(the radio shows your team's stats; pick the plan that fits)" : '(the radio shows team vs needed for each option)'}.</div>`;
       if (tpl.banned) for (const id in tpl.banned) if (camp.roster.includes(id)) notes += `<div class="note warn">⛔ ${esc(tpl.banned[id])}</div>`;
       const ifr = instantFailNotes(camp, c, info); m.ifStrong = !!ifr.strong; // v1.36.0: instant-fail risk + live instant-fail warning, always shown (never a %), placed at the top of the briefing
       if (tpl.bonusThreshold) notes += `<div class="note good">★ Double XP if ${esc(STAT_NAMES[STATS[tpl.bonusThreshold.stat]])} reaches ${tpl.bonusThreshold.value}</div>`;
@@ -5237,15 +5244,18 @@ function openDisruption(c) {
     const render = () => {
       const ch = disruptionChoices(camp, c); const d = c.disruption;
       const quips = c.team.map(id => { const def = heroDef(id); return `<div class="quip"><b style="color:${camp.heroes[id].color}">${esc(camp.heroes[id].codename)}:</b> "${esc(def.quips[(c.uid + S.idx) % def.quips.length])}"</div>`; }).join('');
-      let body = `<p class="txt" style="font-size:17px"><b>${esc(ch.D.text)}</b></p>${quips}`;
+      const g146 = v146('disruptionGraph'); // v1.46.0 (Craig t215u/t216u): team graph on top of every Disruption pop-up, no team/needs tags on the choices
+      const teamV = g146 ? computeCall(camp, S, c, ch.D.always ? (c.teamSlots || c.team) : c.team.concat(Array(Math.max(0, (c.slots || 1) - c.team.length)).fill(null))).team : null; // same values the radio check counts (resolveAlways / resolveDisruption)
+      let body = `${g146 ? '<div class="radarbox dis-rad"><canvas class="rad"></canvas><div class="statrow"><span>⬢ Team on this mission</span></div></div>' : ''}<p class="txt" style="font-size:17px"><b>${esc(ch.D.text)}</b></p>${quips}`;
       if (result) body += `<div class="result ${result.ok ? 'ok' : 'bad'}">${result.ok ? 'HANDLED' : result.retry ? 'NOT QUITE' : 'FAILED'}</div><p class="txt">${esc(result.text)}</p>`;
       if (ch.D.always) body = `<div class="pill">Round ${(d.round || 0) + 1} of ${ch.rounds}</div>` + body + (d.round > 0 && !d.resolved && !result ? `<p class="txt"><b>That didn't work. What else?</b></p>` : '');
-      const tmv = ch.D.always ? computeCall(camp, S, c, c.teamSlots || c.team).team : null; // v1.8.1: same capped team values resolveAlways checks
+      const tmv = ch.D.always && !g146 ? computeCall(camp, S, c, c.teamSlots || c.team).team : null; // v1.8.1: same capped team values resolveAlways checks
       const tag = (txt, cls) => `<span class="need ${cls}">${txt}</span>`;
       if (!d.resolved && ch.hackOpt) body += `<div class="opts"><button class="opt hack" data-hk="1">⌘ ${esc(ch.hackOpt.label)} ${tag('hack', 'hk')}<small class="sub">(win = success${ch.hackOpt.onLose === 'next' && ch.round + 1 < ch.rounds ? ', lose = next round' : ', lose = fail'})</small></button></div>`;
       if (!d.resolved) body += `<div class="opts">${ch.heroOpts.map(o => `<button class="opt hero" data-k="${o.key}">⭐ ${esc(o.label)}${o.trapHint ? ` <small class="hint">${esc(o.trapHint)}</small>` : ''} ${o.trapHint ? tag('risky', 'bad') : tag('auto', 'ok')}</button>`).join('')}${ch.opts.map(o => { const v = tmv ? tmv[o.stat] : null; return `<button class="opt" data-k="${o.key}"><span class="st" style="background:${STAT_COLORS[STATS[o.stat]]}">${STAT_NAMES[STATS[o.stat]]}</span>${esc(o.label)}${o.fallback ? ' <small>(fallback)</small>' : ''}${tmv ? ' ' + tag(`team ${v} / needs ${o.threshold}`, v >= o.threshold ? 'ok' : 'bad') : ''}</button>`; }).join('')}</div>`;
       if (UI.debug && !d.resolved) { const inf = computeCall(camp, S, c, c.team); body += `<div class="dbgbox">team=${inf.team.join('/')}\n${ch.opts.map(o => o.label + ': ' + STATS[o.stat] + '≥' + o.threshold).join('\n')}\nhero: ${ch.heroOpts.map(o => o.heroId + '=' + o.outcome).join(', ')}</div>`; }
       const P = sheetParts(m, `<span class="diff hard">✋ DISRUPTION</span><h2>${esc(c.tpl.title)}</h2><span class="pill">⏱ ${Math.ceil(d.timer)}s</span>`, body, d.resolved ? `<button class="btn pri" data-a="ok">CONTINUE</button>` : `<button class="btn ghost" data-a="later">LATER</button>`);
+      { const cv = P.B.querySelector('.dis-rad .rad'); if (cv) drawRadar(cv, { team: teamV }); }
       { const hk = P.B.querySelector('[data-hk]'); if (hk) hk.onclick = () => { resolveDisruption(camp, S, c, 'hk'); closeModal(); radio(null, `${c.tpl.title}: you took the console yourself.`); startHack(c, null, true); }; }
       P.B.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { result = resolveDisruption(camp, S, c, b.dataset.k); if (!result.hero) radio(c.team[0], result.text); if (result.ok) Sfx.chime(); else { Sfx.thud(); if (!result.retry) shake(); } if (result.hero) radio(result.hero, result.text); render(); });
       const ok = P.F.querySelector('[data-a=ok]'); if (ok) ok.onclick = () => closeModal(); const later = P.F.querySelector('[data-a=later]'); if (later) later.onclick = () => closeModal();
