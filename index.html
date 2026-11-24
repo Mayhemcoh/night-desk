@@ -753,6 +753,20 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 #hPad.kp2{max-height:none;overflow:visible;padding:6px}
 #hPad.kp2 .keys button{height:clamp(36px,7vh,48px)}
 @media (orientation:landscape){#hPad.kp2 .keys{grid-template-columns:repeat(4,42px)}#hPad.kp2 .keys button{height:clamp(30px,9vh,40px)}}
+/* v1.48.0 (Craig t220u/t221u): Knuckles' Squeeze In slot is drawn at 70% of a normal slot's width and height, empty or filled; the filled card drops the emoji/XP line so his name stays readable (2 lines) */
+.slots .slot.sq148{flex:.7 1 0;min-height:55px;align-self:center}
+.sheet.bfix .bdock .slot.sq148{height:59px}
+.slot.sq148:not(.full){font-size:10px}
+.slot.sq148:not(.full)>div{font-size:16px!important}
+.slot.sq148.full{padding:19px 2px 2px!important;justify-content:flex-start}
+.slot.sq148.full .e,.slot.sq148.full .xpest,.slot.sq148.full .voltag{display:none!important}
+.slot.sq148.full .n{white-space:normal;overflow:hidden;text-overflow:clip;font-size:min(10px,2.7vw);letter-spacing:-.02em;line-height:1.1;text-align:center;word-break:normal;max-height:2.25em}
+.slot.sq148.full>div[style]{font-size:9px!important;white-space:nowrap}
+.slot.sq148 .hinfo.inslot{transform:scale(.7);transform-origin:top left}
+.slot.sq148 .x{font-size:12px;right:3px}
+@media (max-height:600px) and (orientation:portrait){.sheet.bfix .bdock .slot.sq148{height:52px}}
+@media (orientation:landscape) and (max-height:520px){.sheet.bfix .bdock .slot.sq148{height:41px}.slot.sq148.full{padding:11px 0 1px!important}.slot.sq148 .hinfo.inslot{display:none}.slot.sq148.full .n{font-size:8px;letter-spacing:-.07em;line-height:1.05;font-weight:600}.slot.sq148.full>div[style]{font-size:7.5px!important}.slot.sq148 .x{font-size:10px;top:0;right:2px}}
+@media (orientation:landscape) and (max-height:520px){html[data-look="crt"] .slot.sq148.full .n{letter-spacing:-.16em;font-size:8px}}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -1105,7 +1119,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.47.0';
+<script>window.ND_VERSION='nd-v1.48.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1199,6 +1213,7 @@ const CONFIG = {
   // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
   // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
   v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
+  v148: { squeeze: true }, // v1.48.0 (Craig t220u/t221u): Knuckles' Squeeze In slot is his alone: never an empty slot for other powers, no ghosts, no slot bonus, only he can fill it by any route, drawn 70% size
   v147: { arrowDpad: true, keypadFit: true }, // v1.47.0 (Craig t217u-t219u): ⇄ arrow locks typed on the d-pad/swipes like ⚒ bridge nodes, one shared entry bar (code + CANCEL) for bridges/arrow/number locks, one tap/swipe = one arrow, ACT inert while typing, no arrow guessing before the ⌨ terminal; number keypad sized to fit
   v146: { disruptionGraph: true }, // v1.46.0 (Craig t215u/t216u): briefing-style team graph on top of every Disruption pop-up; choices show no team/needs numbers
   v145: { overtime: true }, otCapHours: 2, // v1.45.0 (Craig t212u-t214u): campaign overtime after 02:00; safety limit 04:00 = otCapHours game hours past the shift end
@@ -1397,7 +1412,7 @@ const POWERS = {
   eavesdrop: { name: 'Eavesdrop', desc: 'Hears everything: reveals call requirements in the briefing when assigned.', preview: true },
   nightowl: { name: 'Night Owl', slotBonus: true, desc: 'Slot bonus: +2 Wits in slot 2, +1 Agility in slot 3.', onCompute(c) { if (c.slot === 1) c.st[4] += 2; if (c.slot === 2) c.st[2] += 1; } },
   thickskull: { name: 'Thick Skull', desc: 'Ignores injury debuffs and can never be Downed.', ignoreInjury: true, noDown: true },
-  squeezein: { name: 'Squeeze In', desc: 'On a call with fewer than 4 slots, adds one exclusive slot only he can fill (up to 4 total).', extraSlot: true },
+  squeezein: { name: 'Squeeze In', get desc() { return (CONFIG.v148 && CONFIG.v148.squeeze) ? 'On a call with fewer than 4 slots, adds a smaller slot only he can fill. It never counts as an empty slot for other powers.' : 'On a call with fewer than 4 slots, adds one exclusive slot only he can fill (up to 4 total).'; }, extraSlot: true },
   harderhead: { name: 'Harder Head', desc: 'While injured: +2 Might, +2 Endurance, and rest ×0.5.', onCompute(c) { if (c.hero.powers.includes('thickskull2')) return; if (c.hero.injuries > 0) { c.st[0] += 2; c.st[1] += 2; } }, restMult: 0.5, restWhileInjured: true },
   musclememory: { name: 'Muscle Memory', desc: 'Momentum: +1 Might per success this shift, resets on a failure.', onCompute(c) { c.st[0] += (c.hero.streak2 || 0); }, onResult(c) { c.hero.streak2 = c.success ? (c.hero.streak2 || 0) + 1 : 0; } },
   runningtab: { name: 'Running Tab', desc: 'Knows every shortcut: travel time x0.7.', travelMult: CONFIG.shortTravelMult },
@@ -2583,6 +2598,9 @@ function normDifficulty(d) { return CONFIG.difficulties[d] ? d : 'normal'; } // 
 /* ================= v1.41.0 💀 HARD (campaign only). Every Hard behavior sits behind isHard(camp) / S.hard, set only when campDiffKey(camp) === 'hard'.
    Events use their own seeded random streams (never S.spawnRng / rollRng / hackRng), so the regular call order never shifts and RETRY repeats the same events. ================= */
 function v144(k) { return !!(CONFIG.v144 && CONFIG.v144[k]); }
+function v148(k) { return !!(CONFIG.v148 && CONFIG.v148[k]); } // v1.48.0 internal switch (CONFIG.v148.squeeze); on in play
+/* v1.48.0: the Squeeze In slot is any slot past the call's own slot count (only Squeeze In adds one). */
+function isSqueezeIdx(call, i) { return v148('squeeze') && !!call && i >= (call.slots || 0); }
 function v147(k) { return !!(CONFIG.v147 && CONFIG.v147[k]); } // v1.47.0 internal switches (CONFIG.v147.arrowDpad / keypadFit); on in play
 function v146(k) { return !!(CONFIG.v146 && CONFIG.v146[k]); } // v1.46.0 internal switch (CONFIG.v146.disruptionGraph); on in play
 function v145(k) { return !!(CONFIG.v145 && CONFIG.v145[k]); } // v1.45.0 internal switch (CONFIG.v145.overtime); on in play
@@ -2843,8 +2861,8 @@ function drizzleCanVolunteer(camp, S, c) { const d = camp.drizzle, h = camp.hero
   if (c.stage !== 'pending' || c.hardFire || c.tpl.type === 'hack' || c.tpl.hack || c.tpl.training || c.tpl.type === 'training' || c.tpl.story || c.tpl.type === 'story') return false;
   if (!canDispatchHero(camp, 'drizzle') || heroLockCall(camp, S, 'drizzle', c) || (c.tpl.banned && c.tpl.banned.drizzle) || afFor(c.tpl, 'drizzle') || c.assigned.includes('drizzle')) return false;
   if (S.calls.some(x => x !== c && x.stage === 'pending' && x.assigned.includes('drizzle'))) return false;
-  return c.assigned.some((id, i) => !id && !(c.autoHero && i === 0)); }
-function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) return false; const i = c.assigned.findIndex((id, k) => !id && !(c.autoHero && k === 0)); if (i < 0) return false;
+  return c.assigned.some((id, i) => !id && !(c.autoHero && i === 0) && !isSqueezeIdx(c, i)); }
+function drizzleVolunteer(camp, S, c) { if (!drizzleCanVolunteer(camp, S, c)) return false; const i = c.assigned.findIndex((id, k) => !id && !(c.autoHero && k === 0) && !isSqueezeIdx(c, k)); if (i < 0) return false;
   c.assigned[i] = 'drizzle'; c.volunteer = 'drizzle'; Bus.emit('volunteered', { call: c, hero: 'drizzle' }); return true; }
 function removeVolunteer(c, id) { if (c.volunteer && c.volunteer === id) { c.volunteer = null; c.volunteerRemoved = true; } }
 
@@ -3128,7 +3146,7 @@ function effStats(camp, h, slot, call, opts) {
   const c = { hero: h, slot, st, call, camp, req: opts.req || (call && call.req) || null };
   c.teamSize = opts.teamSize || 0;
   const slotsOk = !!(call && (call.slots || 0) >= CONFIG.slotBonusMinSlots); // v1.23.1: min is 1 — bonuses on any call size; slot-N still needs that slot
-  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute && (!POWERS[p].slotBonus || slotsOk)) { const b = st.slice(); c.markAs = null; POWERS[p].onCompute(c); mark(c.markAs || p, 'stat', b); }
+  for (const p of h.powers) if (POWERS[p] && POWERS[p].onCompute && (!POWERS[p].slotBonus || (slotsOk && !opts.noSlotBonus))) { const b = st.slice(); c.markAs = null; POWERS[p].onCompute(c); mark(c.markAs || p, 'stat', b); }
   for (const p of h.powers) { const sm = POWERS[p] && POWERS[p].smallTeam; if (sm && c.teamSize && c.teamSize <= sm.max) { const b = st.slice(); sm.add.forEach((v, i) => st[i] += v); mark(p, 'stat', b); } }
   for (let i = 0; i < 5; i++) st[i] += h.buff[i] || 0;
   const injured = !opts.noInjury && h.injuries > 0 && !(opts.healed && opts.healed.includes(h.id));
@@ -3207,7 +3225,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   const ids = heroes.filter(Boolean).map(h => h.id);
   const healed = []; const healer = heroes.find(h => h && hasPower(h, 'heal'));
   if (healer && !xo.noHeal) { const n = powerProp(healer, 'healCount') || 1; for (const inj of heroes) if (inj && inj !== healer && inj.injuries > 0 && healed.length < n) healed.push(inj.id); }
-  const per = heroes.map((h, i) => h ? effStats(camp, h, i, call, { healed, teamSize: ids.length, trace, req }) : null);
+  const per = heroes.map((h, i) => h ? effStats(camp, h, i, call, isSqueezeIdx(call, i) ? { healed, teamSize: ids.length, trace, req, noSlotBonus: true } : { healed, teamSize: ids.length, trace, req }) : null);
   // v1.3 aura: each hero gets the best aura (per stat) from the OTHER heroes on this call
   const auras = heroes.map(h => { const a = [0, 0, 0, 0, 0]; if (h) for (const p of h.powers) { const au = POWERS[p] && POWERS[p].aura; if (au) au.forEach((v, k) => a[k] = Math.max(a[k], v)); } return a; });
   const auraCredit = {};
@@ -3217,7 +3235,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
   const team = [0, 0, 0, 0, 0]; per.forEach(st => st && st.forEach((v, i) => team[i] += v));
   /* v1.12 Prism parity: Double Take needs a left neighbor AND at least one empty slot; contributes ratio × left hero's final eff stats (coverage only). */
   const illusions = [];
-  const emptyCount = assigned.filter(id => !id).length;
+  const emptyCount = assigned.filter((id, i) => !id && !isSqueezeIdx(call, i)).length; // v1.48.0: the Squeeze slot is never an empty slot
   heroes.forEach((h, i) => { if (!h || !hasPower(h, 'illusion')) return; const pw = h.powers.find(p => POWERS[p].illusion && !POWERS[p].signature) || h.powers.find(p => POWERS[p].illusion);
     const ratio = Math.max(...h.powers.map(p => (POWERS[p] && POWERS[p].illusionRatio) || 0)) || 0.5; const pRatio = h.powers.find(p => POWERS[p].illusionRatio === ratio && !POWERS[p].signature) || pw;
     const needsEmpty = h.powers.some(p => POWERS[p] && POWERS[p].illusion && POWERS[p].illusionNeedsEmpty);
@@ -3228,7 +3246,7 @@ function computeCall(camp, S, call, assigned, opt, xo) {
     if (rr && per[i + 1] && (!needsEmpty || emptyCount > 1)) { const rp = h.powers.find(p => POWERS[p].illusionRight); const il2 = { by: h.id, from: heroes[i + 1].id, side: 'right', ratio: rr, power: rp, stats: per[i + 1].map(v => v * rr) }; illusions.push(il2); il2.stats.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: rp, kind: 'illusion', delta: il2.stats.slice(), from: il2.from, ratio: rr, side: 'right' }); } });
   const illusion = illusions[0] || null;
   // v1.12 Spread Thin: each empty slot +25% up to +100% of his stats when beneficial
-  { const empty = Math.max(0, assigned.length - ids.length); heroes.forEach((h, i) => { const sp = h && powerProp(h, 'spread'); if (sp && empty) { const eUse = Math.min(empty, Math.floor((CONFIG.spreadMaxMult || 1) / sp + 1e-9)); const d = per[i].map(v => v * sp * eUse); d.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].spread), kind: 'spread', delta: d, empty: eUse }); } }); }
+  { const empty = v148('squeeze') ? assigned.filter((id, i) => !id && !isSqueezeIdx(call, i)).length : Math.max(0, assigned.length - ids.length); heroes.forEach((h, i) => { const sp = h && powerProp(h, 'spread'); if (sp && empty) { const eUse = Math.min(empty, Math.floor((CONFIG.spreadMaxMult || 1) / sp + 1e-9)); const d = per[i].map(v => v * sp * eUse); d.forEach((v, k) => team[k] += v); trace.push({ hero: h.id, power: h.powers.find(p => POWERS[p].spread), kind: 'spread', delta: d, empty: eUse }); } }); }
   const capped = team.map(v => Math.min(CONFIG.teamCap, v));
   const sumReq = req.reduce((a, b) => a + b, 0);
   const perStat = sumReq ? capped.reduce((a, v, i) => a + Math.min(v, req[i]), 0) / sumReq : 0;
@@ -3377,7 +3395,7 @@ function decideLock(camp, S, c) {
   if (!id) { c.lockMissed = c.lockable; return null; }
   const k = c.assigned.indexOf(id); if (k > 0) c.assigned[k] = null;
   const prev = c.assigned[0]; c.autoHero = id; c.assigned[0] = id;
-  if (prev && prev !== id) { const j = c.assigned.findIndex((x, i) => i > 0 && !x); if (j > 0) c.assigned[j] = prev; else if (c.volunteer === prev) c.volunteer = null; }
+  if (prev && prev !== id) { const j = c.assigned.findIndex((x, i) => i > 0 && !x && !isSqueezeIdx(c, i)); if (j > 0) c.assigned[j] = prev; else if (c.volunteer === prev) c.volunteer = null; }
   Bus.emit('lockPicked', { call: c, hero: id }); return id; }
 function lockWillFree(camp, S) { return (camp.roster || []).some(id => { const h = camp.heroes[id]; return h && id !== 'comptroller' && id !== 'solstice' && h.state !== 'downed'; }); }
 function checkLocks(camp, S) { // safety net: a lock whose hero stopped being usable is released (story calls hand over to a free hero)
@@ -3407,6 +3425,7 @@ function workTimeFor(camp, call, ids) {
   return w;
 }
 function dispatch(camp, S, call) {
+  if (v148('squeeze') && call.assigned && !call.hardFire && (call.slots || 0) < 4 && call.assigned.length === (call.slots || 0) + 1) call.assigned.forEach((id, i) => { if (id && isSqueezeIdx(call, i) && !(camp.heroes[id] && hasPower(camp.heroes[id], 'extraSlot'))) { call.assigned[i] = null; if (call.volunteer === id) call.volunteer = null; } }); // v1.48.0 safety net: only Knuckles (Squeeze In) may be in the Squeeze slot
   let ids = call.assigned.filter(Boolean); if (!ids.length) return false;
   if (call.hardFire && ids.length > 1) return false; // v1.43.1: a Hard fire/riot takes exactly one hero
   if (!ids.every(id => canDispatchHero(camp, id))) return false;
@@ -3934,7 +3953,7 @@ function aiStep(camp, S, opts) {
     const timeLeft = c.expiresAt - S.t;
     if (r.info.chance < 0.45 && timeLeft > 8) continue;
     if (!r.assigned.some(Boolean)) continue;
-    if (c.requestHero && !r.assigned.includes(c.requestHero) && canDispatchHero(camp, c.requestHero) && !heroLockCall(camp, S, c.requestHero, c)) { const i = r.assigned.indexOf(null); if (i >= 0) r.assigned[i] = c.requestHero; }
+    if (c.requestHero && !r.assigned.includes(c.requestHero) && canDispatchHero(camp, c.requestHero) && !heroLockCall(camp, S, c.requestHero, c)) { const i = r.assigned.findIndex((x, k) => !x && !isSqueezeIdx(c, k)); if (i >= 0) r.assigned[i] = c.requestHero; }
     c.assigned = r.assigned; if (dispatch(camp, S, c)) acts.push(['dispatch', c]);
   }
   for (const id of camp.roster) { const h = camp.heroes[id]; if (h.state === 'downed' && toolUnlocked(camp, 'jump')) useTool(camp, S, 'jump', id); if (h.injuries && h.state === 'available' && toolUnlocked(camp, 'medkit')) useTool(camp, S, 'medkit', id); }
@@ -5072,9 +5091,9 @@ function openBriefing(c) {
       let baseTeam = null; for (const id of c.assigned.filter(Boolean)) { const hh = camp.heroes[id], v = injuryView(camp, hh); if (!v.injured || info.healed.includes(id)) continue;
         if (v.penalty) { baseTeam = baseTeam || info.team.slice(); v.base.forEach((b, k) => baseTeam[k] += b - v.cur[k]); }
         links += `<div class="note warn inj-warn">⚠ ${esc(hh.codename)} is injured${v.penalty ? ' (−1 all)' : ' (no penalty)'}.${v.noDown ? '' : ' Another injury will down them.'}</div>`; }
-      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); if (!id) { const ghost = emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
+      const slots = c.assigned.map((id, i) => { const excl = isExclusiveSqueezeSlot(camp, c, i); const sq148 = excl && v148('squeeze'); if (!id) { const ghost = sq148 ? '' : emptySlotGhostHTML(camp, c.assigned, i, sel === i); if (ghost) return ghost; return `<div class="slot ${sel === i ? 'sel' : ''} ${excl ? 'squeeze' : ''}${sq148 ? ' sq148' : ''}" data-slot="${i}"><div style="font-size:22px">＋</div>${excl ? 'Squeeze' : 'Slot ' + (i + 1)}</div>`; } const hh = camp.heroes[id]; const st = info.per[i];
         const volTag = id === c.volunteer ? `<div class="voltag">💧 Volunteered (${volunteerBoostText(hh, c)}) — tap to remove</div>` : '';
-        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
+        return `<div class="slot full ${id === c.autoHero ? 'lock' : ''} ${id === c.volunteer ? 'vol' : ''}${sq148 ? ' squeeze sq148' : ''}" data-slot="${i}" style="border-color:${hh.color}"><span class="x">✕</span><button class="hinfo inslot" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button><div class="e">${hh.emoji}</div><div class="n">${esc(hh.codename)}</div><div style="font:10px ui-monospace,monospace">${st ? st.join('·') : (info.sabotage && info.sabotage.hero === id ? '🗡 will be pulled off' : '')}</div>${volTag}<div class="xpest">${info.forced ? '<span class="bad">FAIL · 0 XP</span>' : est[id] ? (est[id].maxed ? 'MAX · XP wasted' : '≈' + est[id].gain + (showOdds || xpFixed ? '' : '+') + ' XP' + (pm[id] > 0 ? ' 😊' : pm[id] < 0 ? ' 😠' : '')) : ''}</div></div>`; }).join('');
       const tray = camp.roster.map((id, i) => { const hh = camp.heroes[id]; const used = c.assigned.includes(id); const tb = trainingBlockText(camp, c, id); const lk = canDispatchHero(camp, id) ? heroLockCall(camp, S, id, c) : null; const ok = canDispatchHero(camp, id) && !lk && !(tpl.banned && tpl.banned[id]) && !tb; const tbIcon = tpl.training && tpl.training.kind === 'route' ? '🛣' : '🎓';
         return `<span class="chipwrap"><button class="chip ${afList(tpl).some(x => x.heroId === id) ? 'afrisk' : ''} ${used ? 'used' : ''} ${c.requestHero === id ? 'req' : ''} ${hh.state === 'downed' ? 'ko' : hh.injuries ? 'inj' : ''} ${tb && canDispatchHero(camp, id) ? 'noreq' : ''}" data-hero="${id}" ${tb && canDispatchHero(camp, id) && !used ? `aria-disabled="true" aria-label="${esc(hh.codename)}: can't take this training call (${tb})." title="Can't take this training call (${tb})"` : ok && !used ? '' : 'disabled'} ${tb && canDispatchHero(camp, id) ? '' : lk ? `aria-label="${esc(hh.codename)}: locked onto ${esc(lk.tpl.title)}" title="Locked onto ${esc(lk.tpl.title)}: send them there"` : hh.state === 'downed' ? `aria-label="${esc(hh.codename)}: downed, can't be sent until revived or next shift" title="Downed: can't be sent until revived or next shift"` : hh.injuries ? `aria-label="${esc(hh.codename)}: injured, minus 1 all stats"` : ''} style="border-color:${ok ? hh.color + '88' : ''}"><span class="e">${hh.emoji}</span><span class="n">${hotkeyLabel(i)}·${esc(hh.codename)}</span>${tb && canDispatchHero(camp, id) ? `<small class="tbr">${tbIcon} ${tb}</small>` : `${lk ? `<small class="tbr">🔒 Locked</small>` : `<small style="color:${STATE_COL[hh.state]}">${hh.state === 'downed' ? '✚ DOWNED' : (hh.injuries ? '🩹 −1 · ' : '') + stateLabel(hh)}</small>`}`}</button><button class="hinfo" data-info="${id}" aria-label="Hero info: ${esc(hh.codename)}" title="Hero info">i</button></span>`; }).join('');
       const any = c.assigned.some(Boolean); const pv = any ? powerPreview(camp, S, c, info) : [];
@@ -5123,6 +5142,7 @@ function openBriefing(c) {
       if (c.refuser && id === c.refuser) { sel = null; render(); hardRefuseFx(m, c, id); return; } // v1.41.0 Hard Shift 2: buzz, shake, back to the roster (this briefing only)
       ensureAssignedSlots(camp, c); const tapAssign = slotIdx === null || slotIdx === undefined;
       let i = !tapAssign ? slotIdx : (sel !== null && !c.assigned[sel] ? sel : c.assigned.indexOf(null));
+      if (tapAssign && v148('squeeze') && !(sel !== null && !c.assigned[sel]) && camp.heroes[id] && hasPower(camp.heroes[id], 'extraSlot')) { const q = c.assigned.findIndex((x, k) => !x && isExclusiveSqueezeSlot(camp, c, k)); if (q >= 0) i = q; } // v1.48.0 Q8: a tap puts Knuckles in his Squeeze slot first
       if (i < 0 || i >= c.assigned.length) { if (tapAssign) cueFull(); return; }
       if (!canFillSlot(camp, c, id, i)) { toast('That slot is exclusive (Squeeze In).'); return; }
       if (c.assigned[i] === c.autoHero && c.autoHero) return;
@@ -5705,7 +5725,7 @@ function helpHTML() { const C = CONFIG, T = C.trainingAfterShifts, n = v => v.to
     `XP raises a hero's level: LV 2 at ${n(C.xpFirstPoint)} XP, LV 3 at ${n(C.xpFirstPoint + C.xpPointStep)}, LV 4 at ${n(C.xpFirstPoint + 2 * C.xpPointStep)}, and so on up to LV ${C.levelCap}. Each level gives a skill point: pick a stat for +1, or tap DECIDE LATER and spend it later from the hero card.`,
     `⚡ <b>Base power:</b> every hero has one. It shows ??? until it first works.`,
     `🎓 <b>LV ${C.trainLevel} power choice:</b> pick one of two new powers at Training Day. ${ST} A 🎓 training call can also teach it on the spot. It's permanent, and the base power must be revealed first.`,
-    `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one. It shows at the top of the level-up card the first time it's available (the LV ${C.signatureLevel} card, or the next level-up after training if that comes later), and stays on the hero card.`]) +
+    `✦ <b>LV ${C.signatureLevel} base power upgrade (Mk II):</b> optional, for heroes who trained. It replaces the base power with a stronger one. It shows at the top of the level-up card the first time it's available (the LV ${C.signatureLevel} card, or the next level-up after training if that comes later), and stays on the hero card.`].concat(v148('squeeze') ? [`🥊 <b>Squeeze In</b> (Knuckles McGee): on calls with fewer than 4 slots he gets a smaller extra slot that only he can fill. It never counts as an empty slot for other powers and gives no slot bonus.`] : [])) +
   sec('⌘ Special calls', [
     `<b>Hack calls:</b> you solve a maze on the console. D-pad or swipe to move, ACT on nodes, HOLD at the exit.${v147('arrowDpad') ? ' ⚒ Bridge nodes, ⇄ arrow locks and 🔒 number locks show their code and CANCEL in the bar above the map; type arrows with the d-pad or swipes (one tap = one arrow). An arrow lock opens only after you read its code.' : ''} You have ${C.hack.lives} lives (♥). Getting caught or using REBOOT costs one. ${RN} From Shift 1 (the first is practice). ${ST} From Shift 2.`,
     `<b>✋ Disruptions:</b> mid-job, the radio asks you to pick an answer fast. Each answer tests one team stat; ⭐ answers are usually best.`,
