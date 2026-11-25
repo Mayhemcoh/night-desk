@@ -773,6 +773,19 @@ html.hard-grey #game,html.hard-grey #modal,html.hard-grey #lvlBanner,html.hard-g
 .hemo.hlost{opacity:.3;filter:grayscale(1)}
 #hReboot b .hemo{font-size:.9em}
 @media (orientation:landscape){#hack.hud149{gap:4px}#hack.hud149 .hhud-tools{height:28px;min-height:28px;max-height:28px}} /* v1.49.0: sideways the counter row fits on a 390-tall screen (it overflowed by a few px in v1.48.0) */
+/* v1.50.0 Settings screen + slim title (CONFIG.v150.settings) */
+.nc-seed-row{display:flex;gap:8px;align-items:center}.nc-seed-row input.seed{flex:1;min-width:0}.nc-seed-row .btn{flex:0 0 auto;min-height:44px}
+.scr.settings150 .set-logo{font-size:28px;margin-top:2vh}
+.set-pick .btn{flex:0 0 auto;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.set-sec .tglrow:last-child{border-bottom:0}
+.set-about{margin-top:8px}.set-small{font-size:12px;color:var(--dim);margin:6px 0 0}
+@media (orientation:landscape) and (max-height:560px){
+ .scr.title150{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-content:start}
+ .scr.title150>*{grid-column:1/-1}
+ .scr.title150>.btn[data-a=cont],.scr.title150>.btn[data-a=new],.scr.title150>.btn[data-a=infcont],.scr.title150>.btn[data-a=inf]{grid-column:auto}
+ .scr.title150.t150-nosave>.btn[data-a=new],.scr.title150.t150-noinfcp>.btn[data-a=inf]{grid-column:1/-1}
+ .scr.title150 .logo{font-size:44px;margin-top:0}
+}
 
 /* ================= v1.9.0 LOOKS (visual only) ================= */
 @font-face{font-family:"ND Bangers";src:url(fonts/bangers.woff2) format("woff2");font-display:swap}
@@ -1125,7 +1138,7 @@ html[data-look] .note.instafail-note.if-notice{background:#d0102a!important;colo
   <canvas id="fx"></canvas>
 </div>
 <div id="ariaLive" class="sr-only" aria-live="polite"></div>
-<script>window.ND_VERSION='nd-v1.49.0';
+<script>window.ND_VERSION='nd-v1.50.0';
 'use strict';
 /* ================= NIGHT DESK : CONFIG (every tunable number lives here) ================= */
 const CONFIG = {
@@ -1219,6 +1232,7 @@ const CONFIG = {
   // s8Drain: Hard Shift 8 fire drain per GAME minute (1 unattended, 1 per 4 with a hero travelling / on scene). solstice: Shift 8-only fail counts.
   // fireArt: layered animated flames (Hard S7/S8), still only with the in-game Reduce effects switch.
   v144: { bossPenalty: true, bossTimetable: true, s8Drain: true, solstice: true, fireArt: true },
+  v150: { settings: true }, // v1.50.0 (Craig t227u/t228u): slim title with one SETTINGS button (full-screen Settings, 5 sections), Seed box on the New Campaign screen. Off = v1.49.0 title.
   v149: { hudColor: true }, // v1.49.0 (Craig t222u-t226u): one hacking counter everywhere in the Kill Switch style: colour emoji ⚡ ⛏️ 🗝️, 📁x/y instead of FILES, red ❤️ hearts (lost = same heart dimmed grey), ❤️∞ unlimited, REBOOT −1❤️; off = v1.48.0
   v148: { squeeze: true }, // v1.48.0 (Craig t220u/t221u): Knuckles' Squeeze In slot is his alone: never an empty slot for other powers, no ghosts, no slot bonus, only he can fill it by any route, drawn 70% size
   v147: { arrowDpad: true, keypadFit: true }, // v1.47.0 (Craig t217u-t219u): ⇄ arrow locks typed on the d-pad/swipes like ⚒ bridge nodes, one shared entry bar (code + CANCEL) for bridges/arrow/number locks, one tap/swipe = one arrow, ACT inert while typing, no arrow guessing before the ⌨ terminal; number keypad sized to fit
@@ -6001,7 +6015,8 @@ function hardRefuseFx(m, c, id) { const hh = UI.camp.heroes[id]; if (!hh) return
 function showScreen(html, after) { UI.screen = 'menu'; if (typeof hardGreyApply === 'function') hardGreyApply(); { const hc = $('hardCard'); if (hc) hc.classList.add('hidden'); const hr = $('hardRush'); if (hr) hr.classList.add('hidden'); if ($('hardStorm') && typeof hardStormHide === 'function') hardStormHide(); } // v1.41.0: summary / briefing screens stay in color; the outage card never outlives its shift
   $('game').classList.add('hidden'); const s = $('screen'); s.classList.remove('hidden'); s.innerHTML = `<div class="scr">${html}</div>`; s.scrollTop = 0; if (after) after(s); }
 function showTitle() { UI.inSetup = true;
-  const save = loadCamp(); UI.S = null; if (typeof mapStyleForce === 'function') mapStyleForce(null); if (UI.camp && UI.camp.inf) UI.camp = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null;
+  const save = loadCamp(); UI.S = null; if (typeof mapStyleForce === 'function') mapStyleForce(null); if (UI.camp && UI.camp.inf) UI.camp = null; closeModal(); $('hack').classList.add('hidden'); UI.hack = null; UI.settingsOpen = false;
+  if (typeof v150 === 'function' && v150('settings')) return showTitle150(save);
   showScreen(`<div class="logo">NIGHT<span>DESK</span></div><div class="tag">Dispatch reformed ex-villains. Save the city. Survive the shift.</div>
    ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span> · <span class="cont-callmode">${callModeIcon(save.missionSet)} ${callModeLabel(save.missionSet)}</span>${save.difficulty && normDifficulty(save.difficulty) !== 'normal' ? ` · <span class="cont-diff">${CONFIG.difficulties[normDifficulty(save.difficulty)].icon} ${CONFIG.difficulties[normDifficulty(save.difficulty)].label}</span>` : ''}</button>` : ''}
    <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
@@ -6052,13 +6067,13 @@ function showNewCampaign(seed, mode, hadSave) {
   const modes = `<div class="mode-row">${Object.entries(CAMPAIGN_MODES).map(([k, d]) => `<button class="mode-btn ${k === mode ? 'on' : ''}" data-mode="${k}" aria-pressed="${k === mode}"><span class="mi">${d.icon}</span><b>${d.label}</b><small>${d.desc}</small></button>`).join('')}</div>`;
   if (mode === 'selection') { const n = (UI.selPicks || []).length;
     showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">NEW CAMPAIGN</div>${modes}
-      <div class="card"><h3>🧩 Hero Selection</h3><p class="txt">Browse all ${HERO_DEFS.length} heroes and build your own crew of exactly 8. Your first 5 start; slot 6 joins on shift 2, slots 7–8 on shift 4. No balance rules: warnings are advice only.</p>${n ? `<p class="txt"><b>${n} / 8</b> picked so far.</p>` : ''}</div>
+      <div class="card"><h3>🧩 Hero Selection</h3><p class="txt">Browse all ${HERO_DEFS.length} heroes and build your own crew of exactly 8. Your first 5 start; slot 6 joins on shift 2, slots 7–8 on shift 4. No balance rules: warnings are advice only.</p>${n ? `<p class="txt"><b>${n} / 8</b> picked so far.</p>` : ''}</div>${v150('settings') ? ncSeedHTML(seed) : ''}
       <button class="btn pri" data-a="choose">CHOOSE YOUR 8 →</button><button class="btn ghost" data-a="title">BACK</button>`, s => bindNC(s));
   } else { const classic = mode === 'classic'; const pool = classic ? LEGACY_POOL.slice() : pickRoster(seed); const chk = rosterCheck(pool);
     const best = [0, 1, 2, 3, 4].map(j => pool.map(heroDef).sort((a, b) => b.stats[j] - a.stats[j])[0]);
     showScreen(`<div class="logo" style="font-size:28px;margin-top:2vh">YOUR NIGHT CREW</div>${modes}<p class="tag">${classic ? 'The Original Crew, as in earlier versions.' : `8 of ${HERO_DEFS.length} heroes, drafted with seed ${seed}.`} Five start tonight, one joins on shift 2 and two on shift 4.</p>
     <div class="cx-cover">${STATS.map((s, j) => `<div style="--c:${STAT_COLORS[s]}"><b>${STAT_NAMES[s]}</b><span>${chk.totals[j]}</span><small>${best[j].emoji} ${esc(best[j].codename)} ${best[j].stats[j]}</small></div>`).join('')}</div>
-    ${classic ? '' : `<div class="row"><button class="btn" data-a="reroll">🎲 REROLL</button></div>`}
+    ${classic ? '' : `<div class="row"><button class="btn" data-a="reroll">🎲 REROLL</button></div>`}${v150('settings') ? ncSeedHTML(seed) : ''}
     ${diffToggleHTML(pool)}${startModeButtons(false)}<button class="btn ghost" data-a="title">BACK</button>
     <div class="nc-grid">${pool.map(id => heroCardHTML(heroDef(id), { cls: 'nc' })).join('')}</div>
     ${chk.pairs ? `<div class="note good">🔗 ${SYNERGY_PAIRS.filter(([a, b]) => pool.includes(a) && pool.includes(b)).map(([a, b]) => heroDef(a).codename + ' + ' + heroDef(b).codename).join(' · ')}</div>` : ''}`, s => {
@@ -6069,7 +6084,7 @@ function showNewCampaign(seed, mode, hadSave) {
       s.querySelector('[data-a=start-story]').onclick = () => boot('v1.8');
       s.querySelector('[data-a=start-random]').onclick = () => boot('legacy'); });
     UI.ncPool = pool; }
-  function bindNC(s) { s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showNewCampaign(seed, b.dataset.mode, hadSave); });
+  function bindNC(s) { if (v150('settings')) bindNcSeed(s, mode, hadSave); s.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { Sfx.click(); showNewCampaign(seed, b.dataset.mode, hadSave); });
     s.querySelector('[data-a=title]').onclick = showTitle; const ch = s.querySelector('[data-a=choose]'); if (ch) ch.onclick = () => { Sfx.click(); showHeroSelect(seed, hadSave); }; }
   UI.ncSeed = seed;
 }
@@ -7032,5 +7047,66 @@ function openCredits() {
      <p class="txt">${esc(String(window.ND_VERSION || '').replace(/^nd-/, ''))}</p>`, '<button class="btn pri" data-a="done">DONE</button>');
     P.F.querySelector('[data-a=done]').onclick = closeModal; });
 }
+
+/* v1.50.0 (Craig t227u/t228u): one SETTINGS button on the title. The slim title keeps CONTINUE, NEW CAMPAIGN, Infinite Shift, HEROES + SETTINGS
+   and a small version label. Settings is a full screen with BACK and 5 sections: Sound & music, Look & map, Gameplay & accessibility, Help, About.
+   The Seed box moves to the New Campaign screen. The pause menu is unchanged. Developer tools never appear here. Internal switch: CONFIG.v150.settings. */
+function v150(k) { return !!(CONFIG.v150 && CONFIG.v150[k]); }
+function showTitle150(save) {
+  showScreen(`<div class="logo">NIGHT<span>DESK</span></div><div class="tag">Dispatch reformed ex-villains. Save the city. Survive the shift.</div>
+   ${save ? `<button class="btn pri" data-a="cont">CONTINUE · SHIFT ${Math.min(save.shiftIdx + 1, CONFIG.campaignShifts)} · <span class="cont-mode">${modeLabel(save.mode)}</span> · <span class="cont-callmode">${callModeIcon(save.missionSet)} ${callModeLabel(save.missionSet)}</span>${save.difficulty && normDifficulty(save.difficulty) !== 'normal' ? ` · <span class="cont-diff">${CONFIG.difficulties[normDifficulty(save.difficulty)].icon} ${CONFIG.difficulties[normDifficulty(save.difficulty)].label}</span>` : ''}</button>` : ''}
+   <button class="btn ${save ? '' : 'pri'}" data-a="new">NEW CAMPAIGN</button>
+   ${typeof infTitleHTML === 'function' ? infTitleHTML() : ''}
+   <div class="row title150-row"><button class="btn" data-a="codex">🦸 HEROES</button><button class="btn" data-a="settings">⚙️ SETTINGS</button></div>
+   ${UI.saveError ? `<div class="note warn">⚠ Your saved campaign could not be read, so it was set aside (a copy is kept). Start a new campaign.</div>` : UI.migrated ? `<div class="note good">✔ Your save was upgraded to v1.5 (backup saved). Your crew and progress are kept. New campaigns can now be Hero Selection, Random Heroes or Original Crew.</div>` : ''}
+   <div class="verrow"><div class="tag ver" id="verLbl">Version ${esc(ndVersionLabel())}</div></div>`, s => {
+    s.firstElementChild.classList.add('title150'); s.firstElementChild.classList.toggle('t150-nosave', !save); s.firstElementChild.classList.toggle('t150-noinfcp', !s.querySelector('[data-a=infcont]'));
+    const c = s.querySelector('[data-a=cont]'); if (c) c.onclick = () => { Sfx.init(); UI.camp = save; routeCamp(); };
+    s.querySelector('[data-a=new]').onclick = () => { Sfx.init(); showNewCampaign((Math.random() * 1e9) >>> 0, false, !!save); };
+    if (typeof infTitleBind === 'function') infTitleBind(s);
+    s.querySelector('[data-a=codex]').onclick = () => { Sfx.init(); Sfx.click(); openCodex(); };
+    s.querySelector('[data-a=settings]').onclick = () => { Sfx.init(); Sfx.click(); showSettings(); };
+  });
+}
+function settingsPick(label, a, val, aria) { return `<div class="tglrow set-pick"><span>${label}</span><button class="btn small" data-a="${a}" aria-label="${aria}">${esc(val)} ›</button></div>`; }
+function showSettings(keepScroll) {
+  const sc = keepScroll ? $('screen').scrollTop : 0; UI.inSetup = true; UI.settingsOpen = true;
+  const lookName = (LOOKS.find(l => l.id === LookState.look) || LOOKS[0]).name, mapName = (MAP_STYLES.find(m => m.id === MapStyle.id) || MAP_STYLES[0]).name, mv = Music.vol;
+  showScreen(`<div class="logo set-logo">⚙️ SETTINGS</div>
+   <div class="card set-sec" data-sec="sound"><h3>🔊 Sound &amp; music</h3>${togRow('sound', '🔊 Sound effects', UI.settings.sound)}
+    <div class="mus-vol set-vol"><label for="setMusVol">🎵 Music volume: <b id="setMusVolV">${mv ? mv : 'Off'}</b></label><input type="range" id="setMusVol" min="0" max="100" step="5" value="${mv}" aria-label="Music volume"${Music.available() ? '' : ' disabled'}></div>
+    ${settingsPick('🎵 Music tracks', 'music', 'Choose', 'Choose music tracks')}</div>
+   <div class="card set-sec" data-sec="look"><h3>🎨 Look &amp; map</h3>${settingsPick('🎨 Look', 'look', lookName, 'Change look, now ' + lookName)}${settingsPick('🗺 City map', 'map', mapName, 'Change city map, now ' + mapName)}${togRow('reduceFx', '🧘 Reduce effects (no animation, rain or scanlines)', LookState.reduceEffects)}</div>
+   <div class="card set-sec" data-sec="play"><h3>🎮 Gameplay &amp; accessibility</h3>${togRow('unlimitedHack', '♾ Unlimited hacking attempts', UI.settings.unlimitedHack)}${togRow('hardGreyHack', '💀 Hard: greyscale on hacking consoles', UI.settings.hardGreyHack !== false)}${togRow('haptics', '📳 Vibration', UI.settings.haptics !== false)}</div>
+   <div class="card set-sec" data-sec="help"><h3>❓ Help</h3><div class="row"><button class="btn" data-a="help">HOW TO PLAY</button></div></div>
+   <div class="card set-sec" data-sec="about"><h3>ℹ️ About</h3><div class="tglrow"><span id="setVerLbl">Night Desk ${esc(ndVersionLabel())} · works offline</span></div>
+    <div class="row set-about"><button class="btn small ghost" data-a="credits">CREDITS</button><button class="btn small ghost hidden" data-a="install">📲 INSTALL APP</button></div>
+    <p class="txt set-small">An original game. All characters are fictional.</p></div>
+   <button class="btn ghost" data-a="back">BACK</button>`, s => {
+    s.firstElementChild.classList.add('settings150');
+    const reopen = () => { if (UI.settingsOpen && UI.screen === 'menu' && $('screen').querySelector('.settings150')) showSettings(true); };
+    const sub = open => { Sfx.init(); Sfx.click(); open(); const m = UI.modals[0]; if (m) { const prev = m.onClose; m.onClose = () => { if (prev) prev(); setTimeout(reopen, 0); }; } };
+    s.querySelector('[data-a=music]').onclick = () => sub(() => openMusic());
+    s.querySelector('[data-a=look]').onclick = () => sub(() => openLooks());
+    s.querySelector('[data-a=map]').onclick = () => sub(() => openMapStyle());
+    s.querySelector('[data-a=credits]').onclick = () => sub(() => openCredits());
+    s.querySelector('[data-a=help]').onclick = () => { Sfx.init(); Sfx.click(); openModal('help', m => { const P = sheetParts(m, '<h2>How to play</h2>', helpHTML(), '<button class="btn pri">GOT IT</button>'); P.F.querySelector('button').onclick = closeModal; }); };
+    const vi = s.querySelector('#setMusVol'); vi.oninput = () => { Music.unlock(); Music.vol = +vi.value; s.querySelector('#setMusVolV').textContent = Music.vol ? Music.vol : 'Off'; Music._t = 0; Music.save(); };
+    s.querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { const k = b.dataset.tg; let on;
+      if (k === 'reduceFx') { applyLook(undefined, !LookState.reduceEffects); lookSave(); on = LookState.reduceEffects; }
+      else if (k === 'hardGreyHack') { UI.settings.hardGreyHack = UI.settings.hardGreyHack === false; saveSettings(); if (typeof hardGreyApply === 'function') hardGreyApply(); on = UI.settings.hardGreyHack; }
+      else if (k === 'haptics') { UI.settings.haptics = UI.settings.haptics === false; saveSettings(); on = UI.settings.haptics; }
+      else { UI.settings[k] = !UI.settings[k]; if (k === 'sound') Sfx.on = UI.settings.sound; saveSettings(); on = UI.settings[k]; }
+      try { Sfx.click(); } catch (e) { } b.classList.toggle('on', !!on); });
+    const ib = s.querySelector('[data-a=install]'); if (window._deferredInstall) { ib.classList.remove('hidden'); ib.onclick = () => { window._deferredInstall.prompt(); window._deferredInstall = null; ib.classList.add('hidden'); }; }
+    s.querySelector('[data-a=back]').onclick = () => { Sfx.click(); UI.settingsOpen = false; showTitle(); };
+    if (sc) $('screen').scrollTop = sc;
+  });
+}
+/* Seed box on the New Campaign screen (was on the title) */
+function ncSeedHTML(seed) { return `<div class="card nc-seed"><h3>Seed (optional) <small class="seed-hint" style="color:var(--dim);font-weight:400">· this crew: ${seed}</small></h3><div class="nc-seed-row"><input class="seed" inputmode="numeric" placeholder="type a seed" id="seedIn" aria-label="Campaign seed"><button class="btn small" data-a="seedgo">USE SEED</button></div></div>`; }
+function bindNcSeed(s, mode, hadSave) { const i = s.querySelector('#seedIn'), b = s.querySelector('[data-a=seedgo]'); if (!i || !b) return;
+  const go = () => { const v = parseInt(i.value, 10); if (isNaN(v)) { i.focus(); return; } Sfx.click(); showNewCampaign(v, mode, hadSave); };
+  b.onclick = go; i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; }
 
 </script></body></html>
